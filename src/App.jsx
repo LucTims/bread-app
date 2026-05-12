@@ -38,7 +38,9 @@ function ProtectedRoute({ children }) {
   }
   
   if (!user) {
-    return <Navigate to="/login" replace />;
+    // Save the current location so we can redirect back after login
+    const currentPath = window.location.pathname;
+    return <Navigate to={`/login?redirect=${encodeURIComponent(currentPath)}`} replace />;
   }
 
   // If offline and trying to access pages other than Library or Reader, show OfflineStatus
@@ -133,6 +135,13 @@ function App() {
           } />
 
           <Route path="/reader/:bookId" element={
+            <ProtectedRoute>
+              <Reader />
+            </ProtectedRoute>
+          } />
+
+          {/* Nouvelle route demandée par BoomBooks pour la redirection automatique */}
+          <Route path="/read/:bookId" element={
             <ProtectedRoute>
               <Reader />
             </ProtectedRoute>

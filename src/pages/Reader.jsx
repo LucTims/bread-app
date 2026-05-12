@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
-import { getOfflineBook, getBookMeta, saveReadingProgress, getReadingProgress } from '../lib/offlineStore';
+import { getOfflineBook, getBookMeta, saveReadingProgress, getReadingProgress, saveBookOffline } from '../lib/offlineStore';
 import { supabase } from '../lib/supabase';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -49,24 +49,58 @@ export default function Reader() {
                 setPdfFile(offlinePdfBlob);
                 setBookMeta(offlineMeta);
             } else {
-                // 2. Fallback: Charger depuis le réseau si non téléchargé
+                // 2. Fallback: Vérifier les droits, télécharger et sauvegarder en hors-ligne
                 if (!navigator.onLine) {
                     throw new Error("Ce livre n'est pas téléchargé et vous n'avez pas de connexion Internet.");
                 }
 
-                const { data: book } = await supabase.from('books').select('title, file_url').eq('id', bookId).single();
+                // Vérification de l'accès (orders ou user_book_access)
+                const { data: access } = await supabase
+                    .from('user_book_access')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .eq('book_id', bookId)
+                    .single();
+
+                let hasAccess = !!access;
+
+                if (!hasAccess) {
+                    const { data: orders } = await supabase
+                        .from('orders')
+                        .select('id, order_items(book_id)')
+                        .eq('user_id', user.id)
+                        .eq('status', 'paid');
+                    
+                    hasAccess = orders?.some(o => o.order_items?.some(oi => oi.book_id === bookId));
+                }
+
+                if (!hasAccess) {
+                    throw new Error("Accès non autorisé. Vous n'avez pas acheté ce livre.");
+                }
+
+                // Récupérer les infos du livre
+                const { data: book } = await supabase.from('books').select('*').eq('id', bookId).single();
                 if (!book) throw new Error('Livre introuvable.');
 
                 setBookMeta({ title: book.title });
 
+                // Télécharger le PDF complet depuis Supabase Storage
                 const filePath = book.file_url || `pdfs/${bookId}.pdf`;
-                const { data: signed, error: signErr } = await supabase.storage.from('books').createSignedUrl(filePath, 7200);
+                const { data: blob, error: downloadErr } = await supabase.storage.from('books').download(filePath);
                 
-                if (signErr || !signed?.signedUrl) {
-                    throw new Error("Impossible de sécuriser l'accès au fichier.");
+                if (downloadErr || !blob) {
+                    throw new Error("Impossible de télécharger le fichier PDF.");
                 }
 
-                setPdfFile(signed.signedUrl);
+                // Sauvegarder automatiquement en local (IndexedDB)
+                await saveBookOffline(bookId, blob, { 
+                    title: book.title, 
+                    author: book.author, 
+                    cover_url: book.cover_url 
+                });
+
+                // Utiliser le blob téléchargé
+                setPdfFile(blob);
             }
 
             // Restore reading progress

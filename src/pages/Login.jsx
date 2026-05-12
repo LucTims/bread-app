@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 
 export default function Login() {
@@ -11,7 +11,12 @@ export default function Login() {
     const { signIn, user } = useAuth();
     const navigate = useNavigate();
 
-    useEffect(() => { if (user) navigate('/'); }, [user, navigate]);
+    const location = useLocation();
+    
+    // Extraire le paramètre de redirection
+    const redirectUrl = new URLSearchParams(location.search).get('redirect') || '/';
+
+    useEffect(() => { if (user) navigate(redirectUrl); }, [user, navigate, redirectUrl]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -19,7 +24,7 @@ export default function Login() {
         setLoading(true);
         const { error } = await signIn(email, password);
         if (error) { setError(error.message); setLoading(false); }
-        else navigate('/');
+        else navigate(redirectUrl);
     };
 
     if (view === 'welcome') {
