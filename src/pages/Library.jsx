@@ -151,7 +151,7 @@ export default function Home() {
                             const isDownloading = downloading === b.id;
 
                             return (
-                                <div key={b.id} className="book-card" onClick={() => isOffline ? navigate(`/reader/${b.id}`) : null}>
+                                <div key={b.id} className="book-card" onClick={() => navigate(`/read/${b.id}`)}>
                                     <div className="book-cover-wrap" style={{ background: getBookGradient(b.id) }}>
                                         {b.cover_url && <img src={b.cover_url} alt={b.title} />}
                                         {isOffline && (
@@ -176,7 +176,7 @@ export default function Home() {
                                         </div>
                                     ) : isOffline ? (
                                         <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
-                                            <button onClick={(e) => { e.stopPropagation(); navigate(`/reader/${b.id}`); }} className="btn btn-primary btn-sm" style={{ flex: 1, fontSize: 11 }}>
+                                            <button onClick={(e) => { e.stopPropagation(); navigate(`/read/${b.id}`); }} className="btn btn-primary btn-sm" style={{ flex: 1, fontSize: 11 }}>
                                                 <span className="material-symbols-outlined" style={{ fontSize: 14 }}>menu_book</span> Lire
                                             </button>
                                             <button onClick={(e) => { e.stopPropagation(); handleRemove(b.id); }} className="btn btn-ghost btn-sm" style={{ padding: '6px 8px' }}>
@@ -184,8 +184,8 @@ export default function Home() {
                                             </button>
                                         </div>
                                     ) : (
-                                        <button onClick={(e) => { e.stopPropagation(); handleDownload(b); }} className="btn btn-outline btn-sm btn-block" style={{ marginTop: 8, fontSize: 11 }}>
-                                            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>download</span> Télécharger
+                                        <button onClick={(e) => { e.stopPropagation(); navigate(`/read/${b.id}`); }} className="btn btn-outline btn-sm btn-block" style={{ marginTop: 8, fontSize: 11 }}>
+                                            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>menu_book</span> Lire
                                         </button>
                                     )}
                                 </div>
