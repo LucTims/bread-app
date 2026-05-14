@@ -12,14 +12,19 @@ export default function Profile() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 'var(--space-8)', marginTop: 'var(--space-4)' }}>
                 <div style={{ position: 'relative', marginBottom: 'var(--space-4)' }}>
                     <div style={{ width: 100, height: 100, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--color-surface)', boxShadow: 'var(--shadow-md)' }}>
-                        <img src="https://i.pravatar.cc/150?img=11" alt="Amara Diallo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div style={{ width: '100%', height: '100%', backgroundColor: 'var(--color-primary)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, fontWeight: 'bold' }}>
+                            {(user?.user_metadata?.full_name || user?.email || 'U').charAt(0).toUpperCase()}
+                        </div>
                     </div>
                     <button style={{ position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, background: 'var(--color-surface)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--color-border)' }}>
                         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit</span>
                     </button>
                 </div>
                 
-                <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, marginBottom: 8 }}>Amara Diallo</h2>
+                <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, marginBottom: 8, textAlign: 'center' }}>
+                    {user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Utilisateur'}
+                </h2>
+                <p style={{ color: 'var(--color-text-muted)', marginBottom: 12 }}>{user?.email}</p>
                 <div className="badge" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>
                     <span className="material-symbols-outlined" style={{ fontSize: 14, marginRight: 4 }}>workspace_premium</span>
                     PREMIUM MEMBER

@@ -89,7 +89,7 @@ export default function Reader() {
                 const { data: blob, error: downloadErr } = await supabase.storage.from('books').download(filePath);
                 
                 if (downloadErr || !blob) {
-                    throw new Error("Impossible de télécharger le fichier PDF.");
+                    throw new Error("Le fichier PDF n'est pas encore disponible sur nos serveurs. Veuillez réessayer plus tard.");
                 }
 
                 // Sauvegarder automatiquement en local (IndexedDB)

@@ -86,7 +86,7 @@ export default function Home() {
             await refreshOfflineStatus(books);
         } catch (err) {
             console.error('Download failed:', err);
-            alert('Erreur lors du téléchargement. Vérifiez votre connexion.');
+            alert("Le fichier PDF n'est pas encore disponible sur nos serveurs. Veuillez réessayer plus tard.");
         } finally {
             setTimeout(() => { setDownloading(null); setDownloadProgress(0); }, 500);
         }

@@ -1,11 +1,42 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Home() {
     const navigate = useNavigate();
+    const [isInstallable, setIsInstallable] = useState(!!window.deferredPrompt);
+
+    useEffect(() => {
+        const handleInstallable = () => setIsInstallable(true);
+        window.addEventListener('app-installable', handleInstallable);
+        return () => window.removeEventListener('app-installable', handleInstallable);
+    }, []);
+
+    const handleInstallApp = async () => {
+        const promptEvent = window.deferredPrompt;
+        if (!promptEvent) return;
+        promptEvent.prompt();
+        const { outcome } = await promptEvent.userChoice;
+        if (outcome === 'accepted') {
+            setIsInstallable(false);
+            window.deferredPrompt = null;
+        }
+    };
 
     return (
         <div>
+            {/* Install App Banner */}
+            {isInstallable && (
+                <div style={{ background: 'var(--color-primary)', color: '#000', padding: '12px 16px', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-6)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: 'var(--shadow-md)' }}>
+                    <div>
+                        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>Télécharger l'App</h3>
+                        <p style={{ fontSize: 12, opacity: 0.8 }}>Pour lire hors-ligne</p>
+                    </div>
+                    <button onClick={handleInstallApp} style={{ background: '#000', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                        Installer
+                    </button>
+                </div>
+            )}
+
             {/* Search Bar */}
             <div className="search-bar">
                 <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>search</span>
