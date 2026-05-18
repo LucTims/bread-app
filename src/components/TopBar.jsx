@@ -94,13 +94,19 @@ export default function TopBar() {
                     width: 32, 
                     height: 32, 
                     borderRadius: '50%', 
-                    background: 'var(--color-surface)',
+                    background: 'var(--color-primary)',
                     overflow: 'hidden',
                     cursor: 'pointer',
-                    border: '1px solid var(--color-border)'
+                    border: '1px solid var(--color-border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#000',
+                    fontSize: 14,
+                    fontWeight: 700
                 }}
             >
-                <img src="https://i.pravatar.cc/150?img=11" alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                {(user?.user_metadata?.full_name || user?.email || 'U').charAt(0).toUpperCase()}
             </div>
         </header>
     );

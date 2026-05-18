@@ -74,19 +74,36 @@ export default function Home() {
         setDownloading(book.id);
         setDownloadProgress(0);
         try {
-            // Télécharger le PDF depuis Supabase Storage
             const filePath = book.file_url || `pdfs/${book.id}.pdf`;
+            let blob = null;
+
+            // Tentative 1: download direct
+            setDownloadProgress(20);
             const { data, error } = await supabase.storage.from('books').download(filePath);
-            if (error) throw error;
+            if (!error && data) {
+                blob = data;
+            } else {
+                // Tentative 2: signed URL
+                setDownloadProgress(40);
+                const { data: signedData, error: signedErr } = await supabase.storage.from('books').createSignedUrl(filePath, 3600);
+                if (!signedErr && signedData?.signedUrl) {
+                    const response = await fetch(signedData.signedUrl);
+                    if (response.ok) {
+                        blob = await response.blob();
+                    }
+                }
+            }
+
+            if (!blob) throw new Error('PDF non disponible');
 
             setDownloadProgress(80);
-            await saveBookOffline(book.id, data, { title: book.title, author: book.author, cover_url: book.cover_url });
+            await saveBookOffline(book.id, blob, { title: book.title, author: book.author, cover_url: book.cover_url });
             setDownloadProgress(100);
 
             await refreshOfflineStatus(books);
         } catch (err) {
             console.error('Download failed:', err);
-            alert("Le fichier PDF n'est pas encore disponible sur nos serveurs. Veuillez réessayer plus tard.");
+            alert("Le fichier PDF n'est pas disponible. Veuillez réessayer plus tard.");
         } finally {
             setTimeout(() => { setDownloading(null); setDownloadProgress(0); }, 500);
         }

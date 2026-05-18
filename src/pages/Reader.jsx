@@ -86,10 +86,26 @@ export default function Reader() {
 
                 // Télécharger le PDF complet depuis Supabase Storage
                 const filePath = book.file_url || `pdfs/${bookId}.pdf`;
-                const { data: blob, error: downloadErr } = await supabase.storage.from('books').download(filePath);
-                
-                if (downloadErr || !blob) {
-                    throw new Error("Le fichier PDF n'est pas encore disponible sur nos serveurs. Veuillez réessayer plus tard.");
+                let blob = null;
+
+                // Tentative 1: download direct (nécessite RLS policy)
+                const { data: directBlob, error: downloadErr } = await supabase.storage.from('books').download(filePath);
+                if (!downloadErr && directBlob) {
+                    blob = directBlob;
+                } else {
+                    console.warn('Direct download failed, trying signed URL...', downloadErr?.message);
+                    // Tentative 2: signed URL (fonctionne si l'utilisateur est authentifié)
+                    const { data: signedData, error: signedErr } = await supabase.storage.from('books').createSignedUrl(filePath, 3600);
+                    if (!signedErr && signedData?.signedUrl) {
+                        const response = await fetch(signedData.signedUrl);
+                        if (response.ok) {
+                            blob = await response.blob();
+                        }
+                    }
+                }
+
+                if (!blob) {
+                    throw new Error("Le fichier PDF n'est pas disponible. Veuillez réessayer plus tard ou contacter le support.");
                 }
 
                 // Sauvegarder automatiquement en local (IndexedDB)
