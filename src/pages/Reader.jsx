@@ -48,6 +48,16 @@ export default function Reader() {
     // Panels
     const [showThemePanel, setShowThemePanel] = useState(false);
     const [showModePanel, setShowModePanel] = useState(false);
+    const [showAudioPanel, setShowAudioPanel] = useState(false);
+
+    // TTS Audio
+    const [ttsPlaying, setTtsPlaying] = useState(false);
+    const [ttsPaused, setTtsPaused] = useState(false);
+    const [ttsRate, setTtsRate] = useState(1.0);
+    const [ttsVoices, setTtsVoices] = useState([]);
+    const [ttsVoiceIdx, setTtsVoiceIdx] = useState(0);
+    const [ttsLoading, setTtsLoading] = useState(false);
+    const pdfDocRef = useRef(null);
     
     // Touch / Pinch zoom
     const pinchRef = useRef({ startDist: 0, startScale: 1 });
@@ -55,11 +65,25 @@ export default function Reader() {
     const canvasRef = useRef(null);
     const pdfUrlRef = useRef(null);
 
-    // Cleanup Object URL on unmount
+    // Cleanup Object URL + stop TTS on unmount
     useEffect(() => {
         return () => {
             if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+            window.speechSynthesis?.cancel();
         };
+    }, []);
+
+    // Load available TTS voices
+    useEffect(() => {
+        const loadVoices = () => {
+            const v = window.speechSynthesis?.getVoices() || [];
+            const frVoices = v.filter(voice => voice.lang.startsWith('fr'));
+            const allVoices = frVoices.length > 0 ? frVoices : v;
+            setTtsVoices(allVoices);
+        };
+        loadVoices();
+        window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
+        return () => window.speechSynthesis?.removeEventListener('voiceschanged', loadVoices);
     }, []);
 
     // Convert blob to fast Object URL
@@ -232,7 +256,10 @@ export default function Reader() {
     }, [scale, scrollMode, pageNumber, numPages]);
 
     // ─── HANDLERS ────────────────────────
-    const onDocumentLoadSuccess = ({ numPages: n }) => setNumPages(n);
+    const onDocumentLoadSuccess = (doc) => {
+        setNumPages(doc.numPages);
+        pdfDocRef.current = doc;
+    };
     
     const changePage = async (offset) => {
         const newPage = Math.min(Math.max(1, pageNumber + offset), numPages || 1);
@@ -241,13 +268,44 @@ export default function Reader() {
     };
 
     const toggleToolbar = () => {
-        if (showThemePanel || showModePanel) {
+        if (showThemePanel || showModePanel || showAudioPanel) {
             setShowThemePanel(false);
             setShowModePanel(false);
+            setShowAudioPanel(false);
             return;
         }
         setShowToolbar(p => !p);
     };
+
+    // ─── TTS FUNCTIONS ────────────────────────
+    const extractPageText = async (pgNum) => {
+        if (!pdfDocRef.current) return '';
+        try {
+            const page = await pdfDocRef.current.getPage(pgNum);
+            const content = await page.getTextContent();
+            return content.items.map(item => item.str).join(' ').replace(/\s+/g, ' ').trim();
+        } catch { return ''; }
+    };
+
+    const ttsSpeak = async () => {
+        if (!window.speechSynthesis) { alert('Audio non supporté sur ce navigateur.'); return; }
+        if (ttsPaused) { window.speechSynthesis.resume(); setTtsPaused(false); setTtsPlaying(true); return; }
+        window.speechSynthesis.cancel();
+        setTtsLoading(true);
+        const text = await extractPageText(pageNumber);
+        setTtsLoading(false);
+        if (!text) { alert('Aucun texte trouvable sur cette page.'); return; }
+        const utter = new SpeechSynthesisUtterance(text);
+        if (ttsVoices[ttsVoiceIdx]) utter.voice = ttsVoices[ttsVoiceIdx];
+        utter.rate = ttsRate;
+        utter.onend = () => { setTtsPlaying(false); setTtsPaused(false); };
+        utter.onerror = () => { setTtsPlaying(false); setTtsPaused(false); };
+        window.speechSynthesis.speak(utter);
+        setTtsPlaying(true); setTtsPaused(false);
+    };
+
+    const ttsPause = () => { window.speechSynthesis.pause(); setTtsPaused(true); setTtsPlaying(false); };
+    const ttsStop = () => { window.speechSynthesis.cancel(); setTtsPlaying(false); setTtsPaused(false); };
 
     const currentTheme = THEMES.find(t => t.id === theme) || THEMES[0];
     const pct = numPages ? Math.round((pageNumber / numPages) * 100) : 0;
@@ -432,7 +490,52 @@ export default function Reader() {
                 </div>
             )}
 
-            {/* ── Bottom Action Bar ── */}
+            {/* ── Audio TTS Panel ── */}
+            {showAudioPanel && (
+                <div style={{
+                    position: 'absolute', bottom: 80, left: 0, right: 0, zIndex: 200,
+                    background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(20px)',
+                    borderRadius: '20px 20px 0 0', padding: '24px 20px 32px',
+                    animation: 'slideUp 0.3s ease'
+                }} onClick={(e) => e.stopPropagation()}>
+                    <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 20, textAlign: 'center' }}>Lecture Audio</h3>
+
+                    {/* Play controls */}
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20, marginBottom: 24 }}>
+                        <button onClick={ttsStop} disabled={!ttsPlaying && !ttsPaused} style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ttsPlaying || ttsPaused ? '#fff' : 'rgba(255,255,255,0.3)' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>stop</span>
+                        </button>
+                        <button onClick={ttsPlaying ? ttsPause : ttsSpeak} disabled={ttsLoading} style={{ width: 60, height: 60, borderRadius: '50%', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(255,215,0,0.3)' }}>
+                            {ttsLoading ? <div className="spinner" style={{ width: 22, height: 22, borderWidth: 2, borderTopColor: '#000', borderColor: 'rgba(0,0,0,0.3)' }} />
+                            : <span className="material-symbols-outlined" style={{ fontSize: 28, color: '#000' }}>{ttsPlaying ? 'pause' : 'play_arrow'}</span>}
+                        </button>
+                        <button onClick={() => { ttsStop(); changePage(1).then(() => setTimeout(ttsSpeak, 300)); }} disabled={!ttsPlaying && !ttsPaused} style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ttsPlaying || ttsPaused ? '#fff' : 'rgba(255,255,255,0.3)' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>skip_next</span>
+                        </button>
+                    </div>
+
+                    {/* Speed */}
+                    <div style={{ marginBottom: 16 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Vitesse</span>
+                            <span style={{ fontSize: 12, color: 'var(--color-primary)', fontWeight: 700 }}>{ttsRate.toFixed(1)}x</span>
+                        </div>
+                        <input type="range" min="0.5" max="2.5" step="0.1" value={ttsRate} onChange={e => setTtsRate(parseFloat(e.target.value))}
+                            style={{ width: '100%', accentColor: 'var(--color-primary)' }} />
+                    </div>
+
+                    {/* Voice selector */}
+                    {ttsVoices.length > 0 && (
+                        <div>
+                            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 8, display: 'block' }}>Voix</span>
+                            <select value={ttsVoiceIdx} onChange={e => setTtsVoiceIdx(Number(e.target.value))}
+                                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', fontSize: 13 }}>
+                                {ttsVoices.map((v, i) => <option key={i} value={i} style={{ background: '#1a1a1a' }}>{v.name} ({v.lang})</option>)}
+                            </select>
+                        </div>
+                    )}
+                </div>
+            )}
             <div className={`reader-bottom-bar ${!showToolbar ? 'hidden' : ''}`} style={{ 
                 flexShrink: 0, zIndex: 100, justifyContent: 'space-around', padding: '6px 8px 10px',
                 borderTop: '1px solid rgba(255,255,255,0.08)'
@@ -454,7 +557,7 @@ export default function Reader() {
                 </button>
 
                 {/* Scroll Mode */}
-                <button onClick={(e) => { e.stopPropagation(); setShowThemePanel(false); setShowModePanel(p => !p); }}
+                <button onClick={(e) => { e.stopPropagation(); setShowThemePanel(false); setShowAudioPanel(false); setShowModePanel(p => !p); }}
                     style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: showModePanel ? 'var(--color-primary)' : 'inherit' }}
                 >
                     <span className="material-symbols-outlined" style={{ fontSize: 22 }}>
@@ -463,8 +566,16 @@ export default function Reader() {
                     <span style={{ fontSize: 9, fontWeight: 600 }}>Mode</span>
                 </button>
 
+                {/* Audio TTS */}
+                <button onClick={(e) => { e.stopPropagation(); setShowThemePanel(false); setShowModePanel(false); setShowAudioPanel(p => !p); }}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: showAudioPanel ? 'var(--color-primary)' : (ttsPlaying ? '#4CAF50' : 'inherit') }}
+                >
+                    <span className="material-symbols-outlined" style={{ fontSize: 22 }}>{ttsPlaying ? 'volume_up' : 'headphones'}</span>
+                    <span style={{ fontSize: 9, fontWeight: 600 }}>Audio</span>
+                </button>
+
                 {/* Theme / Color */}
-                <button onClick={(e) => { e.stopPropagation(); setShowModePanel(false); setShowThemePanel(p => !p); }}
+                <button onClick={(e) => { e.stopPropagation(); setShowModePanel(false); setShowAudioPanel(false); setShowThemePanel(p => !p); }}
                     style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: showThemePanel ? 'var(--color-primary)' : 'inherit' }}
                 >
                     <span className="material-symbols-outlined" style={{ fontSize: 22 }}>palette</span>
