@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -7,55 +7,151 @@ import { getAllOfflineBooks, getStorageUsage, formatSize } from '../lib/offlineS
 export default function Profile() {
     const { user, signOut } = useAuth();
     const navigate = useNavigate();
+    const fileInputRef = useRef(null);
     const [stats, setStats] = useState({ booksOwned: 0, booksOffline: 0 });
     const [storage, setStorage] = useState({ totalBytes: 0, bookCount: 0 });
+    const [avatarUrl, setAvatarUrl] = useState(null);
+    const [bio, setBio] = useState('');
+    const [editingBio, setEditingBio] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
         if (!user) return;
+        // Load avatar and bio from user_metadata
+        setAvatarUrl(user.user_metadata?.avatar_url || null);
+        setBio(user.user_metadata?.bio || '');
+
         (async () => {
             try {
-                // Count books the user has access to
                 const { data: access } = await supabase
-                    .from('user_book_access')
-                    .select('id')
-                    .eq('user_id', user.id);
-                
+                    .from('user_book_access').select('id').eq('user_id', user.id);
                 const offBooks = await getAllOfflineBooks();
                 const storageInfo = await getStorageUsage();
-                
-                setStats({
-                    booksOwned: access?.length || 0,
-                    booksOffline: offBooks.length
-                });
+                setStats({ booksOwned: access?.length || 0, booksOffline: offBooks.length });
                 setStorage(storageInfo);
-            } catch (err) {
-                console.error('Profile stats error:', err);
-            }
+            } catch (err) { console.error('Profile stats error:', err); }
         })();
     }, [user]);
 
     const initial = (user?.user_metadata?.full_name || user?.email || 'U').charAt(0).toUpperCase();
     const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Utilisateur';
 
+    const handleAvatarUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploading(true);
+        try {
+            // Upload to Supabase Storage (covers bucket is public)
+            const ext = file.name.split('.').pop();
+            const filePath = `avatars/${user.id}.${ext}`;
+            
+            const { error: uploadErr } = await supabase.storage
+                .from('covers').upload(filePath, file, { upsert: true });
+            
+            if (uploadErr) throw uploadErr;
+            
+            const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(filePath);
+            
+            // Save URL to user metadata
+            await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
+            setAvatarUrl(publicUrl);
+        } catch (err) {
+            console.error('Avatar upload error:', err);
+            alert("Erreur lors du téléchargement de la photo.");
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleSaveBio = async () => {
+        try {
+            await supabase.auth.updateUser({ data: { bio } });
+            setEditingBio(false);
+        } catch (err) {
+            console.error('Bio save error:', err);
+        }
+    };
+
     return (
         <div style={{ paddingBottom: 'var(--space-8)' }}>
             {/* Header / Avatar */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 'var(--space-8)', marginTop: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 'var(--space-6)', marginTop: 'var(--space-4)' }}>
                 <div style={{ position: 'relative', marginBottom: 'var(--space-4)' }}>
-                    <div style={{ width: 100, height: 100, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--color-surface)', boxShadow: 'var(--shadow-md)' }}>
-                        <div style={{ width: '100%', height: '100%', backgroundColor: 'var(--color-primary)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, fontWeight: 'bold' }}>
-                            {initial}
-                        </div>
+                    <div style={{
+                        width: 100, height: 100, borderRadius: '50%', overflow: 'hidden',
+                        border: '3px solid var(--color-primary)', boxShadow: '0 0 20px rgba(255,215,0,0.2)'
+                    }}>
+                        {avatarUrl ? (
+                            <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                            <div style={{ width: '100%', height: '100%', backgroundColor: 'var(--color-primary)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, fontWeight: 'bold' }}>
+                                {initial}
+                            </div>
+                        )}
                     </div>
+                    {/* Camera button overlay */}
+                    <button 
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        style={{
+                            position: 'absolute', bottom: 0, right: 0,
+                            width: 32, height: 32, borderRadius: '50%',
+                            background: 'var(--color-primary)', border: '2px solid var(--color-bg)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', boxShadow: 'var(--shadow-md)'
+                        }}
+                    >
+                        {uploading 
+                            ? <div className="spinner" style={{ width: 14, height: 14, borderWidth: 2, borderTopColor: '#000', borderColor: 'rgba(0,0,0,0.3)' }} />
+                            : <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#000' }}>photo_camera</span>
+                        }
+                    </button>
+                    <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
                 </div>
                 
-                <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, marginBottom: 8, textAlign: 'center' }}>
+                <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, marginBottom: 4, textAlign: 'center' }}>
                     {displayName}
                 </h2>
-                <p style={{ color: 'var(--color-text-muted)', marginBottom: 12 }}>{user?.email}</p>
+                <p style={{ color: 'var(--color-text-muted)', marginBottom: 12, fontSize: 'var(--text-sm)' }}>{user?.email}</p>
+
+                {/* Bio / Description */}
+                {editingBio ? (
+                    <div style={{ width: '100%', maxWidth: 300 }}>
+                        <textarea
+                            value={bio}
+                            onChange={(e) => setBio(e.target.value)}
+                            placeholder="Décrivez-vous en quelques mots..."
+                            maxLength={120}
+                            style={{
+                                width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-md)',
+                                background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                                color: 'var(--color-text)', fontSize: 'var(--text-sm)',
+                                resize: 'none', height: 70, fontFamily: 'inherit'
+                            }}
+                        />
+                        <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'center' }}>
+                            <button className="btn btn-sm btn-primary" onClick={handleSaveBio}>Enregistrer</button>
+                            <button className="btn btn-sm btn-outline" onClick={() => { setEditingBio(false); setBio(user?.user_metadata?.bio || ''); }}>Annuler</button>
+                        </div>
+                    </div>
+                ) : (
+                    <button onClick={() => setEditingBio(true)} style={{
+                        color: bio ? 'var(--color-text-muted)' : 'var(--color-primary)',
+                        fontSize: 'var(--text-sm)', background: 'none', border: 'none',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
+                        maxWidth: 280, textAlign: 'center', lineHeight: 1.4
+                    }}>
+                        {bio || (
+                            <>
+                                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
+                                Ajouter une description
+                            </>
+                        )}
+                    </button>
+                )}
             </div>
 
-            {/* Stats - real data */}
+            {/* Stats */}
             <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 'var(--space-8)' }}>
                 <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-6) var(--space-4)' }}>
                     <span className="material-symbols-outlined" style={{ fontSize: 28, color: 'var(--color-primary)', marginBottom: 8 }}>menu_book</span>
@@ -69,7 +165,7 @@ export default function Profile() {
                 </div>
             </div>
 
-            {/* Storage info */}
+            {/* Storage */}
             {storage.totalBytes > 0 && (
                 <div className="card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-8)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -83,37 +179,23 @@ export default function Profile() {
             )}
 
             {/* Links */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', marginBottom: 'var(--space-12)' }}>
-                <div className="card" style={{ padding: 'var(--space-5)', display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => navigate('/settings')}>
-                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 'var(--space-4)' }}>
-                        <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>manage_accounts</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-12)' }}>
+                {[
+                    { icon: 'manage_accounts', label: 'Paramètres du compte', action: () => navigate('/settings') },
+                    { icon: 'library_books', label: 'Ma Bibliothèque', action: () => navigate('/library') },
+                    { icon: 'storefront', label: 'Acheter des livres', sub: 'boombooks.shop', action: () => window.open('https://boombooks.shop', '_blank'), endIcon: 'open_in_new' },
+                ].map((item, i) => (
+                    <div key={i} className="card" style={{ padding: 'var(--space-5)', display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={item.action}>
+                        <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 'var(--space-4)' }}>
+                            <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>{item.icon}</span>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <h4 style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>{item.label}</h4>
+                            {item.sub && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{item.sub}</p>}
+                        </div>
+                        <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>{item.endIcon || 'chevron_right'}</span>
                     </div>
-                    <div style={{ flex: 1 }}>
-                        <h4 style={{ fontSize: 'var(--text-lg)', fontWeight: 600 }}>Paramètres du compte</h4>
-                    </div>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>chevron_right</span>
-                </div>
-
-                <div className="card" style={{ padding: 'var(--space-5)', display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => navigate('/library')}>
-                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 'var(--space-4)' }}>
-                        <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>library_books</span>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                        <h4 style={{ fontSize: 'var(--text-lg)', fontWeight: 600 }}>Ma Bibliothèque</h4>
-                    </div>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>chevron_right</span>
-                </div>
-
-                <div className="card" style={{ padding: 'var(--space-5)', display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => window.open('https://boombooks.shop', '_blank')}>
-                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 'var(--space-4)' }}>
-                        <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>storefront</span>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                        <h4 style={{ fontSize: 'var(--text-lg)', fontWeight: 600 }}>Acheter des livres</h4>
-                        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>boombooks.shop</p>
-                    </div>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>open_in_new</span>
-                </div>
+                ))}
             </div>
 
             <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-8)', display: 'flex', justifyContent: 'center' }}>

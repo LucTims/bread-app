@@ -152,18 +152,25 @@ export default function Reader() {
         loadBook();
     }, [user, authLoading, navigate, loadBook, bookId]);
 
-    // ─── PINCH TO ZOOM ────────────────────────
+    // ─── PINCH TO ZOOM (smooth with CSS transform) ────────────────────────
     const getDistance = (t1, t2) => Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    const [visualScale, setVisualScale] = useState(1); // CSS transform scale on top of base scale
+    const isPinching = useRef(false);
 
     useEffect(() => {
         const el = canvasRef.current;
         if (!el) return;
 
+        let rafId = null;
+        let pendingScale = 1;
+
         const onTouchStart = (e) => {
             if (e.touches.length === 2) {
                 e.preventDefault();
+                isPinching.current = true;
                 pinchRef.current.startDist = getDistance(e.touches[0], e.touches[1]);
                 pinchRef.current.startScale = scale;
+                setVisualScale(1);
             } else if (e.touches.length === 1) {
                 swipeRef.current.startX = e.touches[0].clientX;
                 swipeRef.current.startY = e.touches[0].clientY;
@@ -172,16 +179,33 @@ export default function Reader() {
         };
 
         const onTouchMove = (e) => {
-            if (e.touches.length === 2) {
+            if (e.touches.length === 2 && isPinching.current) {
                 e.preventDefault();
                 const dist = getDistance(e.touches[0], e.touches[1]);
                 const ratio = dist / pinchRef.current.startDist;
-                const newScale = Math.min(4.0, Math.max(0.5, pinchRef.current.startScale * ratio));
-                setScale(newScale);
+                // Clamp the visual ratio for smooth feedback
+                pendingScale = Math.min(3.0, Math.max(0.4, ratio));
+                
+                if (rafId) cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(() => {
+                    setVisualScale(pendingScale);
+                });
             }
         };
 
         const onTouchEnd = (e) => {
+            if (isPinching.current) {
+                isPinching.current = false;
+                if (rafId) cancelAnimationFrame(rafId);
+                // Commit the final scale
+                const finalScale = Math.min(4.0, Math.max(0.5, pinchRef.current.startScale * pendingScale));
+                setScale(finalScale);
+                setVisualScale(1);
+                pendingScale = 1;
+                return;
+            }
+
+            // Swipe detection for page turning
             if (e.changedTouches.length === 1 && scrollMode === 'paginated') {
                 const dx = e.changedTouches[0].clientX - swipeRef.current.startX;
                 const dy = e.changedTouches[0].clientY - swipeRef.current.startY;
@@ -280,14 +304,25 @@ export default function Reader() {
                     display: 'flex', 
                     flexDirection: scrollMode === 'horizontal' ? 'row' : 'column',
                     alignItems: 'center',
+                    justifyContent: scrollMode === 'paginated' ? 'center' : 'flex-start',
                     padding: scrollMode === 'paginated' ? '16px 0' : '8px 0',
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
-                    touchAction: 'pan-x pan-y',
+                    touchAction: 'none',
                 }}
                 onContextMenu={(e) => e.preventDefault()}
                 onClick={toggleToolbar}
             >
+                {/* Visual scale wrapper — GPU-accelerated CSS transform during pinch */}
+                <div style={{
+                    transform: `scale(${visualScale})`,
+                    transformOrigin: 'center center',
+                    transition: visualScale === 1 ? 'transform 0.15s ease-out' : 'none',
+                    willChange: 'transform',
+                    display: 'flex',
+                    flexDirection: scrollMode === 'horizontal' ? 'row' : 'column',
+                    alignItems: 'center',
+                }}>
                 {pdfFile && (
                     <Document
                         file={pdfFile}
@@ -322,6 +357,7 @@ export default function Reader() {
                         )}
                     </Document>
                 )}
+                </div>{/* end visual scale wrapper */}
             </div>
 
             {/* ── Theme Panel (slides up) ── */}
