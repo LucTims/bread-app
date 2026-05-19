@@ -7,28 +7,10 @@ import { getAllOfflineBooks, getReadingProgress } from '../lib/offlineStore';
 export default function Home() {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const [isInstallable, setIsInstallable] = useState(!!window.deferredPrompt);
     const [lastRead, setLastRead] = useState(null);
     const [myBooks, setMyBooks] = useState([]);
     const [offlineBooks, setOfflineBooks] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const handleInstallable = () => setIsInstallable(true);
-        window.addEventListener('app-installable', handleInstallable);
-        return () => window.removeEventListener('app-installable', handleInstallable);
-    }, []);
-
-    const handleInstallApp = async () => {
-        const promptEvent = window.deferredPrompt;
-        if (!promptEvent) return;
-        promptEvent.prompt();
-        const { outcome } = await promptEvent.userChoice;
-        if (outcome === 'accepted') {
-            setIsInstallable(false);
-            window.deferredPrompt = null;
-        }
-    };
 
     // Load user's real data
     const loadData = useCallback(async () => {
@@ -109,18 +91,6 @@ export default function Home() {
 
     return (
         <div>
-            {/* Install App Banner */}
-            {isInstallable && (
-                <div style={{ background: 'var(--color-primary)', color: '#000', padding: '12px 16px', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-6)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: 'var(--shadow-md)' }}>
-                    <div>
-                        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }}>📲 Installer l'App</h3>
-                        <p style={{ fontSize: 12, opacity: 0.8 }}>Pour lire vos livres hors-ligne</p>
-                    </div>
-                    <button onClick={handleInstallApp} style={{ background: '#000', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                        Installer
-                    </button>
-                </div>
-            )}
 
             {/* Continue Reading */}
             {lastRead && (

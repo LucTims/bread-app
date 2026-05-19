@@ -36,6 +36,22 @@ export default function Reader() {
     const [viewMode, setViewMode] = useState('paginated'); // 'paginated' | 'continuous'
     const [theme, setTheme] = useState('dark');
     const [showToolbar, setShowToolbar] = useState(true);
+    const pdfUrlRef = useRef(null);
+
+    // Cleanup Object URL on unmount
+    useEffect(() => {
+        return () => {
+            if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+        };
+    }, []);
+
+    // Convert blob to fast Object URL
+    const setBlobAsPdf = (blob) => {
+        if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+        const url = URL.createObjectURL(blob);
+        pdfUrlRef.current = url;
+        setPdfFile(url);
+    };
 
     const loadBook = useCallback(async () => {
         setLoading(true);
@@ -46,7 +62,7 @@ export default function Reader() {
             const offlineMeta = await getBookMeta(bookId);
 
             if (offlinePdfBlob) {
-                setPdfFile(offlinePdfBlob);
+                setBlobAsPdf(offlinePdfBlob);
                 setBookMeta(offlineMeta);
             } else {
                 // 2. Fallback: Vérifier les droits, télécharger et sauvegarder en hors-ligne
@@ -116,7 +132,7 @@ export default function Reader() {
                 });
 
                 // Utiliser le blob téléchargé
-                setPdfFile(blob);
+                setBlobAsPdf(blob);
             }
 
             // Restore reading progress

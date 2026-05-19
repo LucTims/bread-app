@@ -6,6 +6,7 @@ export default function TopBar() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const [menuOpen, setMenuOpen] = useState(false);
+    const [isInstallable, setIsInstallable] = useState(!!window.deferredPrompt);
     const menuRef = useRef(null);
 
     // Close menu when clicking outside
@@ -19,18 +20,41 @@ export default function TopBar() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [menuRef]);
 
+    // Listen for PWA install availability
+    useEffect(() => {
+        const handleInstallable = () => setIsInstallable(true);
+        window.addEventListener('app-installable', handleInstallable);
+        // Check immediately in case it was already set
+        if (window.deferredPrompt) setIsInstallable(true);
+        return () => window.removeEventListener('app-installable', handleInstallable);
+    }, []);
+
+    const handleInstallApp = async () => {
+        const promptEvent = window.deferredPrompt;
+        if (!promptEvent) return;
+        promptEvent.prompt();
+        const { outcome } = await promptEvent.userChoice;
+        if (outcome === 'accepted') {
+            setIsInstallable(false);
+            window.deferredPrompt = null;
+        }
+        setMenuOpen(false);
+    };
+
     return (
         <header style={{ 
-            padding: 'var(--space-4)', 
+            padding: '0 var(--space-4)', 
             background: 'var(--color-bg)', 
             position: 'fixed', 
             top: 0, 
+            left: 0,
             width: '100%', 
-            zIndex: 10, 
+            zIndex: 50, 
             height: 'var(--header-height)', 
             display: 'flex', 
             alignItems: 'center', 
-            justifyContent: 'space-between' 
+            justifyContent: 'space-between',
+            borderBottom: '1px solid var(--color-border)'
         }}>
             <div style={{ position: 'relative' }} ref={menuRef}>
                 <button 
@@ -50,32 +74,53 @@ export default function TopBar() {
                         marginTop: 8,
                         background: 'var(--color-surface)',
                         border: '1px solid var(--color-border)',
-                        borderRadius: 'var(--radius-md)',
+                        borderRadius: 'var(--radius-lg)',
                         boxShadow: 'var(--shadow-lg)',
-                        minWidth: 200,
-                        zIndex: 20,
+                        minWidth: 220,
+                        zIndex: 100,
                         overflow: 'hidden'
                     }}>
+                        {/* Install App Button */}
+                        {isInstallable && (
+                            <div 
+                                style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', borderBottom: '1px solid var(--color-border)', background: 'var(--color-primary-light)' }}
+                                onClick={handleInstallApp}
+                            >
+                                <span className="material-symbols-outlined" style={{ fontSize: 20, color: 'var(--color-primary)' }}>install_mobile</span>
+                                <div>
+                                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-primary)' }}>Installer l'App</span>
+                                    <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 1 }}>Lire hors-ligne</p>
+                                </div>
+                            </div>
+                        )}
+
                         <div 
-                            style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', borderBottom: '1px solid var(--color-border)' }}
+                            style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', borderBottom: '1px solid var(--color-border)' }}
+                            onClick={() => { setMenuOpen(false); navigate('/library'); }}
+                        >
+                            <span className="material-symbols-outlined" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>library_books</span>
+                            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Ma Bibliothèque</span>
+                        </div>
+                        <div 
+                            style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', borderBottom: '1px solid var(--color-border)' }}
                             onClick={() => { setMenuOpen(false); navigate('/settings'); }}
                         >
                             <span className="material-symbols-outlined" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>settings</span>
-                            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Settings</span>
+                            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Paramètres</span>
                         </div>
                         <div 
-                            style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', borderBottom: '1px solid var(--color-border)' }}
+                            style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', borderBottom: '1px solid var(--color-border)' }}
                             onClick={() => { setMenuOpen(false); navigate('/profile'); }}
                         >
                             <span className="material-symbols-outlined" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>person</span>
-                            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Profile</span>
+                            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Profil</span>
                         </div>
                         <div 
-                            style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
-                            onClick={() => { setMenuOpen(false); alert('Help section not implemented yet'); }}
+                            style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+                            onClick={() => { setMenuOpen(false); window.open('https://boombooks.shop', '_blank'); }}
                         >
-                            <span className="material-symbols-outlined" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>help</span>
-                            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Help & Support</span>
+                            <span className="material-symbols-outlined" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>storefront</span>
+                            <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>BoomBooks.shop</span>
                         </div>
                     </div>
                 )}
