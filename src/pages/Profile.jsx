@@ -39,25 +39,44 @@ export default function Profile() {
     const handleAvatarUpload = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+            alert("La photo ne doit pas dépasser 2 Mo.");
+            return;
+        }
         setUploading(true);
         try {
-            // Upload to Supabase Storage (covers bucket is public)
-            const ext = file.name.split('.').pop();
+            const ext = file.name.split('.').pop().toLowerCase();
             const filePath = `avatars/${user.id}.${ext}`;
             
+            // Remove old avatar if exists (different extension)
+            try {
+                const { data: list } = await supabase.storage.from('covers').list('avatars', { search: user.id });
+                if (list?.length) {
+                    const toDelete = list.filter(f => f.name !== `${user.id}.${ext}`).map(f => `avatars/${f.name}`);
+                    if (toDelete.length) await supabase.storage.from('covers').remove(toDelete);
+                }
+            } catch (cleanupErr) { /* ignore cleanup errors */ }
+
             const { error: uploadErr } = await supabase.storage
-                .from('covers').upload(filePath, file, { upsert: true });
+                .from('covers')
+                .upload(filePath, file, { 
+                    upsert: true, 
+                    contentType: file.type,
+                    cacheControl: '3600'
+                });
             
             if (uploadErr) throw uploadErr;
             
             const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(filePath);
             
-            // Save URL to user metadata
-            await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
-            setAvatarUrl(publicUrl);
+            // Cache-bust so the new image shows immediately
+            const finalUrl = publicUrl + '?t=' + Date.now();
+            
+            await supabase.auth.updateUser({ data: { avatar_url: finalUrl } });
+            setAvatarUrl(finalUrl);
         } catch (err) {
             console.error('Avatar upload error:', err);
-            alert("Erreur lors du téléchargement de la photo.");
+            alert("Erreur: " + (err.message || "Impossible de télécharger la photo."));
         } finally {
             setUploading(false);
         }
