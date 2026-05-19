@@ -50,14 +50,18 @@ export default function Reader() {
     const [showModePanel, setShowModePanel] = useState(false);
     const [showAudioPanel, setShowAudioPanel] = useState(false);
 
-    // TTS Audio
+    // TTS Audio — sentence-level tracking
     const [ttsPlaying, setTtsPlaying] = useState(false);
     const [ttsPaused, setTtsPaused] = useState(false);
     const [ttsRate, setTtsRate] = useState(1.0);
     const [ttsVoices, setTtsVoices] = useState([]);
     const [ttsVoiceIdx, setTtsVoiceIdx] = useState(0);
     const [ttsLoading, setTtsLoading] = useState(false);
+    const [ttsSentences, setTtsSentences] = useState([]);
+    const [ttsSentenceIdx, setTtsSentenceIdx] = useState(0);
+    const [ttsAutoAdvance, setTtsAutoAdvance] = useState(true);
     const pdfDocRef = useRef(null);
+    const ttsActiveRef = useRef(false);
     
     // Touch / Pinch zoom
     const pinchRef = useRef({ startDist: 0, startScale: 1 });
@@ -277,7 +281,12 @@ export default function Reader() {
         setShowToolbar(p => !p);
     };
 
-    // ─── TTS FUNCTIONS ────────────────────────
+    // ─── TTS FUNCTIONS (sentence-by-sentence) ────────────────────────
+    const splitSentences = (text) => {
+        if (!text) return [];
+        return text.match(/[^.!?…]+[.!?…]+|[^.!?…]+$/g)?.map(s => s.trim()).filter(s => s.length > 2) || [text];
+    };
+
     const extractPageText = async (pgNum) => {
         if (!pdfDocRef.current) return '';
         try {
@@ -287,25 +296,64 @@ export default function Reader() {
         } catch { return ''; }
     };
 
-    const ttsSpeak = async () => {
-        if (!window.speechSynthesis) { alert('Audio non supporté sur ce navigateur.'); return; }
-        if (ttsPaused) { window.speechSynthesis.resume(); setTtsPaused(false); setTtsPlaying(true); return; }
+    const speakSentence = (sentences, idx) => {
+        if (!ttsActiveRef.current || idx >= sentences.length) {
+            // Page finished — auto-advance?
+            if (ttsActiveRef.current && ttsAutoAdvance && pageNumber < (numPages || 1)) {
+                const nextPg = pageNumber + 1;
+                setPageNumber(nextPg);
+                saveReadingProgress(bookId, nextPg, numPages);
+                // Load next page text after a short delay
+                setTimeout(async () => {
+                    if (!ttsActiveRef.current) return;
+                    const text = await extractPageText(nextPg);
+                    const newSentences = splitSentences(text);
+                    if (newSentences.length) {
+                        setTtsSentences(newSentences);
+                        setTtsSentenceIdx(0);
+                        speakSentence(newSentences, 0);
+                    } else { ttsStop(); }
+                }, 400);
+            } else { ttsStop(); }
+            return;
+        }
         window.speechSynthesis.cancel();
-        setTtsLoading(true);
-        const text = await extractPageText(pageNumber);
-        setTtsLoading(false);
-        if (!text) { alert('Aucun texte trouvable sur cette page.'); return; }
-        const utter = new SpeechSynthesisUtterance(text);
+        setTtsSentenceIdx(idx);
+        const utter = new SpeechSynthesisUtterance(sentences[idx]);
         if (ttsVoices[ttsVoiceIdx]) utter.voice = ttsVoices[ttsVoiceIdx];
         utter.rate = ttsRate;
-        utter.onend = () => { setTtsPlaying(false); setTtsPaused(false); };
-        utter.onerror = () => { setTtsPlaying(false); setTtsPaused(false); };
+        utter.onend = () => speakSentence(sentences, idx + 1);
+        utter.onerror = () => ttsStop();
         window.speechSynthesis.speak(utter);
         setTtsPlaying(true); setTtsPaused(false);
     };
 
+    const ttsSpeak = async (fromIdx) => {
+        if (!window.speechSynthesis) { alert('Audio non supporté.'); return; }
+        if (ttsPaused && typeof fromIdx === 'undefined') {
+            window.speechSynthesis.resume(); setTtsPaused(false); setTtsPlaying(true); return;
+        }
+        window.speechSynthesis.cancel();
+        ttsActiveRef.current = true;
+        if (ttsSentences.length && typeof fromIdx === 'number') {
+            speakSentence(ttsSentences, fromIdx); return;
+        }
+        setTtsLoading(true);
+        const text = await extractPageText(pageNumber);
+        const sentences = splitSentences(text);
+        setTtsLoading(false);
+        if (!sentences.length) { alert('Aucun texte sur cette page.'); ttsActiveRef.current = false; return; }
+        setTtsSentences(sentences);
+        const startIdx = typeof fromIdx === 'number' ? fromIdx : 0;
+        setTtsSentenceIdx(startIdx);
+        speakSentence(sentences, startIdx);
+    };
+
     const ttsPause = () => { window.speechSynthesis.pause(); setTtsPaused(true); setTtsPlaying(false); };
-    const ttsStop = () => { window.speechSynthesis.cancel(); setTtsPlaying(false); setTtsPaused(false); };
+    const ttsStop = () => { window.speechSynthesis.cancel(); ttsActiveRef.current = false; setTtsPlaying(false); setTtsPaused(false); };
+    const ttsSkipNext = () => { if (ttsSentenceIdx < ttsSentences.length - 1) ttsSpeak(ttsSentenceIdx + 1); };
+    const ttsSkipPrev = () => { if (ttsSentenceIdx > 0) ttsSpeak(ttsSentenceIdx - 1); else ttsSpeak(0); };
+    const ttsJumpToSentence = (idx) => ttsSpeak(idx);
 
     const currentTheme = THEMES.find(t => t.id === theme) || THEMES[0];
     const pct = numPages ? Math.round((pageNumber / numPages) * 100) : 0;
@@ -490,48 +538,98 @@ export default function Reader() {
                 </div>
             )}
 
-            {/* ── Audio TTS Panel ── */}
+            {/* ── Audio TTS Panel (enhanced) ── */}
             {showAudioPanel && (
                 <div style={{
                     position: 'absolute', bottom: 80, left: 0, right: 0, zIndex: 200,
                     background: 'rgba(0,0,0,0.95)', backdropFilter: 'blur(20px)',
-                    borderRadius: '20px 20px 0 0', padding: '24px 20px 32px',
-                    animation: 'slideUp 0.3s ease'
+                    borderRadius: '20px 20px 0 0', padding: '20px 16px 28px',
+                    animation: 'slideUp 0.3s ease', maxHeight: '55vh', overflowY: 'auto'
                 }} onClick={(e) => e.stopPropagation()}>
-                    <h3 style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 20, textAlign: 'center' }}>Lecture Audio</h3>
+                    <h3 style={{ color: '#fff', fontSize: 15, fontWeight: 700, marginBottom: 12, textAlign: 'center' }}>Lecture Audio</h3>
 
-                    {/* Play controls */}
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20, marginBottom: 24 }}>
-                        <button onClick={ttsStop} disabled={!ttsPlaying && !ttsPaused} style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ttsPlaying || ttsPaused ? '#fff' : 'rgba(255,255,255,0.3)' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>stop</span>
+                    {/* Current sentence display */}
+                    {ttsSentences.length > 0 && (
+                        <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 12, background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.15)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                <span style={{ fontSize: 10, color: 'var(--color-primary)', fontWeight: 700 }}>Phrase {ttsSentenceIdx + 1} / {ttsSentences.length}</span>
+                                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>Page {pageNumber}</span>
+                            </div>
+                            <p style={{ fontSize: 13, color: '#fff', lineHeight: 1.5, margin: 0, fontStyle: 'italic' }}>
+                                "{ttsSentences[ttsSentenceIdx]?.substring(0, 120)}{ttsSentences[ttsSentenceIdx]?.length > 120 ? '…' : ''}"
+                            </p>
+                            {/* Sentence progress bar */}
+                            <div style={{ height: 3, background: 'rgba(255,255,255,0.1)', borderRadius: 2, marginTop: 10 }}>
+                                <div style={{ height: '100%', width: `${((ttsSentenceIdx + 1) / ttsSentences.length) * 100}%`, background: 'var(--color-primary)', borderRadius: 2, transition: 'width 0.3s ease' }} />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Transport controls */}
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                        <button onClick={ttsStop} disabled={!ttsPlaying && !ttsPaused} style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ttsPlaying || ttsPaused ? '#fff' : 'rgba(255,255,255,0.25)' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 20 }}>stop</span>
                         </button>
-                        <button onClick={ttsPlaying ? ttsPause : ttsSpeak} disabled={ttsLoading} style={{ width: 60, height: 60, borderRadius: '50%', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(255,215,0,0.3)' }}>
-                            {ttsLoading ? <div className="spinner" style={{ width: 22, height: 22, borderWidth: 2, borderTopColor: '#000', borderColor: 'rgba(0,0,0,0.3)' }} />
-                            : <span className="material-symbols-outlined" style={{ fontSize: 28, color: '#000' }}>{ttsPlaying ? 'pause' : 'play_arrow'}</span>}
+                        <button onClick={ttsSkipPrev} disabled={!ttsPlaying && !ttsPaused} style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ttsSentenceIdx > 0 ? '#fff' : 'rgba(255,255,255,0.25)' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 20 }}>skip_previous</span>
                         </button>
-                        <button onClick={() => { ttsStop(); changePage(1).then(() => setTimeout(ttsSpeak, 300)); }} disabled={!ttsPlaying && !ttsPaused} style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ttsPlaying || ttsPaused ? '#fff' : 'rgba(255,255,255,0.3)' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>skip_next</span>
+                        <button onClick={() => ttsPlaying ? ttsPause() : ttsSpeak()} disabled={ttsLoading} style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(255,215,0,0.3)' }}>
+                            {ttsLoading ? <div className="spinner" style={{ width: 20, height: 20, borderWidth: 2, borderTopColor: '#000', borderColor: 'rgba(0,0,0,0.3)' }} />
+                            : <span className="material-symbols-outlined" style={{ fontSize: 26, color: '#000' }}>{ttsPlaying ? 'pause' : 'play_arrow'}</span>}
+                        </button>
+                        <button onClick={ttsSkipNext} disabled={!ttsPlaying && !ttsPaused} style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ttsSentenceIdx < ttsSentences.length - 1 ? '#fff' : 'rgba(255,255,255,0.25)' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 20 }}>skip_next</span>
+                        </button>
+                        <button onClick={() => { ttsStop(); changePage(1); }} style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 20 }}>fast_forward</span>
                         </button>
                     </div>
 
-                    {/* Speed */}
-                    <div style={{ marginBottom: 16 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Vitesse</span>
-                            <span style={{ fontSize: 12, color: 'var(--color-primary)', fontWeight: 700 }}>{ttsRate.toFixed(1)}x</span>
+                    {/* Speed + Auto-advance row */}
+                    <div style={{ display: 'flex', gap: 12, marginBottom: 14, alignItems: 'center' }}>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Vitesse</span>
+                                <span style={{ fontSize: 11, color: 'var(--color-primary)', fontWeight: 700 }}>{ttsRate.toFixed(1)}x</span>
+                            </div>
+                            <input type="range" min="0.5" max="2.5" step="0.1" value={ttsRate} onChange={e => setTtsRate(parseFloat(e.target.value))}
+                                style={{ width: '100%', accentColor: 'var(--color-primary)' }} />
                         </div>
-                        <input type="range" min="0.5" max="2.5" step="0.1" value={ttsRate} onChange={e => setTtsRate(parseFloat(e.target.value))}
-                            style={{ width: '100%', accentColor: 'var(--color-primary)' }} />
+                        <button onClick={() => setTtsAutoAdvance(p => !p)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '6px 10px', borderRadius: 10, background: ttsAutoAdvance ? 'rgba(255,215,0,0.12)' : 'rgba(255,255,255,0.05)', border: ttsAutoAdvance ? '1px solid var(--color-primary)' : '1px solid transparent', minWidth: 56 }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 18, color: ttsAutoAdvance ? 'var(--color-primary)' : 'rgba(255,255,255,0.4)' }}>auto_stories</span>
+                            <span style={{ fontSize: 9, color: ttsAutoAdvance ? 'var(--color-primary)' : 'rgba(255,255,255,0.4)', fontWeight: 600 }}>Auto</span>
+                        </button>
                     </div>
 
                     {/* Voice selector */}
                     {ttsVoices.length > 0 && (
-                        <div>
-                            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 8, display: 'block' }}>Voix</span>
+                        <div style={{ marginBottom: 12 }}>
+                            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 6, display: 'block' }}>Voix</span>
                             <select value={ttsVoiceIdx} onChange={e => setTtsVoiceIdx(Number(e.target.value))}
-                                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', fontSize: 13 }}>
+                                style={{ width: '100%', padding: '9px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.12)', fontSize: 12 }}>
                                 {ttsVoices.map((v, i) => <option key={i} value={i} style={{ background: '#1a1a1a' }}>{v.name} ({v.lang})</option>)}
                             </select>
+                        </div>
+                    )}
+
+                    {/* Sentence list (jump to) */}
+                    {ttsSentences.length > 1 && (
+                        <div>
+                            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 6, display: 'block' }}>Phrases ({ttsSentences.length})</span>
+                            <div style={{ maxHeight: 120, overflowY: 'auto', borderRadius: 10, background: 'rgba(255,255,255,0.03)' }}>
+                                {ttsSentences.map((s, i) => (
+                                    <button key={i} onClick={() => ttsJumpToSentence(i)} style={{
+                                        display: 'flex', gap: 8, alignItems: 'flex-start', width: '100%', textAlign: 'left',
+                                        padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                        background: i === ttsSentenceIdx ? 'rgba(255,215,0,0.1)' : 'transparent',
+                                        transition: 'background 0.2s ease'
+                                    }}>
+                                        <span style={{ fontSize: 10, color: i === ttsSentenceIdx ? 'var(--color-primary)' : 'rgba(255,255,255,0.3)', fontWeight: 700, minWidth: 20, flexShrink: 0 }}>{i + 1}</span>
+                                        <span style={{ fontSize: 11, color: i === ttsSentenceIdx ? '#fff' : 'rgba(255,255,255,0.5)', lineHeight: 1.4 }}>{s.substring(0, 80)}{s.length > 80 ? '…' : ''}</span>
+                                        {i === ttsSentenceIdx && ttsPlaying && <span className="material-symbols-outlined" style={{ fontSize: 14, color: 'var(--color-primary)', marginLeft: 'auto', flexShrink: 0 }}>volume_up</span>}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
