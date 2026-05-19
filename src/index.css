@@ -319,7 +319,119 @@ input, select, textarea {
    ═══════════════════════════════════════ */
 .pdf-page-shadow {
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    background: white; /* Always white inside the canvas container to render PDF correctly */
+    background: white;
     display: inline-block;
 }
 
+/* Reader Container */
+.reader-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    background: #1a1a1a;
+    position: relative;
+}
+
+/* Top Toolbar */
+.reader-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    color: #fff;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    min-height: 50px;
+}
+
+.reader-toolbar.hidden {
+    transform: translateY(-100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.reader-toolbar button {
+    color: #fff;
+    padding: 6px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.reader-toolbar button:active {
+    background: rgba(255,255,255,0.1);
+}
+
+.reader-toolbar-title {
+    font-size: 14px;
+    font-weight: 600;
+    max-width: 60vw;
+    text-align: center;
+}
+
+/* Bottom Action Bar */
+.reader-bottom-bar {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px 12px;
+    background: rgba(0,0,0,0.9);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    color: rgba(255,255,255,0.8);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+
+.reader-bottom-bar.hidden {
+    transform: translateY(100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.reader-bottom-bar button {
+    color: rgba(255,255,255,0.7);
+    padding: 6px 10px;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    flex: 1;
+}
+
+.reader-bottom-bar button:active {
+    background: rgba(255,255,255,0.08);
+    transform: scale(0.95);
+}
+
+.reader-bottom-bar button:disabled {
+    opacity: 0.3;
+}
+
+/* Canvas Area */
+.reader-canvas-area {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+/* Slide-up animation for panels */
+@keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Storage bar */
+.storage-bar {
+    height: 6px;
+    background: var(--color-border);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.storage-fill {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
