@@ -150,10 +150,35 @@ export default function Reader() {
     }, [bookId]);
 
     useEffect(() => {
+        // When offline, try to load from IndexedDB even without auth
+        if (!navigator.onLine) {
+            (async () => {
+                setLoading(true);
+                try {
+                    const offlinePdfBlob = await getOfflineBook(bookId);
+                    const offlineMeta = await getBookMeta(bookId);
+                    if (offlinePdfBlob) {
+                        setBlobAsPdf(offlinePdfBlob);
+                        setBookMeta(offlineMeta);
+                        const progress = await getReadingProgress(bookId);
+                        if (progress?.currentPage) setPageNumber(progress.currentPage);
+                    } else {
+                        setError("Ce livre n'est pas téléchargé. Connectez-vous à Internet pour le télécharger.");
+                    }
+                } catch (err) {
+                    setError("Erreur de chargement hors-ligne.");
+                } finally {
+                    setLoading(false);
+                }
+            })();
+            return;
+        }
+
+        // Online: need auth
         if (authLoading) return;
         if (!user) { navigate('/login'); return; }
         loadBook();
-    }, [user, authLoading, navigate, loadBook]);
+    }, [user, authLoading, navigate, loadBook, bookId]);
 
     const toggleToolbar = () => setShowToolbar(p => !p);
 

@@ -42,6 +42,21 @@ export default function Home() {
     }, []);
 
     useEffect(() => {
+        // Offline mode: load from IndexedDB
+        if (!navigator.onLine) {
+            (async () => {
+                try {
+                    const { getAllOfflineBooks } = await import('../lib/offlineStore');
+                    const offBooks = await getAllOfflineBooks();
+                    const bookList = offBooks.map(b => ({ id: b.id, title: b.title, author: b.author, cover_url: b.cover_url }));
+                    setBooks(bookList);
+                    await refreshOfflineStatus(bookList);
+                } catch (err) { console.error(err); }
+                finally { setLoading(false); }
+            })();
+            return;
+        }
+
         if (authLoading) return;
         if (!user) { navigate('/login'); return; }
         (async () => {

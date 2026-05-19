@@ -28,7 +28,6 @@ function ProtectedRoute({ children }) {
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       window.deferredPrompt = e;
-      // Dispatch custom event so other components know it's available
       window.dispatchEvent(new Event('app-installable'));
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -40,6 +39,11 @@ function ProtectedRoute({ children }) {
     };
   }, []);
   
+  // When offline, let pages through — they handle their own offline data from IndexedDB
+  if (isOffline) {
+    return children;
+  }
+
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -49,14 +53,9 @@ function ProtectedRoute({ children }) {
   }
   
   if (!user) {
-    // Save the current location so we can redirect back after login
     const currentPath = window.location.pathname;
     return <Navigate to={`/login?redirect=${encodeURIComponent(currentPath)}`} replace />;
   }
-
-  // If offline and trying to access pages other than Library or Reader, show OfflineStatus
-  // Wait, offline fallback can just be an overlay or redirect. For now, let's just render the children.
-  // The mockup shows an offline screen with "Go to Library". We could route to /offline if offline and not in library/reader.
   
   return children;
 }
