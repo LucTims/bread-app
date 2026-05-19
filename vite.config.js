@@ -40,6 +40,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -55,6 +57,14 @@ export default defineConfig({
             options: {
               cacheName: 'gstatic-fonts-cache',
               expiration: { maxEntries: 10, maxAgeSeconds: 365 * 24 * 60 * 60 }
+            }
+          },
+          {
+            urlPattern: /^https:\/\/ezmchxokfeybpccmkhyx\.supabase\.co\/storage\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'supabase-covers-cache',
+              expiration: { maxEntries: 100, maxAgeSeconds: 7 * 24 * 60 * 60 }
             }
           }
         ]
