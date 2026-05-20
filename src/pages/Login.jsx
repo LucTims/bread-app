@@ -20,7 +20,7 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
     const [view, setView] = useState('welcome');
-    const [isInstallable, setIsInstallable] = useState(!!window.deferredPrompt);
+    const [showInstallHelp, setShowInstallHelp] = useState(false);
     const { signIn, user } = useAuth();
     const navigate = useNavigate();
 
@@ -29,25 +29,23 @@ export default function Login() {
 
     useEffect(() => { if (user) navigate(redirectUrl); }, [user, navigate, redirectUrl]);
 
-    useEffect(() => {
-        const onInstallable = () => setIsInstallable(true);
-        const onInstalled = () => setIsInstallable(false);
-        window.addEventListener('app-installable', onInstallable);
-        window.addEventListener('app-installed', onInstalled);
-        if (window.deferredPrompt) setIsInstallable(true);
-        if (window.matchMedia('(display-mode: standalone)').matches) setIsInstallable(false);
-        return () => {
-            window.removeEventListener('app-installable', onInstallable);
-            window.removeEventListener('app-installed', onInstalled);
-        };
-    }, []);
+    // Detect if already installed
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+    // Detect platform
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isSafari = /safari/i.test(navigator.userAgent) && !/chrome|chromium|crios/i.test(navigator.userAgent);
 
     const handleInstall = async () => {
         const p = window.deferredPrompt;
-        if (!p) return;
-        p.prompt();
-        const { outcome } = await p.userChoice;
-        if (outcome === 'accepted') { setIsInstallable(false); window.deferredPrompt = null; }
+        if (p) {
+            p.prompt();
+            const { outcome } = await p.userChoice;
+            if (outcome === 'accepted') { window.deferredPrompt = null; }
+        } else {
+            // No native prompt — show manual instructions
+            setShowInstallHelp(true);
+        }
     };
 
     const handleLogin = async (e) => {
@@ -143,8 +141,8 @@ export default function Login() {
         return (
             <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-6)', textAlign: 'center' }}>
 
-                {/* Install banner at the top */}
-                {isInstallable && (
+                {/* Install banner — ALWAYS visible unless already installed */}
+                {!isStandalone && (
                     <div onClick={handleInstall} style={{
                         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60,
                         background: 'linear-gradient(135deg, #FFD700, #FFA000)',
@@ -155,6 +153,62 @@ export default function Login() {
                         <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#000' }}>install_mobile</span>
                         <span style={{ fontSize: 13, fontWeight: 700, color: '#000' }}>Installer l'App pour lire hors-ligne</span>
                         <span style={{ background: '#000', color: '#FFD700', padding: '4px 12px', borderRadius: 14, fontSize: 11, fontWeight: 700, marginLeft: 4 }}>Installer</span>
+                    </div>
+                )}
+
+                {/* Install Help Modal */}
+                {showInstallHelp && (
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowInstallHelp(false)}>
+                        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--color-surface)', borderRadius: 20, padding: '28px 24px', maxWidth: 340, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                                <h3 style={{ fontSize: 18, fontWeight: 700 }}>Installer BRead</h3>
+                                <button onClick={() => setShowInstallHelp(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
+                                    <span className="material-symbols-outlined">close</span>
+                                </button>
+                            </div>
+
+                            {isIOS ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,215,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                            <span style={{ fontSize: 20 }}>1</span>
+                                        </div>
+                                        <p style={{ fontSize: 13, lineHeight: 1.4 }}>Appuyez sur le bouton <strong>Partager</strong> <span className="material-symbols-outlined" style={{ fontSize: 16, verticalAlign: 'middle' }}>ios_share</span> en bas</p>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,215,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                            <span style={{ fontSize: 20 }}>2</span>
+                                        </div>
+                                        <p style={{ fontSize: 13, lineHeight: 1.4 }}>Faites défiler et appuyez sur <strong>"Sur l'écran d'accueil"</strong> <span className="material-symbols-outlined" style={{ fontSize: 16, verticalAlign: 'middle' }}>add_box</span></p>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,215,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                            <span style={{ fontSize: 20 }}>3</span>
+                                        </div>
+                                        <p style={{ fontSize: 13, lineHeight: 1.4 }}>Appuyez sur <strong>"Ajouter"</strong></p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,215,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                            <span style={{ fontSize: 20 }}>1</span>
+                                        </div>
+                                        <p style={{ fontSize: 13, lineHeight: 1.4 }}>Appuyez sur le menu <strong>⋮</strong> en haut à droite du navigateur</p>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,215,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                            <span style={{ fontSize: 20 }}>2</span>
+                                        </div>
+                                        <p style={{ fontSize: 13, lineHeight: 1.4 }}>Appuyez sur <strong>"Installer l'application"</strong> ou <strong>"Ajouter à l'écran d'accueil"</strong></p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 20, lineHeight: 1.5, textAlign: 'center' }}>
+                                L'application sera ajoutée à votre écran d'accueil pour un accès rapide et la lecture hors-ligne.
+                            </p>
+                        </div>
                     </div>
                 )}
 
