@@ -4,6 +4,7 @@ import { useAuth } from '../lib/AuthContext';
 import { getOfflineBook, getBookMeta, saveReadingProgress, getReadingProgress, saveBookOffline } from '../lib/offlineStore';
 import { supabase } from '../lib/supabase';
 import { Document, Page, pdfjs } from 'react-pdf';
+import BookChat from '../components/BookChat';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -49,6 +50,7 @@ export default function Reader() {
     const [showThemePanel, setShowThemePanel] = useState(false);
     const [showModePanel, setShowModePanel] = useState(false);
     const [showAudioPanel, setShowAudioPanel] = useState(false);
+    const [showChat, setShowChat] = useState(false);
 
     // TTS Audio — sentence-level tracking
     const [ttsPlaying, setTtsPlaying] = useState(false);
@@ -672,6 +674,14 @@ export default function Reader() {
                     <span style={{ fontSize: 9, fontWeight: 600 }}>Audio</span>
                 </button>
 
+                {/* AI Chat */}
+                <button onClick={(e) => { e.stopPropagation(); setShowChat(true); }}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}
+                >
+                    <span className="material-symbols-outlined" style={{ fontSize: 22, background: 'linear-gradient(135deg, var(--color-primary), #FF8C00)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>smart_toy</span>
+                    <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--color-primary)' }}>IA</span>
+                </button>
+
                 {/* Theme / Color */}
                 <button onClick={(e) => { e.stopPropagation(); setShowModePanel(false); setShowAudioPanel(false); setShowThemePanel(p => !p); }}
                     style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: showThemePanel ? 'var(--color-primary)' : 'inherit' }}
@@ -680,6 +690,15 @@ export default function Reader() {
                     <span style={{ fontSize: 9, fontWeight: 600 }}>Couleur</span>
                 </button>
             </div>
+            {/* AI Chat overlay */}
+            <BookChat
+                isOpen={showChat}
+                onClose={() => setShowChat(false)}
+                extractPageText={extractPageText}
+                pageNumber={pageNumber}
+                numPages={numPages}
+                bookTitle={bookMeta?.title}
+            />
         </div>
     );
 }
