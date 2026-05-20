@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
 import { getAllOfflineBooks, getReadingProgress } from '../lib/offlineStore';
+import { InstallButton } from '../components/InstallPrompt';
 
 export default function Home() {
     const navigate = useNavigate();
@@ -91,6 +92,9 @@ export default function Home() {
 
     return (
         <div>
+
+            {/* Install App card */}
+            <InstallButton style={{ marginBottom: 'var(--space-6)' }} />
 
             {/* Continue Reading */}
             {lastRead && (

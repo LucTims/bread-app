@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
+import { InstallBanner, InstallMenuItem } from './InstallPrompt';
 
 export default function TopBar() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const [menuOpen, setMenuOpen] = useState(false);
-    const [isInstallable, setIsInstallable] = useState(!!window.deferredPrompt);
     const menuRef = useRef(null);
+
+    // Check if installed (standalone)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
     useEffect(() => {
         function handleClickOutside(event) {
@@ -17,61 +20,14 @@ export default function TopBar() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [menuRef]);
 
-    useEffect(() => {
-        const onInstallable = () => setIsInstallable(true);
-        const onInstalled = () => setIsInstallable(false);
-        window.addEventListener('app-installable', onInstallable);
-        window.addEventListener('app-installed', onInstalled);
-        // Check if already installable (event may have fired before React mounted)
-        if (window.deferredPrompt) setIsInstallable(true);
-        // Check if already installed (standalone mode)
-        if (window.matchMedia('(display-mode: standalone)').matches) setIsInstallable(false);
-        return () => {
-            window.removeEventListener('app-installable', onInstallable);
-            window.removeEventListener('app-installed', onInstalled);
-        };
-    }, []);
-
-    const handleInstallApp = async () => {
-        const p = window.deferredPrompt;
-        if (!p) return;
-        p.prompt();
-        const { outcome } = await p.userChoice;
-        if (outcome === 'accepted') { setIsInstallable(false); window.deferredPrompt = null; }
-        setMenuOpen(false);
-    };
-
     const initial = (user?.user_metadata?.full_name || user?.email || 'U').charAt(0).toUpperCase();
 
     return (
         <>
             {/* ── Install Banner — always visible at very top ── */}
-            {isInstallable && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60,
-                    background: 'linear-gradient(135deg, #FFD700, #FFA000)',
-                    padding: '10px 16px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    boxShadow: '0 2px 12px rgba(255,215,0,0.3)'
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 22, color: '#000' }}>install_mobile</span>
-                        <div>
-                            <p style={{ fontSize: 13, fontWeight: 700, color: '#000', lineHeight: 1.2 }}>Installer l'App</p>
-                            <p style={{ fontSize: 11, color: 'rgba(0,0,0,0.6)' }}>Lire hors-ligne</p>
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <button onClick={handleInstallApp} style={{
-                            background: '#000', color: '#FFD700', border: 'none', padding: '7px 16px',
-                            borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer'
-                        }}>Installer</button>
-                        <button onClick={() => { setIsInstallable(false); }} style={{
-                            background: 'none', border: 'none', color: 'rgba(0,0,0,0.5)', cursor: 'pointer', padding: 4
-                        }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
-                        </button>
-                    </div>
+            {!isStandalone && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60 }}>
+                    <InstallBanner />
                 </div>
             )}
 
@@ -80,7 +36,7 @@ export default function TopBar() {
                 padding: '0 var(--space-4)', 
                 background: 'var(--color-bg)', 
                 position: 'fixed', 
-                top: isInstallable ? 44 : 0, 
+                top: isStandalone ? 0 : 44, 
                 left: 0, width: '100%', zIndex: 50, 
                 height: 'var(--header-height)', 
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -99,6 +55,9 @@ export default function TopBar() {
                             borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)',
                             minWidth: 220, zIndex: 100, overflow: 'hidden'
                         }}>
+                            {/* Install App in menu */}
+                            <InstallMenuItem onClick={() => setMenuOpen(false)} />
+
                             {[
                                 { icon: 'library_books', label: 'Ma Bibliothèque', action: () => navigate('/library') },
                                 { icon: 'settings', label: 'Paramètres', action: () => navigate('/settings') },

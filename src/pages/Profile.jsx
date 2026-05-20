@@ -3,6 +3,7 @@ import { useAuth } from '../lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { getAllOfflineBooks, getStorageUsage, formatSize } from '../lib/offlineStore';
+import { InstallButton } from '../components/InstallPrompt';
 
 export default function Profile() {
     const { user, signOut } = useAuth();
@@ -196,6 +197,9 @@ export default function Profile() {
                     </div>
                 </div>
             )}
+
+            {/* Install App */}
+            <InstallButton style={{ marginBottom: 'var(--space-4)' }} />
 
             {/* Links */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-12)' }}>
