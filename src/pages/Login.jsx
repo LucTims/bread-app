@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -11,6 +11,33 @@ const GOOGLE_SVG = (
         <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
         <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
     </svg>
+);
+
+const Divider = () => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
+        <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
+        <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}>ou</span>
+        <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
+    </div>
+);
+
+const GoogleButton = ({ label, onClick, disabled }) => (
+    <button onClick={onClick} disabled={disabled}
+        style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+            width: '100%', padding: '14px 16px', borderRadius: 'var(--radius-full)',
+            background: '#fff', border: '1px solid #dadce0',
+            color: '#3c4043', fontSize: 14, fontWeight: 600, fontFamily: 'inherit',
+            cursor: 'pointer', transition: 'all 0.2s ease',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+        }}
+    >
+        {disabled ? (
+            <div className="spinner" style={{ width: 20, height: 20, borderWidth: 2, borderTopColor: '#4285F4', borderColor: 'rgba(66,133,244,0.3)' }} />
+        ) : (
+            <>{GOOGLE_SVG}<span>{label || 'Continuer avec Google'}</span></>
+        )}
+    </button>
 );
 
 export default function Login() {
@@ -88,35 +115,6 @@ export default function Login() {
         }
     };
 
-    // ─── Separator ───
-    const Divider = () => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
-            <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
-            <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}>ou</span>
-            <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
-        </div>
-    );
-
-    // ─── Google Button ───
-    const GoogleButton = ({ label }) => (
-        <button onClick={handleGoogleLogin} disabled={googleLoading}
-            style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                width: '100%', padding: '14px 16px', borderRadius: 'var(--radius-full)',
-                background: '#fff', border: '1px solid #dadce0',
-                color: '#3c4043', fontSize: 14, fontWeight: 600, fontFamily: 'inherit',
-                cursor: 'pointer', transition: 'all 0.2s ease',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
-            }}
-        >
-            {googleLoading ? (
-                <div className="spinner" style={{ width: 20, height: 20, borderWidth: 2, borderTopColor: '#4285F4', borderColor: 'rgba(66,133,244,0.3)' }} />
-            ) : (
-                <>{GOOGLE_SVG}<span>{label || 'Continuer avec Google'}</span></>
-            )}
-        </button>
-    );
-
     // ─── Welcome Screen ───
     if (view === 'welcome') {
         return (
@@ -134,7 +132,7 @@ export default function Login() {
                 </p>
 
                 <div style={{ width: '100%', maxWidth: 320, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                    <GoogleButton label="Continuer avec Google" />
+                    <GoogleButton label="Continuer avec Google" onClick={handleGoogleLogin} disabled={googleLoading} />
                     <Divider />
                     <button className="btn btn-primary btn-lg btn-block" onClick={() => setView('login')}>
                         Se connecter par email
@@ -167,7 +165,7 @@ export default function Login() {
                     
                     {error && <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'rgba(228,30,63,0.1)', border: '1px solid rgba(228,30,63,0.3)', color: '#E41E3F', fontSize: 'var(--text-sm)', marginBottom: 16 }}>{error}</div>}
 
-                    <GoogleButton label="S'inscrire avec Google" />
+                    <GoogleButton label="S'inscrire avec Google" onClick={handleGoogleLogin} disabled={googleLoading} />
                     <Divider />
 
                     <form onSubmit={handleSignUp}>
@@ -212,7 +210,7 @@ export default function Login() {
                 
                 {error && <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'rgba(228,30,63,0.1)', border: '1px solid rgba(228,30,63,0.3)', color: '#E41E3F', fontSize: 'var(--text-sm)', marginBottom: 16 }}>{error}</div>}
 
-                <GoogleButton label="Continuer avec Google" />
+                <GoogleButton label="Continuer avec Google" onClick={handleGoogleLogin} disabled={googleLoading} />
                 <Divider />
 
                 <form onSubmit={handleLogin}>

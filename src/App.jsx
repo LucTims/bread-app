@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import Login from './pages/Login';
@@ -69,18 +69,6 @@ function MainLayout({ children }) {
         {children}
       </main>
       <BottomNav />
-    </div>
-  );
-}
-
-// Layout sans BottomNav (pour Reader ou Offline)
-function SimpleLayout({ children }) {
-  return (
-    <div className="page" style={{ paddingBottom: 0 }}>
-      <TopBar />
-      <main className="container">
-        {children}
-      </main>
     </div>
   );
 }

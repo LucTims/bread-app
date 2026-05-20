@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
@@ -216,9 +216,14 @@ export default function Home() {
                                             </button>
                                         </div>
                                     ) : (
-                                        <button onClick={(e) => { e.stopPropagation(); navigate(`/read/${b.id}`); }} className="btn btn-outline btn-sm btn-block" style={{ marginTop: 8, fontSize: 11 }}>
-                                            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>menu_book</span> Lire
-                                        </button>
+                                        <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+                                            <button onClick={(e) => { e.stopPropagation(); navigate(`/read/${b.id}`); }} className="btn btn-outline btn-sm" style={{ flex: 1, fontSize: 11 }}>
+                                                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>menu_book</span> Lire
+                                            </button>
+                                            <button onClick={(e) => { e.stopPropagation(); handleDownload(b); }} className="btn btn-ghost btn-sm" style={{ padding: '6px 8px' }}>
+                                                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                             );

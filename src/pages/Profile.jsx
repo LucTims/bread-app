@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -18,20 +18,25 @@ export default function Profile() {
 
     useEffect(() => {
         if (!user) return;
-        // Load avatar and bio from user_metadata
-        setAvatarUrl(user.user_metadata?.avatar_url || null);
-        setBio(user.user_metadata?.bio || '');
+        
+        const timer = setTimeout(() => {
+            // Load avatar and bio from user_metadata
+            setAvatarUrl(user.user_metadata?.avatar_url || null);
+            setBio(user.user_metadata?.bio || '');
 
-        (async () => {
-            try {
-                const { data: access } = await supabase
-                    .from('user_book_access').select('id').eq('user_id', user.id);
-                const offBooks = await getAllOfflineBooks();
-                const storageInfo = await getStorageUsage();
-                setStats({ booksOwned: access?.length || 0, booksOffline: offBooks.length });
-                setStorage(storageInfo);
-            } catch (err) { console.error('Profile stats error:', err); }
-        })();
+            (async () => {
+                try {
+                    const { data: access } = await supabase
+                        .from('user_book_access').select('id').eq('user_id', user.id);
+                    const offBooks = await getAllOfflineBooks();
+                    const storageInfo = await getStorageUsage();
+                    setStats({ booksOwned: access?.length || 0, booksOffline: offBooks.length });
+                    setStorage(storageInfo);
+                } catch (err) { console.error('Profile stats error:', err); }
+            })();
+        }, 0);
+
+        return () => clearTimeout(timer);
     }, [user]);
 
     const initial = (user?.user_metadata?.full_name || user?.email || 'U').charAt(0).toUpperCase();
@@ -56,7 +61,7 @@ export default function Profile() {
                     const toDelete = list.filter(f => f.name !== `${user.id}.${ext}`).map(f => `avatars/${f.name}`);
                     if (toDelete.length) await supabase.storage.from('covers').remove(toDelete);
                 }
-            } catch (cleanupErr) { /* ignore cleanup errors */ }
+            } catch { /* ignore cleanup errors */ }
 
             const { error: uploadErr } = await supabase.storage
                 .from('covers')

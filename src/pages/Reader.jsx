@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { getOfflineBook, getBookMeta, saveReadingProgress, getReadingProgress, saveBookOffline } from '../lib/offlineStore';
@@ -155,31 +155,51 @@ export default function Reader() {
         } finally {
             setLoading(false);
         }
-    }, [bookId]);
+    }, [bookId, user]);
+
+    // Define changePage with useCallback before it is used
+    const changePage = useCallback(async (offset) => {
+        const newPage = Math.min(Math.max(1, pageNumber + offset), numPages || 1);
+        setPageNumber(newPage);
+        if (numPages) await saveReadingProgress(bookId, newPage, numPages);
+    }, [pageNumber, numPages, bookId]);
 
     useEffect(() => {
-        if (!navigator.onLine) {
-            (async () => {
+        let active = true;
+        const init = async () => {
+            if (!active) return;
+            if (!navigator.onLine) {
                 setLoading(true);
                 try {
                     const blob = await getOfflineBook(bookId);
                     const meta = await getBookMeta(bookId);
+                    if (!active) return;
                     if (blob) {
                         setBlobAsPdf(blob);
                         setBookMeta(meta);
                         const p = await getReadingProgress(bookId);
-                        if (p?.currentPage) setPageNumber(p.currentPage);
+                        if (p?.currentPage && active) setPageNumber(p.currentPage);
                     } else {
                         setError("Ce livre n'est pas téléchargé. Connectez-vous à Internet.");
                     }
-                } catch { setError("Erreur de chargement hors-ligne."); }
-                finally { setLoading(false); }
-            })();
-            return;
-        }
-        if (authLoading) return;
-        if (!user) { navigate('/login'); return; }
-        loadBook();
+                } catch {
+                    if (active) setError("Erreur de chargement hors-ligne.");
+                } finally {
+                    if (active) setLoading(false);
+                }
+            } else {
+                if (authLoading) return;
+                if (!user) { navigate('/login'); return; }
+                loadBook();
+            }
+        };
+
+        const timer = setTimeout(init, 0);
+
+        return () => {
+            active = false;
+            clearTimeout(timer);
+        };
     }, [user, authLoading, navigate, loadBook, bookId]);
 
     // ─── PINCH TO ZOOM (smooth with CSS transform) ────────────────────────
@@ -259,18 +279,12 @@ export default function Reader() {
             el.removeEventListener('touchmove', onTouchMove);
             el.removeEventListener('touchend', onTouchEnd);
         };
-    }, [scale, scrollMode, pageNumber, numPages]);
+    }, [scale, scrollMode, pageNumber, numPages, changePage]);
 
     // ─── HANDLERS ────────────────────────
     const onDocumentLoadSuccess = (doc) => {
         setNumPages(doc.numPages);
         pdfDocRef.current = doc;
-    };
-    
-    const changePage = async (offset) => {
-        const newPage = Math.min(Math.max(1, pageNumber + offset), numPages || 1);
-        setPageNumber(newPage);
-        if (numPages) await saveReadingProgress(bookId, newPage, numPages);
     };
 
     const toggleToolbar = () => {

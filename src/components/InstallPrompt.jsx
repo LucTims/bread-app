@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 // Detect platform
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);

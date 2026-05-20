@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -76,7 +76,12 @@ export default function Home() {
         }
     }, [user]);
 
-    useEffect(() => { loadData(); }, [loadData]);
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            loadData();
+        }, 0);
+        return () => clearTimeout(timer);
+    }, [loadData]);
 
     function getBookGradient(id) {
         if (!id) return 'linear-gradient(135deg, #667eea, #764ba2)';

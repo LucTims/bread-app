@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { askGemini, QUICK_ACTIONS } from '../lib/gemini';
 
 export default function BookChat({ isOpen, onClose, extractPageText, pageNumber, numPages, bookTitle }) {
