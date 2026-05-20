@@ -14,6 +14,21 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Capture PWA install prompt BEFORE React loads (must not miss this event)
+      window.deferredPrompt = null;
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        window.deferredPrompt = e;
+        window.dispatchEvent(new Event('app-installable'));
+        console.log('✅ PWA installable');
+      });
+      window.addEventListener('appinstalled', function() {
+        window.deferredPrompt = null;
+        window.dispatchEvent(new Event('app-installed'));
+        console.log('✅ PWA installed');
+      });
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

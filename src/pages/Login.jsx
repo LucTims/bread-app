@@ -19,7 +19,8 @@ export default function Login() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
-    const [view, setView] = useState('welcome'); // 'welcome' | 'login' | 'signup'
+    const [view, setView] = useState('welcome');
+    const [isInstallable, setIsInstallable] = useState(!!window.deferredPrompt);
     const { signIn, user } = useAuth();
     const navigate = useNavigate();
 
@@ -27,6 +28,27 @@ export default function Login() {
     const redirectUrl = new URLSearchParams(location.search).get('redirect') || '/';
 
     useEffect(() => { if (user) navigate(redirectUrl); }, [user, navigate, redirectUrl]);
+
+    useEffect(() => {
+        const onInstallable = () => setIsInstallable(true);
+        const onInstalled = () => setIsInstallable(false);
+        window.addEventListener('app-installable', onInstallable);
+        window.addEventListener('app-installed', onInstalled);
+        if (window.deferredPrompt) setIsInstallable(true);
+        if (window.matchMedia('(display-mode: standalone)').matches) setIsInstallable(false);
+        return () => {
+            window.removeEventListener('app-installable', onInstallable);
+            window.removeEventListener('app-installed', onInstalled);
+        };
+    }, []);
+
+    const handleInstall = async () => {
+        const p = window.deferredPrompt;
+        if (!p) return;
+        p.prompt();
+        const { outcome } = await p.userChoice;
+        if (outcome === 'accepted') { setIsInstallable(false); window.deferredPrompt = null; }
+    };
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -120,6 +142,22 @@ export default function Login() {
     if (view === 'welcome') {
         return (
             <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-6)', textAlign: 'center' }}>
+
+                {/* Install banner at the top */}
+                {isInstallable && (
+                    <div onClick={handleInstall} style={{
+                        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60,
+                        background: 'linear-gradient(135deg, #FFD700, #FFA000)',
+                        padding: '12px 16px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                        boxShadow: '0 2px 12px rgba(255,215,0,0.3)'
+                    }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#000' }}>install_mobile</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#000' }}>Installer l'App pour lire hors-ligne</span>
+                        <span style={{ background: '#000', color: '#FFD700', padding: '4px 12px', borderRadius: 14, fontSize: 11, fontWeight: 700, marginLeft: 4 }}>Installer</span>
+                    </div>
+                )}
+
                 <h1 style={{ fontFamily: 'var(--font-logo)', fontSize: 48, fontWeight: 700, color: 'var(--color-primary)', marginBottom: 'var(--space-4)' }}>BRead</h1>
                 <h2 style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, marginBottom: 'var(--space-4)', lineHeight: 1.2 }}>Votre liseuse hors-ligne.</h2>
                 <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-base)', marginBottom: 'var(--space-8)', maxWidth: 300, lineHeight: 1.6 }}>

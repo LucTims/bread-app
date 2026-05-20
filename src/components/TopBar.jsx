@@ -18,10 +18,18 @@ export default function TopBar() {
     }, [menuRef]);
 
     useEffect(() => {
-        const h = () => setIsInstallable(true);
-        window.addEventListener('app-installable', h);
+        const onInstallable = () => setIsInstallable(true);
+        const onInstalled = () => setIsInstallable(false);
+        window.addEventListener('app-installable', onInstallable);
+        window.addEventListener('app-installed', onInstalled);
+        // Check if already installable (event may have fired before React mounted)
         if (window.deferredPrompt) setIsInstallable(true);
-        return () => window.removeEventListener('app-installable', h);
+        // Check if already installed (standalone mode)
+        if (window.matchMedia('(display-mode: standalone)').matches) setIsInstallable(false);
+        return () => {
+            window.removeEventListener('app-installable', onInstallable);
+            window.removeEventListener('app-installed', onInstalled);
+        };
     }, []);
 
     const handleInstallApp = async () => {
