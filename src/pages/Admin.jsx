@@ -135,11 +135,11 @@ export default function Admin() {
     // Get platform badge color
     const getPlatformStyle = (p) => {
         switch(p) {
-            case 'iOS': return { background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' };
+            case 'iOS': return { background: 'var(--color-border)', color: 'var(--color-text)', border: '1px solid var(--color-border)' };
             case 'Android': return { background: 'rgba(164,198,57,0.15)', color: '#a4c639', border: '1px solid rgba(164,198,57,0.3)' };
             case 'Windows': return { background: 'rgba(0,164,239,0.15)', color: '#00a4ef', border: '1px solid rgba(0,164,239,0.3)' };
-            case 'Mac': return { background: 'rgba(255,215,0,0.15)', color: '#FFD700', border: '1px solid rgba(255,215,0,0.3)' };
-            default: return { background: 'rgba(255,255,255,0.05)', color: 'var(--color-text-muted)', border: '1px solid rgba(255,255,255,0.1)' };
+            case 'Mac': return { background: 'var(--color-primary-light)', color: 'var(--color-primary)', border: '1px solid rgba(255,215,0,0.3)' };
+            default: return { background: 'var(--color-surface)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' };
         }
     };
 
@@ -155,7 +155,7 @@ export default function Admin() {
     return (
         <div style={{ paddingBottom: 60 }}>
             {/* Header d'Administration */}
-            <div className="library-hero" style={{ background: 'linear-gradient(135deg, rgba(20,20,35,0.95), rgba(10,10,15,0.98))', borderBottom: '1px solid rgba(255,215,0,0.15)', padding: '36px 0', marginBottom: 24, borderRadius: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+            <div className="library-hero" style={{ background: 'linear-gradient(135deg, var(--color-surface), var(--color-bg-light))', borderBottom: '1px solid var(--color-border)', padding: '36px 0', marginBottom: 24, borderRadius: 16, boxShadow: 'var(--shadow-md)' }}>
                 <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -184,9 +184,9 @@ export default function Admin() {
                             onClick={() => setTab(t.id)} 
                             style={{
                                 display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px', borderRadius: 20,
-                                background: tab === t.id ? 'linear-gradient(135deg, var(--color-primary), #FFA000)' : 'rgba(255,255,255,0.04)',
-                                color: tab === t.id ? '#000' : 'rgba(255,255,255,0.6)',
-                                border: 'none', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
+                                background: tab === t.id ? 'linear-gradient(135deg, var(--color-primary), #FFA000)' : 'var(--color-surface)',
+                                color: tab === t.id ? '#000' : 'var(--color-text-muted)',
+                                border: tab === t.id ? 'none' : '1px solid var(--color-border)', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
                                 transition: 'all 0.2s ease', cursor: 'pointer', boxShadow: tab === t.id ? '0 4px 12px rgba(255,215,0,0.2)' : 'none'
                             }}
                         >
@@ -203,42 +203,42 @@ export default function Admin() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                         {/* KPIs Grid */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
-                            <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: 20, position: 'relative', overflow: 'hidden', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: 20, position: 'relative', overflow: 'hidden' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                                     <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)' }}>INSTALLATIONS APP</span>
                                     <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)', fontSize: 20 }}>install_mobile</span>
                                 </div>
-                                <h3 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: '#fff' }}>{stats.installsCount}</h3>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, fontSize: 11, color: '#4facfe' }}>
+                                <h3 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: 'var(--color-text)' }}>{stats.installsCount}</h3>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, fontSize: 11, color: 'var(--color-text-muted)' }}>
                                     <span className="material-symbols-outlined" style={{ fontSize: 12 }}>trending_up</span>
                                     <span>Taux actif élevé</span>
                                 </div>
                             </div>
 
-                            <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: 20, position: 'relative', overflow: 'hidden', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: 20, position: 'relative', overflow: 'hidden' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                                     <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)' }}>REVENU TOTAL</span>
-                                    <span className="material-symbols-outlined" style={{ color: '#43e97b', fontSize: 20 }}>payments</span>
+                                    <span className="material-symbols-outlined" style={{ color: 'var(--color-success)', fontSize: 20 }}>payments</span>
                                 </div>
-                                <h3 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: '#43e97b' }}>{stats.totalRevenue} €</h3>
+                                <h3 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: 'var(--color-success)' }}>{stats.totalRevenue} €</h3>
                                 <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8, margin: 0 }}>{stats.salesCount} ventes réelles encaissées</p>
                             </div>
 
-                            <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: 20, position: 'relative', overflow: 'hidden', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: 20, position: 'relative', overflow: 'hidden' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                                     <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)' }}>LECTEURS INSCRITS</span>
                                     <span className="material-symbols-outlined" style={{ color: '#fa709a', fontSize: 20 }}>group</span>
                                 </div>
-                                <h3 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: '#fff' }}>{stats.usersCount}</h3>
+                                <h3 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: 'var(--color-text)' }}>{stats.usersCount}</h3>
                                 <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8, margin: 0 }}>Comptes synchronisés</p>
                             </div>
 
-                            <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: 20, position: 'relative', overflow: 'hidden', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div className="card" style={{ display: 'flex', flexDirection: 'column', padding: 20, position: 'relative', overflow: 'hidden' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                                     <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)' }}>LIVRES DISPONIBLES</span>
                                     <span className="material-symbols-outlined" style={{ color: '#fccb90', fontSize: 20 }}>book_2</span>
                                 </div>
-                                <h3 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: '#fff' }}>{stats.booksCount}</h3>
+                                <h3 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: 'var(--color-text)' }}>{stats.booksCount}</h3>
                                 <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8, margin: 0 }}>Catalogue BRead</p>
                             </div>
                         </div>
@@ -260,10 +260,10 @@ export default function Admin() {
                                                     <span>{p.name}</span>
                                                     <span style={{ color: 'var(--color-text-muted)' }}>{p.count} install. ({p.pct}%)</span>
                                                 </div>
-                                                <div style={{ height: 8, borderRadius: 4, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                                                <div style={{ height: 8, borderRadius: 4, background: 'var(--color-border)', overflow: 'hidden' }}>
                                                     <div style={{
                                                         height: '100%', borderRadius: 4,
-                                                        background: p.name === 'iOS' ? '#fff' : p.name === 'Android' ? '#a4c639' : p.name === 'Windows' ? '#00a4ef' : p.name === 'Mac' ? '#FFD700' : 'var(--color-primary)',
+                                                        background: p.name === 'iOS' ? 'var(--color-text)' : p.name === 'Android' ? '#a4c639' : p.name === 'Windows' ? '#00a4ef' : p.name === 'Mac' ? 'var(--color-primary)' : 'var(--color-primary)',
                                                         width: `${p.pct}%`, transition: 'width 1s ease'
                                                     }} />
                                                 </div>
@@ -283,7 +283,7 @@ export default function Admin() {
                                 ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
                                         {searchQueries.map((q, i) => (
-                                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: 10, fontSize: 12 }}>
+                                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--color-bg-light)', border: '1px solid var(--color-border)', borderRadius: 10, fontSize: 12 }}>
                                                 <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>"{q.query}"</span>
                                                 <span style={{ color: 'var(--color-text-muted)', fontSize: 10 }}>{new Date(q.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</span>
                                             </div>
@@ -309,8 +309,8 @@ export default function Admin() {
                                 value={installSearch}
                                 onChange={e => setInstallSearch(e.target.value)}
                                 style={{
-                                    padding: '8px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.06)',
-                                    border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: 12, width: '100%', maxWidth: 260
+                                    padding: '8px 14px', borderRadius: 12, background: 'var(--color-bg)',
+                                    border: '1px solid var(--color-border)', color: 'var(--color-text)', fontSize: 12, width: '100%', maxWidth: 260
                                 }}
                             />
                         </div>
@@ -324,7 +324,7 @@ export default function Admin() {
                             <div style={{ overflowX: 'auto' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
                                     <thead>
-                                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'var(--color-text-muted)' }}>
+                                        <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>
                                             <th style={{ padding: '12px 8px', fontWeight: 600 }}>Utilisateur</th>
                                             <th style={{ padding: '12px 8px', fontWeight: 600 }}>Support / OS</th>
                                             <th style={{ padding: '12px 8px', fontWeight: 600 }}>Date d'installation</th>
@@ -332,7 +332,7 @@ export default function Admin() {
                                     </thead>
                                     <tbody>
                                         {filteredInstalls.map((item) => (
-                                            <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', transition: 'background 0.2s' }}>
+                                            <tr key={item.id} style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.2s' }}>
                                                 <td style={{ padding: '14px 8px', fontWeight: 600 }}>{item.email || 'Utilisateur Anonyme'}</td>
                                                 <td style={{ padding: '14px 8px' }}>
                                                     <span style={{
@@ -372,8 +372,8 @@ export default function Admin() {
                                     value={orderSearch}
                                     onChange={e => setOrderSearch(e.target.value)}
                                     style={{
-                                        padding: '8px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: 12, width: '100%', maxWidth: 260
+                                        padding: '8px 14px', borderRadius: 12, background: 'var(--color-bg)',
+                                        border: '1px solid var(--color-border)', color: 'var(--color-text)', fontSize: 12, width: '100%', maxWidth: 260
                                     }}
                                 />
                             </div>
@@ -387,7 +387,7 @@ export default function Admin() {
                                 <div style={{ overflowX: 'auto' }}>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left' }}>
                                         <thead>
-                                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'var(--color-text-muted)' }}>
+                                            <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>
                                                 <th style={{ padding: '12px 8px', fontWeight: 600 }}>Client / Email</th>
                                                 <th style={{ padding: '12px 8px', fontWeight: 600 }}>Montant</th>
                                                 <th style={{ padding: '12px 8px', fontWeight: 600 }}>Paiement</th>
@@ -398,12 +398,12 @@ export default function Admin() {
                                         </thead>
                                         <tbody>
                                             {filteredOrders.map((ord) => (
-                                                <tr key={ord.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                                <tr key={ord.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                                                     <td style={{ padding: '14px 8px' }}>
                                                         <div style={{ fontWeight: 600 }}>{ord.customer_name || 'Inconnu'}</div>
                                                         <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>{ord.customer_email || 'Pas d\'email'}</div>
                                                     </td>
-                                                    <td style={{ padding: '14px 8px', fontWeight: 700, color: ord.status === 'paid' ? '#43e97b' : '#fff' }}>
+                                                    <td style={{ padding: '14px 8px', fontWeight: 700, color: ord.status === 'paid' ? 'var(--color-success)' : 'var(--color-text)' }}>
                                                         {ord.total_amount} €
                                                     </td>
                                                     <td style={{ padding: '14px 8px', fontSize: 11, textTransform: 'capitalize' }}>
@@ -450,8 +450,8 @@ export default function Admin() {
                                 value={userSearch}
                                 onChange={e => setUserSearch(e.target.value)}
                                 style={{
-                                    padding: '8px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.06)',
-                                    border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: 12, width: '100%', maxWidth: 260
+                                    padding: '8px 14px', borderRadius: 12, background: 'var(--color-bg)',
+                                    border: '1px solid var(--color-border)', color: 'var(--color-text)', fontSize: 12, width: '100%', maxWidth: 260
                                 }}
                             />
                         </div>
@@ -465,7 +465,7 @@ export default function Admin() {
                             <div style={{ overflowX: 'auto' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
                                     <thead>
-                                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'var(--color-text-muted)' }}>
+                                        <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>
                                             <th style={{ padding: '12px 8px', fontWeight: 600 }}>Adresse E-mail</th>
                                             <th style={{ padding: '12px 8px', fontWeight: 600 }}>Rôle</th>
                                             <th style={{ padding: '12px 8px', fontWeight: 600 }}>Date d'inscription</th>
@@ -473,14 +473,14 @@ export default function Admin() {
                                     </thead>
                                     <tbody>
                                         {filteredUsers.map((u) => (
-                                            <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                            <tr key={u.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                                                 <td style={{ padding: '14px 8px', fontWeight: 600 }}>{u.email}</td>
                                                 <td style={{ padding: '14px 8px' }}>
                                                     <span style={{
                                                         padding: '3px 8px', borderRadius: 8, fontSize: 10, fontWeight: 700,
-                                                        background: u.role === 'admin' ? 'rgba(255,215,0,0.15)' : 'rgba(255,255,255,0.05)',
-                                                        color: u.role === 'admin' ? '#FFD700' : 'rgba(255,255,255,0.5)',
-                                                        border: u.role === 'admin' ? '1px solid rgba(255,215,0,0.3)' : '1px solid rgba(255,255,255,0.08)'
+                                                        background: u.role === 'admin' ? 'var(--color-primary-light)' : 'var(--color-bg-dark)',
+                                                        color: u.role === 'admin' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                                                        border: u.role === 'admin' ? '1px solid rgba(255, 215, 0, 0.3)' : '1px solid var(--color-border)'
                                                     }}>
                                                         {u.role === 'admin' ? '🛠️ Administrateur' : '👤 Lecteur'}
                                                     </span>
