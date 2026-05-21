@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
-import { InstallBanner, InstallMenuItem } from './InstallPrompt';
+import { InstallMenuItem } from './InstallPrompt';
 
 export default function TopBar() {
     const navigate = useNavigate();
@@ -9,8 +9,6 @@ export default function TopBar() {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef(null);
 
-    // Check if installed (standalone)
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
     useEffect(() => {
         function handleClickOutside(event) {
@@ -36,19 +34,12 @@ export default function TopBar() {
 
     return (
         <>
-            {/* ── Install Banner — always visible at very top ── */}
-            {!isStandalone && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60 }}>
-                    <InstallBanner />
-                </div>
-            )}
-
             {/* ── Header ── */}
             <header style={{ 
                 padding: '0 var(--space-4)', 
                 background: 'var(--color-bg)', 
                 position: 'fixed', 
-                top: isStandalone ? 0 : 44, 
+                top: 0, 
                 left: 0, width: '100%', zIndex: 50, 
                 height: 'var(--header-height)', 
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',

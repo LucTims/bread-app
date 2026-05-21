@@ -41,6 +41,7 @@ const GoogleButton = ({ label, onClick, disabled }) => (
 );
 
 export default function Login() {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [fullName, setFullName] = useState('');
@@ -118,12 +119,14 @@ export default function Login() {
     // ─── Welcome Screen ───
     if (view === 'welcome') {
         return (
-            <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-6)', textAlign: 'center' }}>
+            <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: isStandalone ? 'var(--space-6)' : 'calc(44px + var(--space-6)) var(--space-6) var(--space-6)', textAlign: 'center' }}>
 
                 {/* Install banner — fixed top */}
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60 }}>
-                    <InstallBanner />
-                </div>
+                {!isStandalone && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60 }}>
+                        <InstallBanner />
+                    </div>
+                )}
 
                 <h1 style={{ fontFamily: 'var(--font-logo)', fontSize: 48, fontWeight: 700, color: 'var(--color-primary)', marginBottom: 'var(--space-4)' }}>BRead</h1>
                 <h2 style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, marginBottom: 'var(--space-4)', lineHeight: 1.2 }}>Votre liseuse hors-ligne.</h2>
@@ -154,7 +157,12 @@ export default function Login() {
     // ─── Sign Up Screen ───
     if (view === 'signup') {
         return (
-            <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', padding: 'var(--space-6)' }}>
+            <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', padding: isStandalone ? 'var(--space-6)' : 'calc(44px + var(--space-6)) var(--space-6) var(--space-6)' }}>
+                {!isStandalone && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60 }}>
+                        <InstallBanner />
+                    </div>
+                )}
                 <button className="btn-ghost" style={{ alignSelf: 'flex-start', padding: '8px 0', marginBottom: 'var(--space-6)' }} onClick={() => setView('welcome')}>
                     <span className="material-symbols-outlined">arrow_back</span> Retour
                 </button>
@@ -199,7 +207,12 @@ export default function Login() {
 
     // ─── Login Screen ───
     return (
-        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', padding: 'var(--space-6)' }}>
+        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', padding: isStandalone ? 'var(--space-6)' : 'calc(44px + var(--space-6)) var(--space-6) var(--space-6)' }}>
+            {!isStandalone && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60 }}>
+                    <InstallBanner />
+                </div>
+            )}
             <button className="btn-ghost" style={{ alignSelf: 'flex-start', padding: '8px 0', marginBottom: 'var(--space-6)' }} onClick={() => setView('welcome')}>
                 <span className="material-symbols-outlined">arrow_back</span> Retour
             </button>
