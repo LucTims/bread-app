@@ -6,7 +6,7 @@ import { getAllOfflineBooks, getStorageUsage, formatSize } from '../lib/offlineS
 import { InstallButton } from '../components/InstallPrompt';
 
 export default function Profile() {
-    const { user, signOut } = useAuth();
+    const { user, profile, signOut } = useAuth();
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
     const [stats, setStats] = useState({ booksOwned: 0, booksOffline: 0 });
@@ -208,22 +208,34 @@ export default function Profile() {
 
             {/* Links */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-12)' }}>
-                {[
-                    { icon: 'manage_accounts', label: 'Paramètres du compte', action: () => navigate('/settings') },
-                    { icon: 'library_books', label: 'Ma Bibliothèque', action: () => navigate('/library') },
-                    { icon: 'storefront', label: 'Acheter des livres', sub: 'boombooks.shop', action: () => window.open('https://boombooks.shop', '_blank'), endIcon: 'open_in_new' },
-                ].map((item, i) => (
-                    <div key={i} className="card" style={{ padding: 'var(--space-5)', display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={item.action}>
-                        <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 'var(--space-4)' }}>
-                            <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>{item.icon}</span>
+                {(() => {
+                    const profileLinks = [];
+                    if (profile?.role === 'admin') {
+                        profileLinks.push({ 
+                            icon: 'admin_panel_settings', 
+                            label: "Console d'Administration", 
+                            sub: "Statistiques, installations PWA & données réelles", 
+                            action: () => navigate('/admin') 
+                        });
+                    }
+                    profileLinks.push(
+                        { icon: 'manage_accounts', label: 'Paramètres du compte', action: () => navigate('/settings') },
+                        { icon: 'library_books', label: 'Ma Bibliothèque', action: () => navigate('/library') },
+                        { icon: 'storefront', label: 'Acheter des livres', sub: 'boombooks.shop', action: () => window.open('https://boombooks.shop', '_blank'), endIcon: 'open_in_new' },
+                    );
+                    return profileLinks.map((item, i) => (
+                        <div key={i} className="card" style={{ padding: 'var(--space-5)', display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={item.action}>
+                            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 'var(--space-4)' }}>
+                                <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>{item.icon}</span>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <h4 style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>{item.label}</h4>
+                                {item.sub && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{item.sub}</p>}
+                            </div>
+                            <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>{item.endIcon || 'chevron_right'}</span>
                         </div>
-                        <div style={{ flex: 1 }}>
-                            <h4 style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>{item.label}</h4>
-                            {item.sub && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{item.sub}</p>}
-                        </div>
-                        <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>{item.endIcon || 'chevron_right'}</span>
-                    </div>
-                ))}
+                    ));
+                })()}
             </div>
 
             <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-8)', display: 'flex', justifyContent: 'center' }}>

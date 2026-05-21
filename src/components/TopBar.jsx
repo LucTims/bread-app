@@ -5,7 +5,7 @@ import { InstallBanner, InstallMenuItem } from './InstallPrompt';
 
 export default function TopBar() {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef(null);
 
@@ -21,6 +21,18 @@ export default function TopBar() {
     }, [menuRef]);
 
     const initial = (user?.user_metadata?.full_name || user?.email || 'U').charAt(0).toUpperCase();
+
+    // Build menu items list
+    const menuItems = [];
+    if (profile?.role === 'admin') {
+        menuItems.push({ icon: 'admin_panel_settings', label: 'Console Admin 🛠️', action: () => navigate('/admin') });
+    }
+    menuItems.push(
+        { icon: 'library_books', label: 'Ma Bibliothèque', action: () => navigate('/library') },
+        { icon: 'settings', label: 'Paramètres', action: () => navigate('/settings') },
+        { icon: 'person', label: 'Profil', action: () => navigate('/profile') },
+        { icon: 'storefront', label: 'BoomBooks.shop', action: () => window.open('https://boombooks.shop', '_blank') }
+    );
 
     return (
         <>
@@ -58,12 +70,7 @@ export default function TopBar() {
                             {/* Install App in menu */}
                             <InstallMenuItem onClick={() => setMenuOpen(false)} />
 
-                            {[
-                                { icon: 'library_books', label: 'Ma Bibliothèque', action: () => navigate('/library') },
-                                { icon: 'settings', label: 'Paramètres', action: () => navigate('/settings') },
-                                { icon: 'person', label: 'Profil', action: () => navigate('/profile') },
-                                { icon: 'storefront', label: 'BoomBooks.shop', action: () => window.open('https://boombooks.shop', '_blank') },
-                            ].map((item, i) => (
+                            {menuItems.map((item, i) => (
                                 <div key={i}
                                     style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', borderBottom: '1px solid var(--color-border)' }}
                                     onClick={() => { setMenuOpen(false); item.action(); }}
