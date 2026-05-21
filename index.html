@@ -26,6 +26,7 @@
       window.addEventListener('appinstalled', function() {
         window.deferredPrompt = null;
         window.dispatchEvent(new Event('app-installed'));
+        localStorage.setItem('pwa_just_installed', 'true');
         console.log('✅ PWA installed');
       });
     </script>

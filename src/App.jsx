@@ -97,10 +97,22 @@ function MainLayout({ children }) {
 function AppContent() {
   const { user } = useAuth();
 
+  // 1. Écouter les installations physiques même hors connexion (ex: avant login)
+  useEffect(() => {
+    const handleAppInstalledGlobal = () => {
+      localStorage.setItem('pwa_just_installed', 'true');
+      console.log('✅ PWA just installed (saved to localStorage)');
+    };
+    window.addEventListener('appinstalled', handleAppInstalledGlobal);
+    return () => {
+      window.removeEventListener('appinstalled', handleAppInstalledGlobal);
+    };
+  }, []);
+
   useEffect(() => {
     if (!user) return;
 
-    // 1. Logger les lancements PWA (standalone)
+    // 2. Logger les lancements PWA (standalone)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
     if (isStandalone) {
       import('./lib/pwaInstallLogger').then(({ logAppInstall }) => {
@@ -108,7 +120,17 @@ function AppContent() {
       });
     }
 
-    // 2. Écouter les installations physiques réussies
+    // 3. Logger les installations en attente d'enregistrement (ex: faites avant la connexion)
+    const justInstalled = localStorage.getItem('pwa_just_installed');
+    if (justInstalled === 'true') {
+      import('./lib/pwaInstallLogger').then(({ logAppInstall }) => {
+        logAppInstall(user.id, user.email).then(() => {
+          localStorage.removeItem('pwa_just_installed');
+        });
+      });
+    }
+
+    // 4. Écouter les installations physiques réussies pendant que l'utilisateur est connecté
     const handleAppInstalled = () => {
       import('./lib/pwaInstallLogger').then(({ logAppInstall }) => {
         logAppInstall(user.id, user.email);

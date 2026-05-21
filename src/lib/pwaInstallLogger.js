@@ -6,9 +6,16 @@ export async function logAppInstall(userId, email) {
     // Detect platform
     let platform = 'Autre';
     const ua = navigator.userAgent.toLowerCase();
-    if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
+    const isTouch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+
+    if (ua.includes('iphone') || ua.includes('ipod') || ua.includes('ipad')) {
+        platform = 'iOS';
+    } else if (ua.includes('macintosh') && isTouch) {
+        // Modern iPads in desktop Safari mode
         platform = 'iOS';
     } else if (ua.includes('android')) {
+        platform = 'Android';
+    } else if (ua.includes('windows phone')) {
         platform = 'Android';
     } else if (ua.includes('windows')) {
         platform = 'Windows';
