@@ -9,6 +9,7 @@
 :root {
     /* Colors - Dark Theme */
     --color-primary: #FFD700; /* Yellow/Gold */
+    --color-primary-text: #FFD700;
     --color-primary-hover: #E6C200;
     --color-primary-light: rgba(255, 215, 0, 0.15);
     
@@ -89,6 +90,7 @@
 
     --color-text: #111827;
     --color-text-muted: #6B7280;
+    --color-primary-text: #B58900;
 }
 
 /* ═══════════════════════════════════════

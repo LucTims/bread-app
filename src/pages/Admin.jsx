@@ -138,7 +138,7 @@ export default function Admin() {
             case 'iOS': return { background: 'var(--color-border)', color: 'var(--color-text)', border: '1px solid var(--color-border)' };
             case 'Android': return { background: 'rgba(164,198,57,0.15)', color: '#a4c639', border: '1px solid rgba(164,198,57,0.3)' };
             case 'Windows': return { background: 'rgba(0,164,239,0.15)', color: '#00a4ef', border: '1px solid rgba(0,164,239,0.3)' };
-            case 'Mac': return { background: 'var(--color-primary-light)', color: 'var(--color-primary)', border: '1px solid rgba(255,215,0,0.3)' };
+            case 'Mac': return { background: 'var(--color-primary-light)', color: 'var(--color-primary-text)', border: '1px solid rgba(255,215,0,0.3)' };
             default: return { background: 'var(--color-surface)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' };
         }
     };
@@ -164,7 +164,7 @@ export default function Admin() {
                         </div>
                         <p style={{ color: 'var(--color-text-muted)', fontSize: 13, margin: 0 }}>Statistiques en direct et suivi des installations</p>
                     </div>
-                    <button onClick={loadAdminData} className="btn btn-ghost btn-sm" style={{ border: '1px solid rgba(255,215,0,0.3)', color: 'var(--color-primary)' }}>
+                    <button onClick={loadAdminData} className="btn btn-ghost btn-sm" style={{ border: '1.5px solid var(--color-primary-text)', color: 'var(--color-primary-text)' }}>
                         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>refresh</span> Rafraîchir
                     </button>
                 </div>
@@ -284,7 +284,7 @@ export default function Admin() {
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
                                         {searchQueries.map((q, i) => (
                                             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--color-bg-light)', border: '1px solid var(--color-border)', borderRadius: 10, fontSize: 12 }}>
-                                                <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>"{q.query}"</span>
+                                                <span style={{ fontWeight: 600, color: 'var(--color-primary-text)' }}>"{q.query}"</span>
                                                 <span style={{ color: 'var(--color-text-muted)', fontSize: 10 }}>{new Date(q.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</span>
                                             </div>
                                         ))}
@@ -421,7 +421,7 @@ export default function Admin() {
                                                     </td>
                                                     <td style={{ padding: '14px 8px' }}>
                                                         <div>{ord.customer_country || 'FR'}</div>
-                                                        {ord.traffic_source && <div style={{ fontSize: 9, color: 'var(--color-primary)' }}>{ord.traffic_source}</div>}
+                                                        {ord.traffic_source && <div style={{ fontSize: 9, color: 'var(--color-primary-text)' }}>{ord.traffic_source}</div>}
                                                     </td>
                                                     <td style={{ padding: '14px 8px', color: 'var(--color-text-muted)' }}>
                                                         {new Date(ord.created_at).toLocaleDateString('fr-FR')}
@@ -479,7 +479,7 @@ export default function Admin() {
                                                     <span style={{
                                                         padding: '3px 8px', borderRadius: 8, fontSize: 10, fontWeight: 700,
                                                         background: u.role === 'admin' ? 'var(--color-primary-light)' : 'var(--color-bg-dark)',
-                                                        color: u.role === 'admin' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                                                        color: u.role === 'admin' ? 'var(--color-primary-text)' : 'var(--color-text-muted)',
                                                         border: u.role === 'admin' ? '1px solid rgba(255, 215, 0, 0.3)' : '1px solid var(--color-border)'
                                                     }}>
                                                         {u.role === 'admin' ? '🛠️ Administrateur' : '👤 Lecteur'}

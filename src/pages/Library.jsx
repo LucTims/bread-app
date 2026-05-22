@@ -27,6 +27,7 @@ export default function Home() {
     const [storage, setStorage] = useState({ totalBytes: 0, bookCount: 0 });
     const [downloading, setDownloading] = useState(null);
     const [downloadProgress, setDownloadProgress] = useState(0);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const refreshOfflineStatus = useCallback(async (bookList) => {
         const statuses = {};
@@ -130,48 +131,105 @@ export default function Home() {
         await refreshOfflineStatus(books);
     };
 
-    const filteredBooks = tab === 'offline' ? books.filter(b => offlineStatus[b.id]) : books;
+    const filteredBooks = books.filter(b => {
+        const matchesTab = tab === 'all' || (tab === 'offline' && offlineStatus[b.id]);
+        const matchesSearch = searchQuery.trim() === '' || 
+            b.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            (b.author || '').toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesTab && matchesSearch;
+    });
 
     if (authLoading || loading) return (
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}><div className="spinner" /></div>
     );
 
+    // Storage budget calculation
+    const storageQuota = 100 * 1024 * 1024; // 100MB
+    const storagePct = Math.min(Math.round((storage.totalBytes / storageQuota) * 100), 100);
+
     return (
-        <div>
-            {/* Hero */}
-            <div className="library-hero">
+        <div style={{ paddingBottom: 40 }}>
+            {/* Hero Dashboard */}
+            <div className="library-hero" style={{ padding: '24px 0 20px', borderRadius: 16, margin: '12px var(--space-4) 0', background: 'linear-gradient(135deg, #0f172a, #1e293b)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <div className="container">
-                    <h1>Ma Bibliothèque</h1>
-                    <p>{books.length} livre{books.length !== 1 ? 's' : ''} • {storage.bookCount} hors-ligne ({formatSize(storage.totalBytes)})</p>
+                    <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, background: 'linear-gradient(90deg, #FFD700, #FFA000)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Ma Bibliothèque</h1>
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: 12, margin: '4px 0 0' }}>Votre espace de lecture personnel et hors-ligne</p>
+                    
+                    {/* Stats Dashboard */}
+                    <div className="library-stats-container">
+                        <div className="library-stat-card">
+                            <span className="library-stat-card-label">TOTAL LIVRES</span>
+                            <span className="library-stat-card-value">{books.length}</span>
+                        </div>
+                        <div className="library-stat-card">
+                            <span className="library-stat-card-label">HORS-LIGNE</span>
+                            <span className="library-stat-card-value">{Object.values(offlineStatus).filter(Boolean).length}</span>
+                        </div>
+                        <div className="library-stat-card" style={{ gridColumn: 'span 2' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span className="library-stat-card-label">STOCKAGE DISQUE</span>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-primary)' }}>{storagePct}%</span>
+                            </div>
+                            <span className="library-stat-card-value" style={{ fontSize: 13, marginTop: 2 }}>
+                                {formatSize(storage.totalBytes)} <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--color-text-muted)' }}>/ 100 Mo</span>
+                            </span>
+                            <div className="library-storage-track">
+                                <div className="library-storage-bar" style={{ width: `${storagePct}%` }} />
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="container">
-                <div className="library-tabs">
-                    <button className={`library-tab ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4, verticalAlign: 'middle' }}>library_books</span>
-                        Tous ({books.length})
-                    </button>
-                    <button className={`library-tab ${tab === 'offline' ? 'active' : ''}`} onClick={() => setTab('offline')}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 4, verticalAlign: 'middle' }}>download_done</span>
-                        Hors-ligne ({Object.values(offlineStatus).filter(Boolean).length})
-                    </button>
+            {/* Controls: Tabs & Search */}
+            <div className="container" style={{ marginTop: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {/* Tabs */}
+                    <div className="library-tabs" style={{ padding: '4px 0', marginBottom: 0 }}>
+                        <button className={`library-tab ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')} style={{ fontSize: 12 }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 15, marginRight: 4, verticalAlign: 'middle' }}>library_books</span>
+                            Tous ({books.length})
+                        </button>
+                        <button className={`library-tab ${tab === 'offline' ? 'active' : ''}`} onClick={() => setTab('offline')} style={{ fontSize: 12 }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 15, marginRight: 4, verticalAlign: 'middle' }}>download_done</span>
+                            Hors-ligne ({Object.values(offlineStatus).filter(Boolean).length})
+                        </button>
+                    </div>
+
+                    {/* Search Bar */}
+                    <div className="library-search-wrap">
+                        <span className="material-symbols-outlined">search</span>
+                        <input 
+                            type="text" 
+                            placeholder="Rechercher par titre ou auteur..." 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        {searchQuery && (
+                            <span 
+                                className="material-symbols-outlined" 
+                                style={{ cursor: 'pointer', fontSize: 16 }}
+                                onClick={() => setSearchQuery('')}
+                            >
+                                close
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
 
             {/* Grid */}
-            <div className="container">
+            <div className="container" style={{ marginTop: 12 }}>
                 {filteredBooks.length === 0 ? (
-                    <div className="empty-state" style={{ paddingTop: 60 }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 56, color: 'var(--color-text-muted)', opacity: 0.4 }}>
-                            {tab === 'offline' ? 'cloud_off' : 'library_books'}
+                    <div className="empty-state" style={{ padding: '40px 0', textAlign: 'center' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 44, color: 'var(--color-text-muted)', opacity: 0.3 }}>
+                            {searchQuery ? 'search_off' : tab === 'offline' ? 'cloud_off' : 'library_books'}
                         </span>
-                        <h3 style={{ fontWeight: 700, marginTop: 8 }}>
-                            {tab === 'offline' ? 'Aucun livre hors-ligne' : 'Bibliothèque vide'}
+                        <h3 style={{ fontWeight: 700, marginTop: 12, fontSize: 14, margin: '8px 0 4px' }}>
+                            {searchQuery ? 'Aucun résultat' : tab === 'offline' ? 'Aucun livre hors-ligne' : 'Bibliothèque vide'}
                         </h3>
-                        <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
-                            {tab === 'offline' ? 'Téléchargez des livres pour les lire sans connexion.' : 'Achetez des livres sur BoomBooks.'}
+                        <p style={{ color: 'var(--color-text-muted)', fontSize: 12, margin: 0 }}>
+                            {searchQuery ? 'Essayez avec un autre mot-clé.' : tab === 'offline' ? 'Téléchargez des livres pour les lire sans connexion.' : 'Achetez des livres sur BoomBooks.'}
                         </p>
                     </div>
                 ) : (
@@ -184,47 +242,59 @@ export default function Home() {
 
                             return (
                                 <div key={b.id} className="book-card" onClick={() => navigate(`/read/${b.id}`)}>
+                                    {/* Cover Image container */}
                                     <div className="book-cover-wrap" style={{ background: getBookGradient(b.id) }}>
-                                        {b.cover_url && <img src={b.cover_url} alt={b.title} />}
-                                        {isOffline && (
-                                            <div className="book-offline-badge">
-                                                <span className="material-symbols-outlined" style={{ fontSize: 16, fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                                        {b.cover_url && <img src={b.cover_url} alt={b.title} loading="lazy" />}
+                                        
+                                        {/* Status / Action Overlay Badges */}
+                                        {!isDownloading && (
+                                            <div className="book-action-overlay">
+                                                {isOffline ? (
+                                                    <>
+                                                        <span className="book-badge-icon" style={{ background: 'rgba(22,163,74,0.95)', borderColor: '#22c55e' }} title="Disponible hors-ligne">
+                                                            <span className="material-symbols-outlined" style={{ fontSize: 11, fontWeight: 'bold' }}>done</span>
+                                                        </span>
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); handleRemove(b.id); }}
+                                                            className="book-badge-icon delete-badge" 
+                                                            title="Supprimer du stockage"
+                                                            style={{ border: 'none', cursor: 'pointer' }}
+                                                        >
+                                                            <span className="material-symbols-outlined" style={{ fontSize: 11 }}>delete</span>
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); handleDownload(b); }}
+                                                        className="book-badge-icon" 
+                                                        title="Télécharger pour lire hors-ligne"
+                                                        style={{ border: 'none', cursor: 'pointer' }}
+                                                    >
+                                                        <span className="material-symbols-outlined" style={{ fontSize: 11 }}>download</span>
+                                                    </button>
+                                                )}
                                             </div>
                                         )}
+
+                                        {/* Glassmorphic progress circle when downloading */}
+                                        {isDownloading && (
+                                            <div className="book-downloading-ring">
+                                                <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2, margin: 0 }} />
+                                                <span>{downloadProgress}%</span>
+                                            </div>
+                                        )}
+
+                                        {/* Reading progress bar */}
                                         {progress && pct > 0 && (
                                             <div className="book-progress-bar">
                                                 <div className="book-progress-fill" style={{ width: `${pct}%` }} />
                                             </div>
                                         )}
                                     </div>
-                                    <h4 className="book-title line-clamp-2">{b.title}</h4>
+                                    
+                                    {/* Typography details */}
+                                    <h4 className="book-title line-clamp-2" title={b.title}>{b.title}</h4>
                                     <p className="book-author line-clamp-1">{b.author || 'Auteur inconnu'}</p>
-
-                                    {isDownloading ? (
-                                        <div style={{ marginTop: 8 }}>
-                                            <div className="download-progress-track">
-                                                <div className="download-progress-fill" style={{ width: `${downloadProgress}%` }} />
-                                            </div>
-                                        </div>
-                                    ) : isOffline ? (
-                                        <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
-                                            <button onClick={(e) => { e.stopPropagation(); navigate(`/read/${b.id}`); }} className="btn btn-primary btn-sm" style={{ flex: 1, fontSize: 11 }}>
-                                                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>menu_book</span> Lire
-                                            </button>
-                                            <button onClick={(e) => { e.stopPropagation(); handleRemove(b.id); }} className="btn btn-ghost btn-sm" style={{ padding: '6px 8px' }}>
-                                                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
-                                            <button onClick={(e) => { e.stopPropagation(); navigate(`/read/${b.id}`); }} className="btn btn-outline btn-sm" style={{ flex: 1, fontSize: 11 }}>
-                                                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>menu_book</span> Lire
-                                            </button>
-                                            <button onClick={(e) => { e.stopPropagation(); handleDownload(b); }} className="btn btn-ghost btn-sm" style={{ padding: '6px 8px' }}>
-                                                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
-                                            </button>
-                                        </div>
-                                    )}
                                 </div>
                             );
                         })}
