@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../lib/AuthContext';
 
 export default function Admin() {
+    const { user } = useAuth();
     const [tab, setTab] = useState('overview');
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
@@ -20,6 +22,14 @@ export default function Admin() {
     const [installSearch, setInstallSearch] = useState('');
     const [userSearch, setUserSearch] = useState('');
     const [orderSearch, setOrderSearch] = useState('');
+
+    // Notification states
+    const [sentNotifs, setSentNotifs] = useState([]);
+    const [notifTitle, setNotifTitle] = useState('');
+    const [notifBody, setNotifBody] = useState('');
+    const [notifType, setNotifType] = useState('reminder');
+    const [sending, setSending] = useState(false);
+    const [sendResult, setSendResult] = useState(null);
 
     const loadAdminData = useCallback(async () => {
         setLoading(true);
@@ -69,6 +79,24 @@ export default function Admin() {
                 .select('*')
                 .order('created_at', { ascending: false });
 
+            // 8. Sent notifications
+            const { data: notifsData } = await supabase
+                .from('notifications')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            // 8b. Read counts per notification
+            const notifIds = (notifsData || []).map(n => n.id);
+            let readCounts = {};
+            if (notifIds.length > 0) {
+                const { data: readsData } = await supabase
+                    .from('notification_reads')
+                    .select('notification_id');
+                (readsData || []).forEach(r => {
+                    readCounts[r.notification_id] = (readCounts[r.notification_id] || 0) + 1;
+                });
+            }
+
             setStats({
                 usersCount: usersCount || 0,
                 installsCount: installsData?.length || 0,
@@ -81,6 +109,7 @@ export default function Admin() {
             setOrders(ordersData || []);
             setSearchQueries(queriesData || []);
             setUsers(profilesData || []);
+            setSentNotifs((notifsData || []).map(n => ({ ...n, readCount: readCounts[n.id] || 0 })));
 
         } catch (err) {
             console.error('[Admin] Load stats error:', err);
@@ -175,6 +204,7 @@ export default function Admin() {
                 <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, borderBottom: '1px solid var(--color-border)' }}>
                     {[
                         { id: 'overview', label: 'Vue d\'ensemble', icon: 'dashboard' },
+                        { id: 'notifications', label: `Notifications (${sentNotifs.length})`, icon: 'campaign' },
                         { id: 'installs', label: `Téléchargements PWA (${stats.installsCount})`, icon: 'install_mobile' },
                         { id: 'orders', label: 'Ventes & Commandes', icon: 'payments' },
                         { id: 'users', label: `Utilisateurs (${stats.usersCount})`, icon: 'group' }
@@ -295,7 +325,228 @@ export default function Admin() {
                     </div>
                 )}
 
-                {/* 2. ONGLET TÉLÉCHARGEMENTS PWA */}
+                {/* 2. ONGLET NOTIFICATIONS */}
+                {tab === 'notifications' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {/* Compose Card */}
+                        <div className="card" style={{ padding: 24 }}>
+                            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>edit_notifications</span>
+                                Envoyer une notification
+                            </h3>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                {/* Type selector */}
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    {[
+                                        { value: 'reminder', label: '📖 Rappel', icon: 'menu_book' },
+                                        { value: 'update', label: '🔄 Mise à jour', icon: 'system_update' },
+                                        { value: 'promo', label: '🏷️ Promo', icon: 'local_offer' }
+                                    ].map(t => (
+                                        <button
+                                            key={t.value}
+                                            onClick={() => setNotifType(t.value)}
+                                            style={{
+                                                padding: '8px 14px', borderRadius: 12, fontSize: 11, fontWeight: 700,
+                                                background: notifType === t.value ? 'linear-gradient(135deg, var(--color-primary), #FFA000)' : 'var(--color-surface)',
+                                                color: notifType === t.value ? '#000' : 'var(--color-text-muted)',
+                                                border: notifType === t.value ? 'none' : '1px solid var(--color-border)',
+                                                cursor: 'pointer', transition: 'all 0.2s ease'
+                                            }}
+                                        >
+                                            {t.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Title */}
+                                <input
+                                    type="text"
+                                    placeholder="Titre de la notification..."
+                                    value={notifTitle}
+                                    onChange={e => setNotifTitle(e.target.value)}
+                                    style={{
+                                        padding: '12px 16px', borderRadius: 12,
+                                        background: 'var(--color-bg)', border: '1px solid var(--color-border)',
+                                        color: 'var(--color-text)', fontSize: 14, fontWeight: 600
+                                    }}
+                                />
+
+                                {/* Body */}
+                                <textarea
+                                    placeholder="Message de la notification..."
+                                    value={notifBody}
+                                    onChange={e => setNotifBody(e.target.value)}
+                                    rows={4}
+                                    style={{
+                                        padding: '12px 16px', borderRadius: 12,
+                                        background: 'var(--color-bg)', border: '1px solid var(--color-border)',
+                                        color: 'var(--color-text)', fontSize: 13, resize: 'vertical',
+                                        fontFamily: 'inherit', lineHeight: 1.5
+                                    }}
+                                />
+
+                                {/* Send button */}
+                                <button
+                                    onClick={async () => {
+                                        if (!notifTitle.trim() || !notifBody.trim()) return;
+                                        setSending(true);
+                                        setSendResult(null);
+                                        try {
+                                            // 1. Insert notification
+                                            const { data: newNotif, error: insertErr } = await supabase
+                                                .from('notifications')
+                                                .insert({
+                                                    title: notifTitle.trim(),
+                                                    body: notifBody.trim(),
+                                                    type: notifType,
+                                                    sent_by: user?.id
+                                                })
+                                                .select()
+                                                .single();
+
+                                            if (insertErr) throw insertErr;
+
+                                            // 2. Try to send push notifications (via Edge Function)
+                                            let pushCount = 0;
+                                            try {
+                                                const { data: subs } = await supabase
+                                                    .from('push_subscriptions')
+                                                    .select('endpoint, keys_p256dh, keys_auth');
+                                                pushCount = subs?.length || 0;
+
+                                                // Call edge function if available
+                                                if (pushCount > 0) {
+                                                    try {
+                                                        await supabase.functions.invoke('send-push-notification', {
+                                                            body: {
+                                                                title: notifTitle.trim(),
+                                                                body: notifBody.trim(),
+                                                                type: notifType
+                                                            }
+                                                        });
+                                                    } catch (pushErr) {
+                                                        console.warn('[Admin] Push function not deployed yet:', pushErr);
+                                                    }
+                                                }
+                                            } catch (pushErr) {
+                                                console.warn('[Admin] Push subs query error:', pushErr);
+                                            }
+
+                                            setSendResult({
+                                                success: true,
+                                                message: `✅ Notification envoyée à ${stats.usersCount} utilisateurs${pushCount > 0 ? ` (${pushCount} push)` : ''}`
+                                            });
+
+                                            // Clear form
+                                            setNotifTitle('');
+                                            setNotifBody('');
+                                            setNotifType('reminder');
+
+                                            // Refresh data
+                                            setSentNotifs(prev => [{ ...newNotif, readCount: 0 }, ...prev]);
+
+                                        } catch (err) {
+                                            console.error('[Admin] Send notification error:', err);
+                                            setSendResult({ success: false, message: `❌ Erreur: ${err.message}` });
+                                        } finally {
+                                            setSending(false);
+                                            setTimeout(() => setSendResult(null), 5000);
+                                        }
+                                    }}
+                                    disabled={sending || !notifTitle.trim() || !notifBody.trim()}
+                                    style={{
+                                        padding: '14px 24px', borderRadius: 14, fontSize: 14, fontWeight: 700,
+                                        background: (!notifTitle.trim() || !notifBody.trim()) ? 'var(--color-border)' : 'linear-gradient(135deg, var(--color-primary), #FFA000)',
+                                        color: (!notifTitle.trim() || !notifBody.trim()) ? 'var(--color-text-muted)' : '#000',
+                                        border: 'none', cursor: sending ? 'wait' : 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                        transition: 'all 0.2s ease', opacity: sending ? 0.7 : 1
+                                    }}
+                                >
+                                    {sending ? (
+                                        <>
+                                            <div className="spinner" style={{ width: 16, height: 16, borderWidth: 2, margin: 0 }} />
+                                            Envoi en cours...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>send</span>
+                                            Envoyer la notification
+                                        </>
+                                    )}
+                                </button>
+
+                                {/* Send result */}
+                                {sendResult && (
+                                    <div style={{
+                                        padding: '12px 16px', borderRadius: 12, fontSize: 13, fontWeight: 600,
+                                        background: sendResult.success ? 'rgba(67,233,123,0.1)' : 'rgba(239,68,68,0.1)',
+                                        color: sendResult.success ? '#43e97b' : '#ef4444',
+                                        border: sendResult.success ? '1px solid rgba(67,233,123,0.2)' : '1px solid rgba(239,68,68,0.2)',
+                                        animation: 'fadeIn 0.3s ease'
+                                    }}>
+                                        {sendResult.message}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Sent Notifications History */}
+                        <div className="card" style={{ padding: 24 }}>
+                            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span className="material-symbols-outlined" style={{ color: '#4facfe' }}>history</span>
+                                Historique des notifications
+                            </h3>
+
+                            {sentNotifs.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--color-text-muted)' }}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: 48, opacity: 0.3 }}>notifications_off</span>
+                                    <p style={{ fontSize: 13, margin: '12px 0 0' }}>Aucune notification envoyée.</p>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    {sentNotifs.map(n => (
+                                        <div key={n.id} style={{
+                                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                            padding: '14px 16px', borderRadius: 12,
+                                            background: 'var(--color-bg-light)', border: '1px solid var(--color-border)'
+                                        }}>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    <span style={{
+                                                        fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
+                                                        background: n.type === 'reminder' ? 'rgba(79,172,254,0.15)' : n.type === 'update' ? 'rgba(67,233,123,0.15)' : 'rgba(250,112,154,0.15)',
+                                                        color: n.type === 'reminder' ? '#4facfe' : n.type === 'update' ? '#43e97b' : '#fa709a',
+                                                        textTransform: 'uppercase'
+                                                    }}>
+                                                        {n.type === 'reminder' ? 'Rappel' : n.type === 'update' ? 'MAJ' : 'Promo'}
+                                                    </span>
+                                                    <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {n.title}
+                                                    </h4>
+                                                </div>
+                                                <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: '4px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {n.body}
+                                                </p>
+                                            </div>
+                                            <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 16 }}>
+                                                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text)' }}>
+                                                    👁 {n.readCount} lu{n.readCount !== 1 ? 's' : ''}
+                                                </div>
+                                                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2 }}>
+                                                    {new Date(n.created_at).toLocaleDateString('fr-FR', { dateStyle: 'short' })}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* 3. ONGLET TÉLÉCHARGEMENTS PWA */}
                 {tab === 'installs' && (
                     <div className="card" style={{ padding: 24 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>

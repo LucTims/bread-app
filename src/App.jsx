@@ -138,6 +138,13 @@ function AppContent() {
     };
     window.addEventListener('appinstalled', handleAppInstalled);
 
+    // 5. Auto-subscribe to push if permission was previously granted
+    if (Notification.permission === 'granted') {
+      import('./lib/pushManager').then(({ subscribeToPush }) => {
+        subscribeToPush(user.id);
+      });
+    }
+
     return () => {
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
