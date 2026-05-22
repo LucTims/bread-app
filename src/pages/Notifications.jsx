@@ -38,6 +38,7 @@ export default function Notifications() {
     const [pushEnabled, setPushEnabled] = useState(false);
     const [pushLoading, setPushLoading] = useState(false);
     const [pushPermission, setPushPermission] = useState(() => getPushPermission());
+    const [selectedNotif, setSelectedNotif] = useState(null);
 
     const loadNotifications = useCallback(async () => {
         if (!user) return;
@@ -245,14 +246,17 @@ export default function Notifications() {
                         return (
                             <div
                                 key={notif.id}
-                                onClick={() => markAsRead(notif.id)}
+                                onClick={() => {
+                                    markAsRead(notif.id);
+                                    setSelectedNotif(notif);
+                                }}
                                 style={{
                                     display: 'flex', gap: 14, padding: '16px 18px', borderRadius: 16,
                                     background: isRead ? 'var(--color-surface)' : 'var(--color-bg-light)',
                                     border: isRead
                                         ? '1px solid var(--color-border)'
                                         : `1px solid ${config.color}33`,
-                                    cursor: isRead ? 'default' : 'pointer',
+                                    cursor: 'pointer',
                                     transition: 'all 0.2s ease',
                                     opacity: isRead ? 0.7 : 1,
                                     position: 'relative'
@@ -285,10 +289,14 @@ export default function Notifications() {
                                         <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0, lineHeight: 1.3 }}>
                                             {notif.title}
                                         </h4>
+                                        {notif.image_url && (
+                                            <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--color-text-muted)', flexShrink: 0 }}>image</span>
+                                        )}
                                     </div>
                                     <p style={{
                                         fontSize: 12, color: 'var(--color-text-muted)',
-                                        margin: '4px 0 0', lineHeight: 1.45
+                                        margin: '4px 0 0', lineHeight: 1.45,
+                                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'
                                     }}>
                                         {notif.body}
                                     </p>
@@ -310,6 +318,88 @@ export default function Notifications() {
                             </div>
                         );
                     })}
+                </div>
+            )}
+
+            {/* Detailed Notification Modal */}
+            {selectedNotif && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+                    background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+                    zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: 20
+                }} onClick={() => setSelectedNotif(null)}>
+                    <div style={{
+                        background: 'var(--color-bg)', width: '100%', maxWidth: 400,
+                        borderRadius: 24, overflow: 'hidden',
+                        boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+                        display: 'flex', flexDirection: 'column'
+                    }} onClick={e => e.stopPropagation()}>
+                        
+                        {/* Header/Image Area */}
+                        {selectedNotif.image_url ? (
+                            <div style={{ width: '100%', height: 200, background: 'var(--color-bg-dark)', position: 'relative' }}>
+                                <img src={selectedNotif.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                <button 
+                                    onClick={() => setSelectedNotif(null)}
+                                    style={{
+                                        position: 'absolute', top: 12, right: 12,
+                                        width: 32, height: 32, borderRadius: 16, border: 'none',
+                                        background: 'rgba(0,0,0,0.5)', color: '#fff',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                                        backdropFilter: 'blur(4px)'
+                                    }}
+                                >
+                                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
+                                </button>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 12px 0' }}>
+                                <button 
+                                    onClick={() => setSelectedNotif(null)}
+                                    style={{
+                                        width: 32, height: 32, borderRadius: 16, border: 'none',
+                                        background: 'var(--color-bg-light)', color: 'var(--color-text)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+                                    }}
+                                >
+                                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Content Area */}
+                        <div style={{ padding: 24 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                                {(() => {
+                                    const config = getTypeConfig(selectedNotif.type);
+                                    return (
+                                        <span style={{
+                                            fontSize: 10, fontWeight: 700, padding: '4px 10px',
+                                            borderRadius: 8, background: `${config.color}18`,
+                                            color: config.color, textTransform: 'uppercase', letterSpacing: 0.5
+                                        }}>
+                                            {config.label}
+                                        </span>
+                                    );
+                                })()}
+                                <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
+                                    {timeAgo(selectedNotif.created_at)}
+                                </span>
+                            </div>
+
+                            <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 16px 0', lineHeight: 1.3, color: 'var(--color-primary-text)' }}>
+                                {selectedNotif.title}
+                            </h2>
+
+                            <div style={{
+                                fontSize: 14, color: 'var(--color-text)', lineHeight: 1.6,
+                                whiteSpace: 'pre-wrap', maxHeight: '50vh', overflowY: 'auto'
+                            }}>
+                                {selectedNotif.body}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

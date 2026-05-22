@@ -15,6 +15,7 @@ self.addEventListener('push', (event) => {
         body: data.body || 'Nouvelle notification',
         icon: '/icon-192.png',
         badge: '/icon-192.png',
+        image: data.image || undefined,
         vibrate: [200, 100, 200],
         data: {
             url: data.url || '/notifications',

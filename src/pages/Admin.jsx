@@ -28,6 +28,7 @@ export default function Admin() {
     const [notifTitle, setNotifTitle] = useState('');
     const [notifBody, setNotifBody] = useState('');
     const [notifType, setNotifType] = useState('reminder');
+    const [notifImage, setNotifImage] = useState(null);
     const [sending, setSending] = useState(false);
     const [sendResult, setSendResult] = useState(null);
 
@@ -386,6 +387,42 @@ export default function Admin() {
                                     }}
                                 />
 
+                                {/* Image Upload */}
+                                <div style={{
+                                    border: '1px dashed var(--color-border)', borderRadius: 12, padding: '16px',
+                                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                                    background: 'var(--color-bg-light)', position: 'relative'
+                                }}>
+                                    <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)', fontSize: 24 }}>add_photo_alternate</span>
+                                    <div style={{ fontSize: 12, color: 'var(--color-text-muted)', textAlign: 'center' }}>
+                                        {notifImage ? (
+                                            <span style={{ color: 'var(--color-primary-text)', fontWeight: 600 }}>{notifImage.name}</span>
+                                        ) : (
+                                            <span>Ajouter une image (optionnel)</span>
+                                        )}
+                                    </div>
+                                    {notifImage && (
+                                        <button 
+                                            onClick={() => setNotifImage(null)}
+                                            style={{
+                                                position: 'absolute', top: 8, right: 8, background: 'rgba(239,68,68,0.1)', color: '#ef4444',
+                                                border: 'none', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+                                        </button>
+                                    )}
+                                    <input 
+                                        type="file" 
+                                        accept="image/png, image/jpeg, image/webp"
+                                        onChange={e => setNotifImage(e.target.files[0])}
+                                        style={{
+                                            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer'
+                                        }}
+                                    />
+                                </div>
+
                                 {/* Send button */}
                                 <button
                                     onClick={async () => {
@@ -393,6 +430,25 @@ export default function Admin() {
                                         setSending(true);
                                         setSendResult(null);
                                         try {
+                                            let imageUrl = null;
+
+                                            // 0. Upload image if selected
+                                            if (notifImage) {
+                                                const fileExt = notifImage.name.split('.').pop();
+                                                const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                                                const { error: uploadErr } = await supabase.storage
+                                                    .from('notification-images')
+                                                    .upload(fileName, notifImage);
+                                                
+                                                if (uploadErr) throw uploadErr;
+
+                                                const { data: { publicUrl } } = supabase.storage
+                                                    .from('notification-images')
+                                                    .getPublicUrl(fileName);
+                                                
+                                                imageUrl = publicUrl;
+                                            }
+
                                             // 1. Insert notification
                                             const { data: newNotif, error: insertErr } = await supabase
                                                 .from('notifications')
@@ -400,6 +456,7 @@ export default function Admin() {
                                                     title: notifTitle.trim(),
                                                     body: notifBody.trim(),
                                                     type: notifType,
+                                                    image_url: imageUrl,
                                                     sent_by: user?.id
                                                 })
                                                 .select()
@@ -422,7 +479,8 @@ export default function Admin() {
                                                             body: {
                                                                 title: notifTitle.trim(),
                                                                 body: notifBody.trim(),
-                                                                type: notifType
+                                                                type: notifType,
+                                                                image_url: imageUrl
                                                             }
                                                         });
                                                     } catch (pushErr) {
@@ -442,6 +500,7 @@ export default function Admin() {
                                             setNotifTitle('');
                                             setNotifBody('');
                                             setNotifType('reminder');
+                                            setNotifImage(null);
 
                                             // Refresh data
                                             setSentNotifs(prev => [{ ...newNotif, readCount: 0 }, ...prev]);
@@ -512,31 +571,58 @@ export default function Admin() {
                                             padding: '14px 16px', borderRadius: 12,
                                             background: 'var(--color-bg-light)', border: '1px solid var(--color-border)'
                                         }}>
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                    <span style={{
-                                                        fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
-                                                        background: n.type === 'reminder' ? 'rgba(79,172,254,0.15)' : n.type === 'update' ? 'rgba(67,233,123,0.15)' : 'rgba(250,112,154,0.15)',
-                                                        color: n.type === 'reminder' ? '#4facfe' : n.type === 'update' ? '#43e97b' : '#fa709a',
-                                                        textTransform: 'uppercase'
-                                                    }}>
-                                                        {n.type === 'reminder' ? 'Rappel' : n.type === 'update' ? 'MAJ' : 'Promo'}
-                                                    </span>
-                                                    <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                        {n.title}
-                                                    </h4>
+                                            <div style={{ flex: 1, minWidth: 0, display: 'flex', gap: 12, alignItems: 'center' }}>
+                                                {n.image_url && (
+                                                    <div style={{ width: 40, height: 40, borderRadius: 8, overflow: 'hidden', flexShrink: 0, border: '1px solid var(--color-border)' }}>
+                                                        <img src={n.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    </div>
+                                                )}
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                        <span style={{
+                                                            fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
+                                                            background: n.type === 'reminder' ? 'rgba(79,172,254,0.15)' : n.type === 'update' ? 'rgba(67,233,123,0.15)' : 'rgba(250,112,154,0.15)',
+                                                            color: n.type === 'reminder' ? '#4facfe' : n.type === 'update' ? '#43e97b' : '#fa709a',
+                                                            textTransform: 'uppercase'
+                                                        }}>
+                                                            {n.type === 'reminder' ? 'Rappel' : n.type === 'update' ? 'MAJ' : 'Promo'}
+                                                        </span>
+                                                        <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                            {n.title}
+                                                        </h4>
+                                                    </div>
+                                                    <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: '4px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {n.body}
+                                                    </p>
                                                 </div>
-                                                <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: '4px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                    {n.body}
-                                                </p>
                                             </div>
-                                            <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 16 }}>
-                                                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text)' }}>
-                                                    👁 {n.readCount} lu{n.readCount !== 1 ? 's' : ''}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0, marginLeft: 16 }}>
+                                                <div style={{ textAlign: 'right' }}>
+                                                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text)' }}>
+                                                        👁 {n.readCount} lu{n.readCount !== 1 ? 's' : ''}
+                                                    </div>
+                                                    <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2 }}>
+                                                        {new Date(n.created_at).toLocaleDateString('fr-FR', { dateStyle: 'short' })}
+                                                    </div>
                                                 </div>
-                                                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2 }}>
-                                                    {new Date(n.created_at).toLocaleDateString('fr-FR', { dateStyle: 'short' })}
-                                                </div>
+                                                <button
+                                                    onClick={async () => {
+                                                        if (window.confirm("Supprimer cette notification définitivement ?")) {
+                                                            try {
+                                                                await supabase.from('notifications').delete().eq('id', n.id);
+                                                                setSentNotifs(prev => prev.filter(x => x.id !== n.id));
+                                                            } catch {
+                                                                alert("Erreur de suppression");
+                                                            }
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        background: 'transparent', border: 'none', color: '#ef4444', opacity: 0.6,
+                                                        cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                    }}
+                                                >
+                                                    <span className="material-symbols-outlined" style={{ fontSize: 20 }}>delete</span>
+                                                </button>
                                             </div>
                                         </div>
                                     ))}
