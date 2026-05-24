@@ -430,7 +430,7 @@ export default function Reader() {
                     padding: scrollMode === 'paginated' ? '16px 0' : '8px 0',
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
-                    touchAction: 'none',
+                    touchAction: scale > 1 ? 'pan-x pan-y' : (scrollMode === 'horizontal' ? 'pan-x' : 'pan-y'),
                 }}
                 onContextMenu={(e) => e.preventDefault()}
                 onClick={toggleToolbar}
