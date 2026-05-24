@@ -35,7 +35,7 @@ async function askOpenRouter(question, bookContext, chatHistory = []) {
             'X-Title': 'BRead - Liseuse IA'
         },
         body: JSON.stringify({
-            model: 'google/gemini-2.0-flash-001',
+            model: 'google/gemini-2.5-flash',
             messages,
             max_tokens: 1024,
             temperature: 0.7,
@@ -62,7 +62,7 @@ async function askGeminiDirect(question, bookContext, chatHistory = []) {
     }
     contents.push({ role: 'user', parts: [{ text: question }] });
 
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents, generationConfig: { temperature: 0.7, maxOutputTokens: 1024 } })
