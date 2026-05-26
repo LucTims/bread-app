@@ -83,12 +83,15 @@ export async function getReadingProgress(bookId) {
 export async function getAllOfflineBooks() {
   const keys = await bookStore.keys();
   const bookIds = keys.filter(k => k.startsWith('pdf_')).map(k => k.replace('pdf_', ''));
-  const results = [];
-  for (const id of bookIds) {
-    const meta = await metaStore.getItem(`meta_${id}`);
-    if (meta) results.push({ id, ...meta });
-  }
-  return results;
+  
+  const results = await Promise.all(
+    bookIds.map(async (id) => {
+      const meta = await metaStore.getItem(`meta_${id}`);
+      return meta ? { id, ...meta } : null;
+    })
+  );
+  
+  return results.filter(Boolean);
 }
 
 /**

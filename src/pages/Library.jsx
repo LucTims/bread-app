@@ -32,11 +32,13 @@ export default function Home() {
     const refreshOfflineStatus = useCallback(async (bookList) => {
         const statuses = {};
         const progresses = {};
-        for (const b of bookList) {
+        
+        await Promise.all(bookList.map(async (b) => {
             statuses[b.id] = await isBookOffline(b.id);
             const p = await getReadingProgress(b.id);
             if (p) progresses[b.id] = p;
-        }
+        }));
+        
         setOfflineStatus(statuses);
         setProgressMap(progresses);
         setStorage(await getStorageUsage());
