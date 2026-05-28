@@ -15,8 +15,21 @@ const updateSW = registerSW({
   },
 })
 
+// ── Dismiss splash screen once React renders ──
+function dismissSplash() {
+  const splash = document.getElementById('splash-screen')
+  if (splash) {
+    // Small delay to let the first paint settle
+    requestAnimationFrame(() => {
+      splash.classList.add('hide')
+      // Remove from DOM after fade-out animation
+      setTimeout(() => splash.remove(), 500)
+    })
+  }
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    <App onReady={dismissSplash} />
   </StrictMode>,
 )

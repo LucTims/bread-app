@@ -1,8 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { isBookOffline, getReadingProgress, getStorageUsage, formatSize, saveBookOffline, removeOfflineBook } from '../lib/offlineStore';
+import {
+    isBookOffline, getReadingProgress, getStorageUsage, formatSize,
+    saveBookOffline, saveCoverOffline, removeOfflineBook,
+    getAllOfflineBooks, preloadCoverUrls,
+    getOfflineBooksSync, getProgressMapSync, getStorageUsageSync
+} from '../lib/offlineStore';
 
 function getBookGradient(id) {
     if (!id) return 'linear-gradient(135deg, #667eea, #764ba2)';
@@ -19,15 +24,37 @@ function getBookGradient(id) {
 export default function Home() {
     const { user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
-    const [books, setBooks] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [offlineStatus, setOfflineStatus] = useState({});
-    const [progressMap, setProgressMap] = useState({});
+
+    // ── INSTANT first render from localStorage (synchronous, <5ms) ──
+    const isOfflineNow = !navigator.onLine;
+    const syncBooks = isOfflineNow ? getOfflineBooksSync() : [];
+    const syncProgress = isOfflineNow ? getProgressMapSync() : {};
+    const syncStorage = isOfflineNow ? getStorageUsageSync() : { totalBytes: 0, bookCount: 0 };
+    const syncStatuses = isOfflineNow ? Object.fromEntries(syncBooks.map(b => [b.id, true])) : {};
+
+    const [books, setBooks] = useState(isOfflineNow ? syncBooks : []);
+    const [loading, setLoading] = useState(!isOfflineNow); // Already loaded if offline + sync data
+    const [offlineStatus, setOfflineStatus] = useState(syncStatuses);
+    const [progressMap, setProgressMap] = useState(syncProgress);
     const [tab, setTab] = useState('all');
-    const [storage, setStorage] = useState({ totalBytes: 0, bookCount: 0 });
+    const [storage, setStorage] = useState(syncStorage);
     const [downloading, setDownloading] = useState(null);
     const [downloadProgress, setDownloadProgress] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
+    const [coverUrls, setCoverUrls] = useState({});
+    const isOfflineMode = useRef(!navigator.onLine);
+
+    // Track online/offline changes
+    useEffect(() => {
+        const goOnline = () => { isOfflineMode.current = false; };
+        const goOffline = () => { isOfflineMode.current = true; };
+        window.addEventListener('online', goOnline);
+        window.addEventListener('offline', goOffline);
+        return () => {
+            window.removeEventListener('online', goOnline);
+            window.removeEventListener('offline', goOffline);
+        };
+    }, []);
 
     const refreshOfflineStatus = useCallback(async (bookList) => {
         const statuses = {};
@@ -45,21 +72,20 @@ export default function Home() {
     }, []);
 
     useEffect(() => {
-        // Offline mode: load from IndexedDB
+        // ── Offline mode: covers are the only async part ──
         if (!navigator.onLine) {
+            // Books are already displayed from syncBooks — just load covers in background
             (async () => {
                 try {
-                    const { getAllOfflineBooks } = await import('../lib/offlineStore');
-                    const offBooks = await getAllOfflineBooks();
-                    const bookList = offBooks.map(b => ({ id: b.id, title: b.title, author: b.author, cover_url: b.cover_url }));
-                    setBooks(bookList);
-                    await refreshOfflineStatus(bookList);
+                    const bookIds = syncBooks.map(b => b.id);
+                    const urls = await preloadCoverUrls(bookIds);
+                    setCoverUrls(urls);
                 } catch (err) { console.error(err); }
-                finally { setLoading(false); }
             })();
             return;
         }
 
+        // ── Online mode ──
         if (authLoading) return;
         if (!user) { navigate('/login'); return; }
         (async () => {
@@ -83,6 +109,11 @@ export default function Home() {
                 }
                 setBooks(bookList);
                 await refreshOfflineStatus(bookList);
+
+                // Pre-load cached cover URLs
+                const offlineIds = bookList.map(b => b.id);
+                const urls = await preloadCoverUrls(offlineIds);
+                setCoverUrls(urls);
             } catch (err) { console.error(err); }
             finally { setLoading(false); }
         })();
@@ -95,14 +126,12 @@ export default function Home() {
             const filePath = book.file_url || `pdfs/${book.id}.pdf`;
             let blob = null;
 
-            // Tentative 1: download direct
-            setDownloadProgress(20);
+            setDownloadProgress(15);
             const { data, error } = await supabase.storage.from('books').download(filePath);
             if (!error && data) {
                 blob = data;
             } else {
-                // Tentative 2: signed URL
-                setDownloadProgress(40);
+                setDownloadProgress(30);
                 const { data: signedData, error: signedErr } = await supabase.storage.from('books').createSignedUrl(filePath, 3600);
                 if (!signedErr && signedData?.signedUrl) {
                     const response = await fetch(signedData.signedUrl);
@@ -114,11 +143,19 @@ export default function Home() {
 
             if (!blob) throw new Error('PDF non disponible');
 
-            setDownloadProgress(80);
+            setDownloadProgress(70);
             await saveBookOffline(book.id, blob, { title: book.title, author: book.author, cover_url: book.cover_url });
-            setDownloadProgress(100);
 
+            setDownloadProgress(85);
+            if (book.cover_url) {
+                await saveCoverOffline(book.id, book.cover_url);
+            }
+
+            setDownloadProgress(100);
             await refreshOfflineStatus(books);
+
+            const urls = await preloadCoverUrls(books.map(b => b.id));
+            setCoverUrls(urls);
         } catch (err) {
             console.error('Download failed:', err);
             alert("Le fichier PDF n'est pas disponible. Veuillez réessayer plus tard.");
@@ -130,7 +167,18 @@ export default function Home() {
     const handleRemove = async (bookId) => {
         if (!confirm('Supprimer ce livre du stockage hors-ligne ?')) return;
         await removeOfflineBook(bookId);
-        await refreshOfflineStatus(books);
+        // Remove from local state immediately
+        setBooks(prev => prev.filter(b => b.id !== bookId));
+        setOfflineStatus(prev => { const n = { ...prev }; delete n[bookId]; return n; });
+        setCoverUrls(prev => { const n = { ...prev }; delete n[bookId]; return n; });
+        setStorage(getStorageUsageSync());
+    };
+
+    // Resolve cover image
+    const getCoverSrc = (book) => {
+        if (coverUrls[book.id]) return coverUrls[book.id];
+        if (!navigator.onLine) return null; // Don't try network URLs when offline
+        return book.cover_url;
     };
 
     const filteredBooks = books.filter(b => {
@@ -145,8 +193,7 @@ export default function Home() {
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}><div className="spinner" /></div>
     );
 
-    // Storage budget calculation
-    const storageQuota = 100 * 1024 * 1024; // 100MB
+    const storageQuota = 100 * 1024 * 1024;
     const storagePct = Math.min(Math.round((storage.totalBytes / storageQuota) * 100), 100);
 
     return (
@@ -157,7 +204,6 @@ export default function Home() {
                     <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, background: 'linear-gradient(90deg, #FFD700, #FFA000)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Ma Bibliothèque</h1>
                     <p style={{ color: 'var(--color-text-muted)', fontSize: 12, margin: '4px 0 0' }}>Votre espace de lecture personnel et hors-ligne</p>
                     
-                    {/* Stats Dashboard */}
                     <div className="library-stats-container">
                         <div className="library-stat-card">
                             <span className="library-stat-card-label">TOTAL LIVRES</span>
@@ -186,7 +232,6 @@ export default function Home() {
             {/* Controls: Tabs & Search */}
             <div className="container" style={{ marginTop: 16 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {/* Tabs */}
                     <div className="library-tabs" style={{ padding: '4px 0', marginBottom: 0 }}>
                         <button className={`library-tab ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')} style={{ fontSize: 12 }}>
                             <span className="material-symbols-outlined" style={{ fontSize: 15, marginRight: 4, verticalAlign: 'middle' }}>library_books</span>
@@ -198,7 +243,6 @@ export default function Home() {
                         </button>
                     </div>
 
-                    {/* Search Bar */}
                     <div className="library-search-wrap">
                         <span className="material-symbols-outlined">search</span>
                         <input 
@@ -241,14 +285,13 @@ export default function Home() {
                             const progress = progressMap[b.id];
                             const pct = progress ? Math.round((progress.currentPage / progress.totalPages) * 100) : 0;
                             const isDownloading = downloading === b.id;
+                            const coverSrc = getCoverSrc(b);
 
                             return (
                                 <div key={b.id} className="book-card" onClick={() => navigate(`/read/${b.id}`)}>
-                                    {/* Cover Image container */}
                                     <div className="book-cover-wrap" style={{ background: getBookGradient(b.id) }}>
-                                        {b.cover_url && <img src={b.cover_url} alt={b.title} loading="lazy" />}
+                                        {coverSrc && <img src={coverSrc} alt={b.title} loading="lazy" />}
                                         
-                                        {/* Status / Action Overlay Badges */}
                                         {!isDownloading && (
                                             <div className="book-action-overlay">
                                                 {isOffline ? (
@@ -278,7 +321,6 @@ export default function Home() {
                                             </div>
                                         )}
 
-                                        {/* Glassmorphic progress circle when downloading */}
                                         {isDownloading && (
                                             <div className="book-downloading-ring">
                                                 <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2, margin: 0 }} />
@@ -286,7 +328,6 @@ export default function Home() {
                                             </div>
                                         )}
 
-                                        {/* Reading progress bar */}
                                         {progress && pct > 0 && (
                                             <div className="book-progress-bar">
                                                 <div className="book-progress-fill" style={{ width: `${pct}%` }} />
@@ -294,7 +335,6 @@ export default function Home() {
                                         )}
                                     </div>
                                     
-                                    {/* Typography details */}
                                     <h4 className="book-title line-clamp-2" title={b.title}>{b.title}</h4>
                                     <p className="book-author line-clamp-1">{b.author || 'Auteur inconnu'}</p>
                                 </div>

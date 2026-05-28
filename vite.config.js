@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons.svg'],
+      includeAssets: ['favicon.svg', 'icons.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'BRead – Liseuse BoomBooks',
         short_name: 'BRead',
@@ -39,11 +39,14 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,woff2,webmanifest}'],
+        globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,woff,woff2,webmanifest}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/],
         importScripts: ['sw-push.js'],
+        // Increase precache size limits for larger bundles
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
         runtimeCaching: [
+          // ── Google Fonts stylesheets ──
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
@@ -52,20 +55,56 @@ export default defineConfig({
               expiration: { maxEntries: 10, maxAgeSeconds: 365 * 24 * 60 * 60 }
             }
           },
+          // ── Google Fonts WOFF2 files ──
           {
             urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'gstatic-fonts-cache',
-              expiration: { maxEntries: 10, maxAgeSeconds: 365 * 24 * 60 * 60 }
+              expiration: { maxEntries: 20, maxAgeSeconds: 365 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] }
             }
           },
+          // ── Supabase Storage: book covers (images) ──
+          // CacheFirst so covers are available offline after first load
+          {
+            urlPattern: /^https:\/\/ezmchxokfeybpccmkhyx\.supabase\.co\/storage\/.*\.(jpg|jpeg|png|gif|webp|svg)/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'supabase-covers-cache',
+              expiration: { maxEntries: 200, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] }
+            }
+          },
+          // ── Supabase Storage: other assets (PDFs etc) ── NetworkFirst for freshness
           {
             urlPattern: /^https:\/\/ezmchxokfeybpccmkhyx\.supabase\.co\/storage\/.*/i,
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'supabase-covers-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 7 * 24 * 60 * 60 }
+              cacheName: 'supabase-storage-cache',
+              expiration: { maxEntries: 50, maxAgeSeconds: 7 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+              networkTimeoutSeconds: 10
+            }
+          },
+          // ── Supabase API (auth, REST) ── NetworkFirst with fast fallback
+          {
+            urlPattern: /^https:\/\/ezmchxokfeybpccmkhyx\.supabase\.co\/(auth|rest)\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'supabase-api-cache',
+              expiration: { maxEntries: 30, maxAgeSeconds: 24 * 60 * 60 },
+              networkTimeoutSeconds: 5
+            }
+          },
+          // ── Google Material Symbols (icon font) ──
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/css2\?family=Material\+Symbols.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'material-icons-cache',
+              expiration: { maxEntries: 5, maxAgeSeconds: 365 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] }
             }
           }
         ]
@@ -73,4 +112,5 @@ export default defineConfig({
     })
   ],
 })
+
 

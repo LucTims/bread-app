@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
-import { getOfflineBook, getBookMeta, saveReadingProgress, getReadingProgress, saveBookOffline } from '../lib/offlineStore';
+import { getOfflineBook, getBookMeta, saveReadingProgress, getReadingProgress, saveBookOffline, saveCoverOffline } from '../lib/offlineStore';
 import { supabase } from '../lib/supabase';
 import { Document, Page, pdfjs } from 'react-pdf';
 import BookChat from '../components/BookChat';
@@ -144,6 +144,10 @@ export default function Reader() {
                 if (!blob) throw new Error("Le fichier PDF n'est pas disponible.");
 
                 await saveBookOffline(bookId, blob, { title: book.title, author: book.author, cover_url: book.cover_url });
+                // Also cache the cover for offline display
+                if (book.cover_url) {
+                    saveCoverOffline(bookId, book.cover_url).catch(() => {});
+                }
                 setBlobAsPdf(blob);
             }
 

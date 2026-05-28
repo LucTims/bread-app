@@ -25,18 +25,9 @@ function ProtectedRoute({ children }) {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // PWA Install Prompt Listener
-    const handleBeforeInstallPrompt = (e) => {
-      e.preventDefault();
-      window.deferredPrompt = e;
-      window.dispatchEvent(new Event('app-installable'));
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
   
@@ -139,9 +130,13 @@ function AppContent() {
     window.addEventListener('appinstalled', handleAppInstalled);
 
     // 5. Auto-subscribe to push if permission was previously granted
-    if (Notification.permission === 'granted') {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       import('./lib/pushManager').then(({ subscribeToPush }) => {
-        subscribeToPush(user.id);
+        // Wrap in timeout to avoid hanging if SW isn't ready
+        const timeout = setTimeout(() => {
+          console.warn('[Push] Service worker ready timed out');
+        }, 10000);
+        subscribeToPush(user.id).finally(() => clearTimeout(timeout));
       });
     }
 
@@ -220,7 +215,7 @@ function AppContent() {
   );
 }
 
-function App() {
+function App({ onReady }) {
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
@@ -228,7 +223,10 @@ function App() {
     } else {
       document.documentElement.setAttribute('data-theme', 'dark'); // default
     }
-  }, []);
+
+    // Dismiss splash screen after first render
+    if (onReady) onReady();
+  }, [onReady]);
 
   return (
     <AuthProvider>

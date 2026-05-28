@@ -118,11 +118,23 @@ export default function Notifications() {
                 setPushEnabled(false);
             } else {
                 const sub = await subscribeToPush(user.id);
-                setPushEnabled(!!sub);
-                setPushPermission(getPushPermission());
+                if (sub) {
+                    setPushEnabled(true);
+                } else {
+                    // Subscription failed — check if permission was denied
+                    const perm = getPushPermission();
+                    setPushPermission(perm);
+                    if (perm === 'denied') {
+                        alert("Les notifications sont bloquées par votre navigateur. Allez dans les paramètres de votre navigateur pour les autoriser.");
+                    } else {
+                        alert("Impossible d'activer les notifications. Vérifiez que l'application est installée ou réessayez plus tard.");
+                    }
+                }
             }
+            setPushPermission(getPushPermission());
         } catch (err) {
             console.error('[Push] Toggle error:', err);
+            alert("Erreur lors de l'activation des notifications. Réessayez plus tard.");
         } finally {
             setPushLoading(false);
         }

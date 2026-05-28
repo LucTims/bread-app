@@ -2,34 +2,81 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
-import { getAllOfflineBooks, getReadingProgress } from '../lib/offlineStore';
+import { getAllOfflineBooks, getReadingProgress, preloadCoverUrls, getOfflineBooksSync, getProgressMapSync } from '../lib/offlineStore';
 import { InstallButton } from '../components/InstallPrompt';
 
 export default function Home() {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const [lastRead, setLastRead] = useState(null);
-    const [myBooks, setMyBooks] = useState([]);
-    const [offlineBooks, setOfflineBooks] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const isOffline = !navigator.onLine;
 
-    // Load user's real data
+    // ── INSTANT first render from localStorage when offline (<5ms) ──
+    const syncBooks = isOffline ? getOfflineBooksSync() : [];
+    const syncProgress = isOffline ? getProgressMapSync() : {};
+
+    // Compute last read from sync data instantly
+    const computeLastRead = (books, progressMap) => {
+        let latest = null;
+        let latestId = null;
+        for (const b of books) {
+            const p = progressMap[b.id];
+            if (p && p.lastReadAt && (!latest || p.lastReadAt > latest.lastReadAt)) {
+                latest = p;
+                latestId = b.id;
+            }
+        }
+        if (latestId && latest) {
+            const book = books.find(b => b.id === latestId);
+            if (book) {
+                return {
+                    ...book,
+                    currentPage: latest.currentPage,
+                    totalPages: latest.totalPages,
+                    pct: Math.round((latest.currentPage / latest.totalPages) * 100)
+                };
+            }
+        }
+        return null;
+    };
+
+    const [lastRead, setLastRead] = useState(isOffline ? computeLastRead(syncBooks, syncProgress) : null);
+    const [myBooks, setMyBooks] = useState([]);
+    const [offlineBooks, setOfflineBooks] = useState(syncBooks);
+    const [loading, setLoading] = useState(!isOffline); // Already rendered if offline
+    const [coverUrls, setCoverUrls] = useState({});
+
+    // Load data
     const loadData = useCallback(async () => {
         if (!user) return;
         setLoading(true);
         try {
-            // Get user's purchased books
+            let bookList = [];
+
+            // ── Offline: covers are the only async part ──
+            if (!navigator.onLine) {
+                // Books already displayed from syncBooks, just load covers
+                const urls = await preloadCoverUrls(syncBooks.map(b => b.id));
+                setCoverUrls(urls);
+
+                // Optionally update lastRead cover from cached URL
+                if (lastRead && urls[lastRead.id]) {
+                    setLastRead(prev => prev ? { ...prev, _coverUrl: urls[prev.id] } : prev);
+                }
+
+                setLoading(false);
+                return;
+            }
+
+            // ── Online mode ──
             const { data: accessRows } = await supabase
                 .from('user_book_access')
                 .select('book_id, granted_at, books:book_id(id, title, author, cover_url, file_url)')
                 .eq('user_id', user.id)
                 .order('granted_at', { ascending: false });
 
-            let bookList = [];
             if (accessRows?.length) {
                 bookList = accessRows.filter(r => r.books).map(r => ({ ...r.books, granted_at: r.granted_at }));
             } else {
-                // Fallback to orders
                 const { data: orders } = await supabase.from('orders')
                     .select('id, order_items(book_id, books(id, title, author, cover_url, file_url))')
                     .eq('user_id', user.id).eq('status', 'paid');
@@ -40,20 +87,22 @@ export default function Home() {
             }
             setMyBooks(bookList);
 
-            // Get offline books from IndexedDB
             const offBooks = await getAllOfflineBooks();
             setOfflineBooks(offBooks);
 
-            // Find the last read book (most recent progress)
+            const allBookIds = [...new Set([...bookList.map(b => b.id), ...offBooks.map(b => b.id)])];
+            const urls = await preloadCoverUrls(allBookIds);
+            setCoverUrls(urls);
+
+            // Find the last read book
             let latestProgress = null;
             let latestBookId = null;
             for (const b of [...bookList, ...offBooks]) {
-                const id = b.id;
-                const progress = await getReadingProgress(id);
+                const progress = await getReadingProgress(b.id);
                 if (progress && progress.lastReadAt) {
                     if (!latestProgress || progress.lastReadAt > latestProgress.lastReadAt) {
                         latestProgress = progress;
-                        latestBookId = id;
+                        latestBookId = b.id;
                     }
                 }
             }
@@ -71,15 +120,29 @@ export default function Home() {
             }
         } catch (err) {
             console.error('Home load error:', err);
+            try {
+                const offBooks = await getAllOfflineBooks();
+                setOfflineBooks(offBooks);
+                const urls = await preloadCoverUrls(offBooks.map(b => b.id));
+                setCoverUrls(urls);
+            } catch { /* ignore */ }
         } finally {
             setLoading(false);
         }
     }, [user]);
 
     useEffect(() => {
-        const timer = setTimeout(() => {
-            loadData();
-        }, 0);
+        // In offline mode, sync data is already displayed — only load covers async
+        if (isOffline) {
+            (async () => {
+                try {
+                    const urls = await preloadCoverUrls(syncBooks.map(b => b.id));
+                    setCoverUrls(urls);
+                } catch { /* ignore */ }
+            })();
+            return;
+        }
+        const timer = setTimeout(() => { loadData(); }, 0);
         return () => clearTimeout(timer);
     }, [loadData]);
 
@@ -95,11 +158,33 @@ export default function Home() {
         return `linear-gradient(135deg, ${a}, ${b})`;
     }
 
+    const getCoverSrc = (book) => {
+        if (coverUrls[book.id]) return coverUrls[book.id];
+        if (book._coverUrl) return book._coverUrl;
+        if (!navigator.onLine) return null;
+        return book.cover_url;
+    };
+
     return (
         <div>
 
+            {/* Offline Banner */}
+            {isOffline && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '10px 16px', marginBottom: 'var(--space-4)',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'rgba(255, 152, 0, 0.1)',
+                    border: '1px solid rgba(255, 152, 0, 0.25)',
+                    fontSize: 'var(--text-sm)', color: '#FFA726'
+                }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>wifi_off</span>
+                    <span>Mode hors-ligne — Vos livres téléchargés sont disponibles</span>
+                </div>
+            )}
+
             {/* Install App card */}
-            <InstallButton style={{ marginBottom: 'var(--space-6)' }} />
+            {!isOffline && <InstallButton style={{ marginBottom: 'var(--space-6)' }} />}
 
             {/* Continue Reading */}
             {lastRead && (
@@ -110,7 +195,7 @@ export default function Home() {
                     <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 'var(--space-8)', cursor: 'pointer' }} onClick={() => navigate(`/read/${lastRead.id}`)}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'var(--space-6) 0', background: 'var(--color-bg-dark)' }}>
                             <div style={{ width: 120, height: 180, borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)', overflow: 'hidden', background: getBookGradient(lastRead.id) }}>
-                                {lastRead.cover_url && <img src={lastRead.cover_url} alt={lastRead.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                                {getCoverSrc(lastRead) && <img src={getCoverSrc(lastRead)} alt={lastRead.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                             </div>
                         </div>
                         <div style={{ padding: 'var(--space-4)' }}>
@@ -131,7 +216,7 @@ export default function Home() {
                 </>
             )}
 
-            {/* My Books */}
+            {/* My Books (online only) */}
             {myBooks.length > 0 && (
                 <>
                     <div className="section-header">
@@ -144,7 +229,7 @@ export default function Home() {
                         {myBooks.slice(0, 8).map((book) => (
                             <div key={book.id} style={{ minWidth: 140, width: 140, cursor: 'pointer' }} onClick={() => navigate(`/read/${book.id}`)}>
                                 <div style={{ width: '100%', height: 200, borderRadius: 'var(--radius-md)', marginBottom: 12, overflow: 'hidden', background: getBookGradient(book.id) }}>
-                                    {book.cover_url && <img src={book.cover_url} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                                    {getCoverSrc(book) && <img src={getCoverSrc(book)} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                                 </div>
                                 <h4 className="line-clamp-2" style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{book.title}</h4>
                                 <p className="line-clamp-1" style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{book.author || 'Auteur inconnu'}</p>
@@ -161,18 +246,21 @@ export default function Home() {
                         <h2 className="section-title">📥 Disponibles hors-ligne</h2>
                     </div>
                     <div className="horizontal-scroll" style={{ marginBottom: 'var(--space-8)' }}>
-                        {offlineBooks.map((book) => (
-                            <div key={book.id} style={{ minWidth: 140, width: 140, cursor: 'pointer' }} onClick={() => navigate(`/read/${book.id}`)}>
-                                <div style={{ width: '100%', height: 200, borderRadius: 'var(--radius-md)', marginBottom: 12, overflow: 'hidden', background: getBookGradient(book.id), position: 'relative' }}>
-                                    {book.cover_url && <img src={book.cover_url} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-                                    <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(22,163,74,0.9)', color: '#fff', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>check</span>
+                        {offlineBooks.map((book) => {
+                            const coverSrc = getCoverSrc(book);
+                            return (
+                                <div key={book.id} style={{ minWidth: 140, width: 140, cursor: 'pointer' }} onClick={() => navigate(`/read/${book.id}`)}>
+                                    <div style={{ width: '100%', height: 200, borderRadius: 'var(--radius-md)', marginBottom: 12, overflow: 'hidden', background: getBookGradient(book.id), position: 'relative' }}>
+                                        {coverSrc && <img src={coverSrc} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                                        <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(22,163,74,0.9)', color: '#fff', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>check</span>
+                                        </div>
                                     </div>
+                                    <h4 className="line-clamp-2" style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{book.title}</h4>
+                                    <p className="line-clamp-1" style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{book.author || 'Auteur inconnu'}</p>
                                 </div>
-                                <h4 className="line-clamp-2" style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{book.title}</h4>
-                                <p className="line-clamp-1" style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{book.author || 'Auteur inconnu'}</p>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </>
             )}
@@ -181,14 +269,21 @@ export default function Home() {
             {!loading && myBooks.length === 0 && offlineBooks.length === 0 && (
                 <div className="empty-state" style={{ paddingTop: 60 }}>
                     <span className="material-symbols-outlined empty-state-icon" style={{ color: 'var(--color-primary)', fontSize: 56 }}>library_books</span>
-                    <h3 style={{ fontWeight: 700, marginTop: 12 }}>Bienvenue sur BRead !</h3>
+                    <h3 style={{ fontWeight: 700, marginTop: 12 }}>
+                        {isOffline ? 'Aucun livre hors-ligne' : 'Bienvenue sur BRead !'}
+                    </h3>
                     <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', marginTop: 8, maxWidth: 280, lineHeight: 1.6, margin: '8px auto 0' }}>
-                        Achetez des livres sur <strong>BoomBooks.shop</strong> puis revenez ici pour les lire hors-ligne.
+                        {isOffline 
+                            ? 'Connectez-vous à Internet et téléchargez des livres pour les lire hors-ligne.' 
+                            : <>Achetez des livres sur <strong>BoomBooks.shop</strong> puis revenez ici pour les lire hors-ligne.</>
+                        }
                     </p>
-                    <button className="btn btn-primary" style={{ marginTop: 20 }} onClick={() => window.open('https://boombooks.shop', '_blank')}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 6 }}>open_in_new</span>
-                        Découvrir BoomBooks
-                    </button>
+                    {!isOffline && (
+                        <button className="btn btn-primary" style={{ marginTop: 20 }} onClick={() => window.open('https://boombooks.shop', '_blank')}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 6 }}>open_in_new</span>
+                            Découvrir BoomBooks
+                        </button>
+                    )}
                 </div>
             )}
 

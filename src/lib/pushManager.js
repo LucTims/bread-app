@@ -34,10 +34,30 @@ function detectPlatform() {
 }
 
 /**
+ * Get service worker registration with a timeout to prevent hanging
+ */
+async function getSwRegistration(timeoutMs = 8000) {
+    if (!('serviceWorker' in navigator)) return null;
+
+    return Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Service worker ready timed out')), timeoutMs)
+        )
+    ]);
+}
+
+/**
  * Check if push notifications are supported
  */
 export function isPushSupported() {
-    return 'serviceWorker' in navigator && 'PushManager' in window && !!VAPID_PUBLIC_KEY;
+    if (typeof window === 'undefined') return false;
+    return (
+        'serviceWorker' in navigator &&
+        'PushManager' in window &&
+        'Notification' in window &&
+        !!VAPID_PUBLIC_KEY
+    );
 }
 
 /**
@@ -45,32 +65,56 @@ export function isPushSupported() {
  */
 export function getPushPermission() {
     if (!isPushSupported()) return 'unsupported';
-    return Notification.permission; // 'default', 'granted', 'denied'
+    try {
+        return Notification.permission; // 'default', 'granted', 'denied'
+    } catch {
+        return 'unsupported';
+    }
 }
 
 /**
  * Subscribe the user to push notifications and save subscription to Supabase
  */
 export async function subscribeToPush(userId) {
-    if (!isPushSupported() || !userId) return null;
+    if (!isPushSupported() || !userId) {
+        console.warn('[Push] Not supported or no userId');
+        return null;
+    }
 
     try {
-        const registration = await navigator.serviceWorker.ready;
+        // 1. Request notification permission FIRST (before waiting for SW)
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            console.warn('[Push] Permission denied:', permission);
+            return null;
+        }
 
-        // Check existing subscription
+        // 2. Get SW registration with timeout
+        const registration = await getSwRegistration();
+        if (!registration) {
+            console.error('[Push] No service worker registration');
+            return null;
+        }
+
+        // 3. Check existing subscription
         let subscription = await registration.pushManager.getSubscription();
 
         if (!subscription) {
-            // Request permission & subscribe
+            // Create new subscription
             subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
             });
         }
 
+        if (!subscription) {
+            console.error('[Push] Failed to create subscription');
+            return null;
+        }
+
         const subJSON = subscription.toJSON();
 
-        // Save to Supabase (upsert on user_id + endpoint)
+        // 4. Save to Supabase (upsert on user_id + endpoint)
         const { error } = await supabase
             .from('push_subscriptions')
             .upsert({
@@ -85,7 +129,9 @@ export async function subscribeToPush(userId) {
 
         if (error) {
             console.error('[Push] Save subscription error:', error);
-            return null;
+            // Still return subscription even if Supabase save fails
+            // The browser subscription is active regardless
+            return subscription;
         }
 
         console.log('[Push] Subscribed successfully');
@@ -103,7 +149,9 @@ export async function unsubscribeFromPush(userId) {
     if (!isPushSupported() || !userId) return;
 
     try {
-        const registration = await navigator.serviceWorker.ready;
+        const registration = await getSwRegistration();
+        if (!registration) return;
+
         const subscription = await registration.pushManager.getSubscription();
 
         if (subscription) {
@@ -130,7 +178,8 @@ export async function unsubscribeFromPush(userId) {
 export async function isSubscribedToPush() {
     if (!isPushSupported()) return false;
     try {
-        const registration = await navigator.serviceWorker.ready;
+        const registration = await getSwRegistration(5000);
+        if (!registration) return false;
         const subscription = await registration.pushManager.getSubscription();
         return !!subscription;
     } catch {

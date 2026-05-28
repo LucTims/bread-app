@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="description" content="Bread – Votre liseuse hors-ligne BoomBooks. Lisez vos livres achetés partout, sans connexion." />
     <meta name="theme-color" content="#0B0F14" />
@@ -11,8 +12,94 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="BRead" />
     <title>BRead – Liseuse BoomBooks</title>
+    <style>
+      /* ── Splash Screen — renders instantly before JS loads ── */
+      #splash-screen {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        z-index: 99999;
+        background: #0B0F14;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.4s ease, visibility 0.4s ease;
+      }
+      #splash-screen.hide {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      #splash-logo {
+        width: 88px;
+        height: 88px;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.06);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 28px;
+        animation: splash-pulse 2s ease-in-out infinite;
+      }
+      #splash-logo svg {
+        width: 52px;
+        height: 52px;
+      }
+      #splash-title {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 20px;
+        font-weight: 300;
+        letter-spacing: 0.5px;
+        color: rgba(255, 255, 255, 0.85);
+        margin: 0;
+        text-align: center;
+      }
+      #splash-title span {
+        color: #FFD60A;
+        font-weight: 600;
+      }
+      #splash-loader {
+        margin-top: 40px;
+        width: 32px;
+        height: 32px;
+        border: 2.5px solid rgba(255, 214, 10, 0.15);
+        border-top-color: #FFD60A;
+        border-radius: 50%;
+        animation: splash-spin 0.8s linear infinite;
+      }
+      @keyframes splash-spin {
+        to { transform: rotate(360deg); }
+      }
+      @keyframes splash-pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.04); }
+      }
+    </style>
   </head>
   <body>
+    <!-- Splash Screen — visible immediately on all devices -->
+    <div id="splash-screen">
+      <div id="splash-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+          <!-- Book icon matching the PWA icon style -->
+          <g stroke="#FFD60A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Left page -->
+            <path d="M32 52V16C32 16 28 10 18 10C8 10 4 14 4 14V50C4 50 8 46 18 46C24 46 28 48 32 52Z" fill="rgba(255,214,10,0.06)"/>
+            <!-- Right page -->
+            <path d="M32 52V16C32 16 36 10 46 10C56 10 60 14 60 14V50C60 50 56 46 46 46C40 46 36 48 32 52Z" fill="rgba(255,214,10,0.06)"/>
+            <!-- Spine line -->
+            <line x1="32" y1="16" x2="32" y2="52"/>
+            <!-- Page lines left -->
+            <path d="M12 22H24M12 30H22M12 38H20" opacity="0.5"/>
+            <!-- Page lines right -->
+            <path d="M40 22H52M42 30H52M44 38H52" opacity="0.5"/>
+          </g>
+        </svg>
+      </div>
+      <p id="splash-title"><span>BRead</span> – Liseuse BoomBooks</p>
+      <div id="splash-loader"></div>
+    </div>
+
     <div id="root"></div>
     <script>
       // Capture PWA install prompt BEFORE React loads (must not miss this event)

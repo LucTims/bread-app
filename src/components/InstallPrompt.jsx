@@ -1,22 +1,76 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
-// Detect platform
-const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+// ── Shared install state ──
+// The beforeinstallprompt can fire BEFORE React loads (captured in index.html)
+// or AFTER. We track both cases with a reactive listener pattern.
+
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
-function handleNativeInstall() {
-    const p = window.deferredPrompt;
-    if (p) {
-        p.prompt();
-        p.userChoice.then(({ outcome }) => {
-            if (outcome === 'accepted') window.deferredPrompt = null;
-        });
-        return true;
-    }
-    return false;
+/**
+ * Hook that returns the current install prompt (or null).
+ * Re-renders the component when the prompt becomes available.
+ */
+function useInstallPrompt() {
+    const [prompt, setPrompt] = useState(window.deferredPrompt || null);
+
+    useEffect(() => {
+        // Listen for the event in case it fires after mount
+        const handlePrompt = (e) => {
+            e.preventDefault();
+            window.deferredPrompt = e;
+            setPrompt(e);
+        };
+
+        // Listen for our custom event (dispatched from index.html capture)
+        const handleInstallable = () => {
+            setPrompt(window.deferredPrompt);
+        };
+
+        const handleInstalled = () => {
+            window.deferredPrompt = null;
+            setPrompt(null);
+        };
+
+        window.addEventListener('beforeinstallprompt', handlePrompt);
+        window.addEventListener('app-installable', handleInstallable);
+        window.addEventListener('appinstalled', handleInstalled);
+
+        // Also check if it was already captured before this component mounted
+        if (window.deferredPrompt && !prompt) {
+            setPrompt(window.deferredPrompt);
+        }
+
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handlePrompt);
+            window.removeEventListener('app-installable', handleInstallable);
+            window.removeEventListener('appinstalled', handleInstalled);
+        };
+    }, []);
+
+    return prompt;
 }
 
-// ─── Install Help Modal ───
+/**
+ * Trigger the native browser install prompt.
+ * Returns true if the prompt was shown, false otherwise.
+ */
+async function triggerNativeInstall(deferredPrompt) {
+    if (!deferredPrompt) return false;
+    try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            window.deferredPrompt = null;
+        }
+        return true;
+    } catch (err) {
+        console.warn('[Install] Prompt error:', err);
+        return false;
+    }
+}
+
+// ─── Install Help Modal (iOS / fallback) ───
 function InstallHelpModal({ isOpen, onClose }) {
     if (!isOpen) return null;
     return (
@@ -61,13 +115,15 @@ function Step({ n, children }) {
     );
 }
 
-// ─── Banner (fixed top bar) ───
+// ─── Banner (fixed top bar, used on Login) ───
 export function InstallBanner() {
+    const deferredPrompt = useInstallPrompt();
     const [showHelp, setShowHelp] = useState(false);
     if (isStandalone) return null;
 
-    const handleClick = () => {
-        if (!handleNativeInstall()) setShowHelp(true);
+    const handleClick = async () => {
+        const shown = await triggerNativeInstall(deferredPrompt);
+        if (!shown) setShowHelp(true);
     };
 
     return (
@@ -87,13 +143,15 @@ export function InstallBanner() {
     );
 }
 
-// ─── Card button (for Profile, menus) ───
+// ─── Card button (for Home, Profile) ───
 export function InstallButton({ style }) {
+    const deferredPrompt = useInstallPrompt();
     const [showHelp, setShowHelp] = useState(false);
     if (isStandalone) return null;
 
-    const handleClick = () => {
-        if (!handleNativeInstall()) setShowHelp(true);
+    const handleClick = async () => {
+        const shown = await triggerNativeInstall(deferredPrompt);
+        if (!shown) setShowHelp(true);
     };
 
     return (
@@ -119,12 +177,14 @@ export function InstallButton({ style }) {
 
 // ─── Menu item (for hamburger menu) ───
 export function InstallMenuItem({ onClick }) {
+    const deferredPrompt = useInstallPrompt();
     const [showHelp, setShowHelp] = useState(false);
     if (isStandalone) return null;
 
-    const handleClick = () => {
+    const handleClick = async () => {
         if (onClick) onClick();
-        if (!handleNativeInstall()) setShowHelp(true);
+        const shown = await triggerNativeInstall(deferredPrompt);
+        if (!shown) setShowHelp(true);
     };
 
     return (
