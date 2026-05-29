@@ -40,12 +40,12 @@ export default function Chat() {
                 // Fetch messages
                 const { data: msgData, error } = await supabase
                     .from('chat_messages')
-                    .select('id, content, created_at, user_id, profiles(full_name, avatar_url, role)')
-                    .order('created_at', { ascending: true })
+                    .select('id, content, created_at, user_id, profiles(email, role)')
+                    .order('created_at', { ascending: false })
                     .limit(50);
 
                 if (error) throw error;
-                setMessages(msgData || []);
+                setMessages(msgData ? msgData.reverse() : []);
             } catch (err) {
                 console.error('[Chat] Fetch error:', err);
             } finally {
@@ -63,13 +63,13 @@ export default function Chat() {
                 
                 const { data: profileData } = await supabase
                     .from('profiles')
-                    .select('full_name, avatar_url, role')
+                    .select('email, role')
                     .eq('id', newMsg.user_id)
                     .single();
 
                 const enrichedMsg = {
                     ...newMsg,
-                    profiles: profileData || { full_name: 'Utilisateur', avatar_url: null, role: 'user' }
+                    profiles: profileData || { email: 'Utilisateur', role: 'user' }
                 };
 
                 setMessages((prev) => [...prev, enrichedMsg]);
@@ -197,7 +197,16 @@ export default function Chat() {
                 ) : (
                     messages.map((msg) => {
                         const isMine = msg.user_id === user.id;
-                        const initial = (msg.profiles?.full_name || 'U').charAt(0).toUpperCase();
+                        // Use user.user_metadata if it's my message, otherwise fallback to profiles.email
+                        const displayName = isMine 
+                            ? (user.user_metadata?.full_name || user.email || 'Utilisateur') 
+                            : (msg.profiles?.email || 'Utilisateur');
+                        
+                        const displayAvatar = isMine 
+                            ? user.user_metadata?.avatar_url 
+                            : null; // Avatar not stored in profiles
+
+                        const initial = displayName.charAt(0).toUpperCase();
                         
                         return (
                             <div key={msg.id} style={{ 
@@ -216,8 +225,8 @@ export default function Chat() {
                                     fontWeight: 600, fontSize: 12, overflow: 'hidden',
                                     border: `1px solid ${isMine ? 'rgba(0,0,0,0.1)' : 'var(--color-border)'}`
                                 }}>
-                                    {msg.profiles?.avatar_url 
-                                        ? <img src={msg.profiles.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    {displayAvatar 
+                                        ? <img src={displayAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                         : initial
                                     }
                                 </div>
@@ -229,7 +238,7 @@ export default function Chat() {
                                         flexDirection: isMine ? 'row-reverse' : 'row'
                                     }}>
                                         <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)' }}>
-                                            {isMine ? 'Vous' : (msg.profiles?.full_name || 'Utilisateur')}
+                                            {isMine ? 'Vous' : displayName.split('@')[0]}
                                         </span>
                                         {msg.profiles?.role === 'admin' && (
                                             <span style={{ 
