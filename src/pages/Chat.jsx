@@ -40,7 +40,7 @@ export default function Chat() {
                 // Fetch messages
                 const { data: msgData, error } = await supabase
                     .from('chat_messages')
-                    .select('id, content, created_at, user_id, profiles(email, role)')
+                    .select('id, content, created_at, user_id, profiles(full_name, avatar_url, email, role)')
                     .order('created_at', { ascending: false })
                     .limit(50);
 
@@ -63,7 +63,7 @@ export default function Chat() {
                 
                 const { data: profileData } = await supabase
                     .from('profiles')
-                    .select('email, role')
+                    .select('full_name, avatar_url, email, role')
                     .eq('id', newMsg.user_id)
                     .single();
 
@@ -197,14 +197,15 @@ export default function Chat() {
                 ) : (
                     messages.map((msg) => {
                         const isMine = msg.user_id === user.id;
-                        // Use user.user_metadata if it's my message, otherwise fallback to profiles.email
+                        
+                        const profileName = msg.profiles?.full_name || msg.profiles?.email?.split('@')[0] || 'Utilisateur';
                         const displayName = isMine 
-                            ? (user.user_metadata?.full_name || user.email || 'Utilisateur') 
-                            : (msg.profiles?.email || 'Utilisateur');
+                            ? (user.user_metadata?.full_name || profileName) 
+                            : profileName;
                         
                         const displayAvatar = isMine 
-                            ? user.user_metadata?.avatar_url 
-                            : null; // Avatar not stored in profiles
+                            ? (user.user_metadata?.avatar_url || msg.profiles?.avatar_url)
+                            : msg.profiles?.avatar_url;
 
                         const initial = displayName.charAt(0).toUpperCase();
                         
@@ -238,7 +239,7 @@ export default function Chat() {
                                         flexDirection: isMine ? 'row-reverse' : 'row'
                                     }}>
                                         <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)' }}>
-                                            {isMine ? 'Vous' : displayName.split('@')[0]}
+                                            {isMine ? 'Vous' : displayName}
                                         </span>
                                         {msg.profiles?.role === 'admin' && (
                                             <span style={{ 

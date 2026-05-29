@@ -13,7 +13,9 @@ export default function Profile() {
     const [storage, setStorage] = useState({ totalBytes: 0, bookCount: 0 });
     const [avatarUrl, setAvatarUrl] = useState(null);
     const [bio, setBio] = useState('');
+    const [name, setName] = useState('');
     const [editingBio, setEditingBio] = useState(false);
+    const [editingName, setEditingName] = useState(false);
     const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
@@ -23,6 +25,7 @@ export default function Profile() {
             // Load avatar and bio from user_metadata
             setAvatarUrl(user.user_metadata?.avatar_url || null);
             setBio(user.user_metadata?.bio || '');
+            setName(user.user_metadata?.full_name || user.user_metadata?.name || '');
 
             (async () => {
                 try {
@@ -79,6 +82,7 @@ export default function Profile() {
             const finalUrl = publicUrl + '?t=' + Date.now();
             
             await supabase.auth.updateUser({ data: { avatar_url: finalUrl } });
+            await supabase.from('profiles').update({ avatar_url: finalUrl }).eq('id', user.id);
             setAvatarUrl(finalUrl);
         } catch (err) {
             console.error('Avatar upload error:', err);
@@ -94,6 +98,16 @@ export default function Profile() {
             setEditingBio(false);
         } catch (err) {
             console.error('Bio save error:', err);
+        }
+    };
+
+    const handleSaveName = async () => {
+        try {
+            await supabase.auth.updateUser({ data: { full_name: name } });
+            await supabase.from('profiles').update({ full_name: name }).eq('id', user.id);
+            setEditingName(false);
+        } catch (err) {
+            console.error('Name save error:', err);
         }
     };
 
@@ -134,9 +148,33 @@ export default function Profile() {
                     <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
                 </div>
                 
-                <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, marginBottom: 4, textAlign: 'center' }}>
-                    {displayName}
-                </h2>
+                {/* Name / Display Name */}
+                {editingName ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 4 }}>
+                        <input 
+                            value={name} 
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Votre nom"
+                            style={{ 
+                                padding: '6px 12px', borderRadius: 'var(--radius-md)', 
+                                border: '1px solid var(--color-primary)', background: 'var(--color-surface)', 
+                                color: 'var(--color-text)', textAlign: 'center', fontSize: 'var(--text-xl)', fontWeight: 700 
+                            }}
+                        />
+                        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                            <button className="btn btn-sm btn-primary" onClick={handleSaveName}>Enregistrer</button>
+                            <button className="btn btn-sm btn-outline" onClick={() => { setEditingName(false); setName(user?.user_metadata?.full_name || ''); }}>Annuler</button>
+                        </div>
+                    </div>
+                ) : (
+                    <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, marginBottom: 4, textAlign: 'center', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {displayName}
+                        <button className="btn-ghost" onClick={() => setEditingName(true)} style={{ padding: 4, color: 'var(--color-text-muted)' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>edit</span>
+                        </button>
+                    </h2>
+                )}
+                
                 <p style={{ color: 'var(--color-text-muted)', marginBottom: 12, fontSize: 'var(--text-sm)' }}>{user?.email}</p>
 
                 {/* Bio / Description */}
