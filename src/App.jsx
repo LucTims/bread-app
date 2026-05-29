@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Home from './pages/Home';
 import Library from './pages/Library';
 import Search from './pages/Search';
+import Chat from './pages/Chat';
 import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
@@ -165,6 +166,12 @@ function AppContent() {
         <Route path="/search" element={
           <ProtectedRoute>
             <MainLayout><Search /></MainLayout>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/chat" element={
+          <ProtectedRoute>
+            <MainLayout><Chat /></MainLayout>
           </ProtectedRoute>
         } />
         

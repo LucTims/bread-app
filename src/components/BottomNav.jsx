@@ -46,9 +46,9 @@ export default function BottomNav() {
                 <span className="material-symbols-outlined">library_books</span>
                 Library
             </NavLink>
-            <NavLink to="/search" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                <span className="material-symbols-outlined">search</span>
-                Search
+            <NavLink to="/chat" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <span className="material-symbols-outlined">forum</span>
+                Chat
             </NavLink>
             <NavLink to="/notifications" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ position: 'relative' }}>
                 <span className="material-symbols-outlined">notifications</span>

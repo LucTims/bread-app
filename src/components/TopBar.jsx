@@ -76,16 +76,21 @@ export default function TopBar() {
                 
                 <h1 style={{ fontFamily: 'var(--font-logo)', fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--color-text)' }}>BRead</h1>
                 
-                <div onClick={() => navigate('/profile')} style={{ 
-                    width: 32, height: 32, borderRadius: '50%', background: 'var(--color-primary)',
-                    cursor: 'pointer', border: '1px solid var(--color-border)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#000', fontSize: 14, fontWeight: 700, overflow: 'hidden'
-                }}>
-                    {user?.user_metadata?.avatar_url 
-                        ? <img src={user.user_metadata.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        : initial
-                    }
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <button className="btn-ghost" style={{ padding: 6, borderRadius: '50%', color: 'var(--color-text)' }} onClick={() => navigate('/search')}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 22 }}>search</span>
+                    </button>
+                    <div onClick={() => navigate('/profile')} style={{ 
+                        width: 32, height: 32, borderRadius: '50%', background: 'var(--color-primary)',
+                        cursor: 'pointer', border: '1px solid var(--color-border)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: '#000', fontSize: 14, fontWeight: 700, overflow: 'hidden'
+                    }}>
+                        {user?.user_metadata?.avatar_url 
+                            ? <img src={user.user_metadata.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : initial
+                        }
+                    </div>
                 </div>
             </header>
         </>
