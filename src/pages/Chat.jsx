@@ -159,8 +159,14 @@ export default function Chat() {
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - var(--header-height) - var(--nav-height))', paddingBottom: 'var(--space-4)' }}>
-            <div style={{ marginBottom: 'var(--space-4)', padding: 'var(--space-4) 0', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - var(--header-height) - var(--bottom-nav-height) - var(--space-4) - var(--space-6))' }}>
+            <div style={{ 
+                marginBottom: 'var(--space-2)', 
+                paddingBottom: 'var(--space-3)', 
+                borderBottom: '1px solid var(--color-border)', 
+                display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                flexShrink: 0
+            }}>
                 <div>
                     <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>Communauté</h1>
                     <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>Discutez avec d'autres lecteurs et partagez vos avis.</p>
@@ -186,7 +192,8 @@ export default function Chat() {
                 display: 'flex', 
                 flexDirection: 'column', 
                 gap: 'var(--space-4)',
-                paddingBottom: 'var(--space-4)'
+                paddingBottom: 'var(--space-4)',
+                paddingRight: '4px' // for scrollbar
             }}>
                 {messages.length === 0 ? (
                     <div className="empty-state" style={{ margin: 'auto' }}>
@@ -295,7 +302,9 @@ export default function Chat() {
                 padding: 'var(--space-2)',
                 borderRadius: 'var(--radius-full)',
                 border: '1px solid var(--color-border)',
-                opacity: chatOpen ? 1 : 0.6
+                opacity: chatOpen ? 1 : 0.6,
+                flexShrink: 0,
+                marginTop: 'auto'
             }}>
                 <input 
                     type="text" 
