@@ -14,6 +14,7 @@ import OfflineStatus from './pages/OfflineStatus';
 import Admin from './pages/Admin';
 import TopBar from './components/TopBar';
 import BottomNav from './components/BottomNav';
+import { ChatProvider } from './lib/ChatContext';
 
 // Composant pour protéger les routes utilisateurs connectés
 function ProtectedRoute({ children }) {
@@ -237,7 +238,9 @@ function App({ onReady }) {
 
   return (
     <AuthProvider>
-      <AppContent />
+      <ChatProvider>
+        <AppContent />
+      </ChatProvider>
     </AuthProvider>
   );
 }

@@ -2,13 +2,24 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 
+const QUICK_EMOJIS = ['👍', '❤️', '😂', '👏', '😮'];
+
 export default function Chat() {
     const { user, profile } = useAuth();
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [chatOpen, setChatOpen] = useState(true);
+    
+    // New features state
+    const [replyingTo, setReplyingTo] = useState(null);
+    const [typingUsers, setTypingUsers] = useState([]);
+    const [showEmojiPickerFor, setShowEmojiPickerFor] = useState(null);
+    
     const messagesEndRef = useRef(null);
+    const typingTimeoutRef = useRef(null);
+    const presenceChannelRef = useRef(null);
+    
     const isAdmin = profile?.role === 'admin';
 
     // Scroll to bottom when messages change
@@ -22,6 +33,33 @@ export default function Chat() {
 
     useEffect(() => {
         if (!user) return;
+
+        // Setup Presence for Typing Indicator
+        const presenceChannel = supabase.channel('chat_presence', {
+            config: { presence: { key: user.id } }
+        });
+        
+        presenceChannelRef.current = presenceChannel;
+
+        presenceChannel
+            .on('presence', { event: 'sync' }, () => {
+                const state = presenceChannel.presenceState();
+                const typing = [];
+                for (const key in state) {
+                    if (key !== user.id) {
+                        const userState = state[key][0];
+                        if (userState?.isTyping) {
+                            typing.push(userState.name);
+                        }
+                    }
+                }
+                setTypingUsers(typing);
+            })
+            .subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await presenceChannel.track({ isTyping: false, name: user.user_metadata?.full_name || 'Quelqu\'un' });
+                }
+            });
 
         // Fetch initial messages and chat status
         const fetchData = async () => {
@@ -37,10 +75,15 @@ export default function Chat() {
                     setChatOpen(settingsData.value.isOpen !== false);
                 }
 
-                // Fetch messages
+                // Fetch messages with replies and reactions
                 const { data: msgData, error } = await supabase
                     .from('chat_messages')
-                    .select('id, content, created_at, user_id, profiles(full_name, avatar_url, email, role)')
+                    .select(`
+                        id, content, created_at, user_id, reply_to_id,
+                        profiles(full_name, avatar_url, email, role),
+                        reply_to:reply_to_id(id, content, profiles(full_name, email)),
+                        chat_reactions(id, user_id, emoji)
+                    `)
                     .order('created_at', { ascending: false })
                     .limit(50);
 
@@ -61,22 +104,46 @@ export default function Chat() {
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, async (payload) => {
                 const newMsg = payload.new;
                 
-                const { data: profileData } = await supabase
-                    .from('profiles')
-                    .select('full_name, avatar_url, email, role')
-                    .eq('id', newMsg.user_id)
+                // Fetch profile and reply data for the new message
+                const { data: enrichedData } = await supabase
+                    .from('chat_messages')
+                    .select(`
+                        id, content, created_at, user_id, reply_to_id,
+                        profiles(full_name, avatar_url, email, role),
+                        reply_to:reply_to_id(id, content, profiles(full_name, email)),
+                        chat_reactions(id, user_id, emoji)
+                    `)
+                    .eq('id', newMsg.id)
                     .single();
 
-                const enrichedMsg = {
-                    ...newMsg,
-                    profiles: profileData || { email: 'Utilisateur', role: 'user' }
-                };
-
-                setMessages((prev) => [...prev, enrichedMsg]);
+                if (enrichedData) {
+                    setMessages((prev) => [...prev, enrichedData]);
+                }
             })
             .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages' }, (payload) => {
                 const deletedId = payload.old.id;
                 setMessages((prev) => prev.filter(msg => msg.id !== deletedId));
+            })
+            .subscribe();
+
+        // Subscribe to real-time chat_reactions
+        const reactionsChannel = supabase
+            .channel('public:chat_reactions')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_reactions' }, (payload) => {
+                setMessages((prev) => prev.map(msg => {
+                    if (msg.id === payload.new.message_id) {
+                        return { ...msg, chat_reactions: [...(msg.chat_reactions || []), payload.new] };
+                    }
+                    return msg;
+                }));
+            })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_reactions' }, (payload) => {
+                setMessages((prev) => prev.map(msg => {
+                    if (msg.id === payload.old.message_id) {
+                        return { ...msg, chat_reactions: (msg.chat_reactions || []).filter(r => r.id !== payload.old.id) };
+                    }
+                    return msg;
+                }));
             })
             .subscribe();
 
@@ -91,25 +158,60 @@ export default function Chat() {
             .subscribe();
 
         return () => {
+            supabase.removeChannel(presenceChannel);
             supabase.removeChannel(msgChannel);
+            supabase.removeChannel(reactionsChannel);
             supabase.removeChannel(settingsChannel);
         };
     }, [user]);
+
+    const handleTyping = (e) => {
+        setNewMessage(e.target.value);
+        if (!chatOpen || !presenceChannelRef.current) return;
+        
+        presenceChannelRef.current.track({ isTyping: true, name: user.user_metadata?.full_name || profile?.full_name || 'Quelqu\'un' });
+        
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => {
+            if (presenceChannelRef.current) {
+                presenceChannelRef.current.track({ isTyping: false, name: user.user_metadata?.full_name || profile?.full_name || 'Quelqu\'un' });
+            }
+        }, 2000);
+    };
 
     const handleSendMessage = async (e) => {
         e.preventDefault();
         if (!newMessage.trim() || !user || !chatOpen) return;
 
         const content = newMessage.trim();
-        setNewMessage(''); // optimistic clear
+        const replyId = replyingTo?.id || null;
+        
+        setNewMessage(''); 
+        setReplyingTo(null);
+        if (presenceChannelRef.current) {
+            presenceChannelRef.current.track({ isTyping: false, name: user.user_metadata?.full_name || 'Quelqu\'un' });
+        }
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
         try {
-            const { error } = await supabase
+            const { error, data } = await supabase
                 .from('chat_messages')
-                .insert([{ user_id: user.id, content }]);
+                .insert([{ user_id: user.id, content, reply_to_id: replyId }])
+                .select();
 
             if (error) {
                 console.error('[Chat] Send error:', error);
+            } else if (replyingTo && replyingTo.user_id !== user.id) {
+                // Send push notification to the replied user
+                const authorName = user.user_metadata?.full_name || profile?.full_name || 'Un membre de la communauté';
+                supabase.functions.invoke('notify-user', {
+                    body: {
+                        target_user_id: replyingTo.user_id,
+                        title: `${authorName} vous a répondu`,
+                        body: content,
+                        type: 'chat_reply'
+                    }
+                }).catch(err => console.error('Push invoke error:', err));
             }
         } catch (err) {
             console.error('[Chat] Unexpected error:', err);
@@ -121,25 +223,34 @@ export default function Chat() {
         if (!window.confirm("Voulez-vous vraiment supprimer ce message pour tout le monde ?")) return;
         
         try {
-            const { error } = await supabase
-                .from('chat_messages')
-                .delete()
-                .eq('id', messageId);
-                
-            if (error) console.error('[Chat] Delete error:', error);
+            await supabase.from('chat_messages').delete().eq('id', messageId);
         } catch (err) {
             console.error('[Chat] Delete error:', err);
+        }
+    };
+
+    const handleReaction = async (messageId, emoji) => {
+        setShowEmojiPickerFor(null);
+        if (!user) return;
+        
+        const message = messages.find(m => m.id === messageId);
+        const existingReaction = message?.chat_reactions?.find(r => r.user_id === user.id && r.emoji === emoji);
+        
+        try {
+            if (existingReaction) {
+                await supabase.from('chat_reactions').delete().eq('id', existingReaction.id);
+            } else {
+                await supabase.from('chat_reactions').insert([{ message_id: messageId, user_id: user.id, emoji }]);
+            }
+        } catch (err) {
+            console.error('[Chat] Reaction error:', err);
         }
     };
 
     const toggleChatStatus = async () => {
         if (!isAdmin) return;
         try {
-            const newValue = { isOpen: !chatOpen };
-            await supabase
-                .from('app_settings')
-                .update({ value: newValue })
-                .eq('key', 'chat_status');
+            await supabase.from('app_settings').update({ value: { isOpen: !chatOpen } }).eq('key', 'chat_status');
         } catch (err) {
             console.error('[Chat] Toggle error:', err);
         }
@@ -148,6 +259,17 @@ export default function Chat() {
     const formatTime = (isoString) => {
         const date = new Date(isoString);
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+    
+    const getReactionsCount = (reactions) => {
+        if (!reactions || reactions.length === 0) return [];
+        const counts = {};
+        reactions.forEach(r => {
+            if (!counts[r.emoji]) counts[r.emoji] = { count: 0, hasReacted: false };
+            counts[r.emoji].count++;
+            if (r.user_id === user.id) counts[r.emoji].hasReacted = true;
+        });
+        return Object.entries(counts).map(([emoji, data]) => ({ emoji, ...data }));
     };
 
     if (loading) {
@@ -180,7 +302,7 @@ export default function Chat() {
                         borderRadius: 'var(--radius-md)', padding: '6px 12px', fontSize: 12, fontWeight: 600
                     }}>
                         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{chatOpen ? 'lock' : 'lock_open'}</span>
-                        {chatOpen ? 'Fermer le Chat' : 'Ouvrir le Chat'}
+                        {chatOpen ? 'Fermer' : 'Ouvrir'}
                     </button>
                 )}
             </div>
@@ -215,6 +337,7 @@ export default function Chat() {
                             : msg.profiles?.avatar_url;
 
                         const initial = displayName.charAt(0).toUpperCase();
+                        const groupedReactions = getReactionsCount(msg.chat_reactions);
                         
                         return (
                             <div key={msg.id} style={{ 
@@ -239,8 +362,9 @@ export default function Chat() {
                                     }
                                 </div>
 
-                                {/* Message Bubble */}
+                                {/* Message Bubble & Actions */}
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMine ? 'flex-end' : 'flex-start' }}>
+                                    {/* Sender Info */}
                                     <div style={{ 
                                         display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4,
                                         flexDirection: isMine ? 'row-reverse' : 'row'
@@ -259,6 +383,27 @@ export default function Chat() {
                                         </span>
                                     </div>
 
+                                    {/* Reply Preview */}
+                                    {msg.reply_to && (
+                                        <div onClick={() => {
+                                            // Optional: Scroll to message
+                                        }} style={{
+                                            background: isMine ? 'rgba(0,0,0,0.1)' : 'var(--color-bg)',
+                                            padding: '6px 10px',
+                                            borderRadius: '8px',
+                                            borderLeft: `3px solid ${isMine ? '#000' : 'var(--color-primary)'}`,
+                                            marginBottom: '4px',
+                                            fontSize: '12px',
+                                            opacity: 0.8,
+                                            maxWidth: '100%',
+                                            cursor: 'pointer'
+                                        }}>
+                                            <div style={{ fontWeight: 600, marginBottom: 2 }}>{msg.reply_to.profiles?.full_name || 'Utilisateur'}</div>
+                                            <div className="line-clamp-1">{msg.reply_to.content}</div>
+                                        </div>
+                                    )}
+
+                                    {/* Main Bubble */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: isMine ? 'row-reverse' : 'row' }}>
                                         <div style={{ 
                                             background: isMine ? 'var(--color-primary)' : 'var(--color-surface)',
@@ -274,69 +419,163 @@ export default function Chat() {
                                         }}>
                                             {msg.content}
                                         </div>
-                                        {/* Bouton de suppression admin */}
-                                        {isAdmin && (
-                                            <button 
-                                                onClick={() => handleDeleteMessage(msg.id)}
-                                                className="btn-ghost" 
-                                                title="Supprimer le message"
-                                                style={{ padding: 4, color: '#ef4444', borderRadius: '50%' }}
-                                            >
-                                                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>delete</span>
+
+                                        {/* Action Buttons (Reply / Delete / React) */}
+                                        <div style={{ display: 'flex', gap: 4, position: 'relative' }}>
+                                            <button onClick={() => setReplyingTo(msg)} className="btn-ghost" title="Répondre"
+                                                style={{ padding: 4, borderRadius: '50%' }}>
+                                                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>reply</span>
                                             </button>
-                                        )}
+                                            
+                                            <button onClick={() => setShowEmojiPickerFor(showEmojiPickerFor === msg.id ? null : msg.id)} className="btn-ghost" title="Réagir"
+                                                style={{ padding: 4, borderRadius: '50%' }}>
+                                                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add_reaction</span>
+                                            </button>
+
+                                            {isAdmin && (
+                                                <button onClick={() => handleDeleteMessage(msg.id)} className="btn-ghost" title="Supprimer"
+                                                    style={{ padding: 4, color: '#ef4444', borderRadius: '50%' }}>
+                                                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>delete</span>
+                                                </button>
+                                            )}
+
+                                            {/* Emoji Picker Popup */}
+                                            {showEmojiPickerFor === msg.id && (
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    top: '100%',
+                                                    [isMine ? 'right' : 'left']: 0,
+                                                    background: 'var(--color-surface)',
+                                                    border: '1px solid var(--color-border)',
+                                                    borderRadius: 'var(--radius-full)',
+                                                    padding: '4px 8px',
+                                                    display: 'flex',
+                                                    gap: '8px',
+                                                    boxShadow: 'var(--shadow-md)',
+                                                    zIndex: 10
+                                                }}>
+                                                    {QUICK_EMOJIS.map(emoji => (
+                                                        <span key={emoji} 
+                                                            onClick={() => handleReaction(msg.id, emoji)}
+                                                            style={{ cursor: 'pointer', fontSize: '18px', transition: 'transform 0.2s' }}
+                                                            onMouseEnter={(e) => e.target.style.transform = 'scale(1.2)'}
+                                                            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                                                        >
+                                                            {emoji}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
+
+                                    {/* Reactions Badges */}
+                                    {groupedReactions.length > 0 && (
+                                        <div style={{ 
+                                            display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4,
+                                            flexDirection: isMine ? 'row-reverse' : 'row' 
+                                        }}>
+                                            {groupedReactions.map(r => (
+                                                <button key={r.emoji} onClick={() => handleReaction(msg.id, r.emoji)} style={{
+                                                    background: r.hasReacted ? 'rgba(255, 215, 0, 0.2)' : 'var(--color-surface)',
+                                                    border: `1px solid ${r.hasReacted ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                                                    borderRadius: '12px',
+                                                    padding: '2px 6px',
+                                                    fontSize: '12px',
+                                                    display: 'flex', alignItems: 'center', gap: 4,
+                                                    color: r.hasReacted ? 'var(--color-primary)' : 'var(--color-text)'
+                                                }}>
+                                                    <span>{r.emoji}</span>
+                                                    <span>{r.count}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         );
                     })
                 )}
+                
+                {/* Typing Indicator */}
+                {typingUsers.length > 0 && (
+                    <div style={{ fontSize: 12, color: 'var(--color-text-muted)', fontStyle: 'italic', paddingLeft: 44 }}>
+                        {typingUsers.join(', ')} {typingUsers.length > 1 ? 'écrivent...' : 'écrit...'}
+                    </div>
+                )}
+                
                 <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}
-            <form onSubmit={handleSendMessage} style={{ 
-                display: 'flex', 
-                gap: 8,
-                background: 'var(--color-surface)',
-                padding: 'var(--space-2)',
-                borderRadius: 'var(--radius-full)',
-                border: '1px solid var(--color-border)',
-                opacity: chatOpen ? 1 : 0.6,
-                flexShrink: 0,
-                marginTop: 'auto'
-            }}>
-                <input 
-                    type="text" 
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder={chatOpen ? "Écrivez un message..." : "Le chat est fermé"} 
-                    disabled={!chatOpen}
-                    style={{ 
-                        flex: 1, 
-                        background: 'transparent', 
-                        border: 'none', 
-                        color: 'var(--color-text)',
-                        padding: '0 16px',
-                        outline: 'none',
-                        fontSize: 14
-                    }}
-                />
-                <button 
-                    type="submit" 
-                    disabled={!newMessage.trim() || !chatOpen}
-                    style={{ 
-                        width: 40, height: 40, borderRadius: '50%',
-                        background: (newMessage.trim() && chatOpen) ? 'var(--color-primary)' : 'var(--color-border)',
-                        color: (newMessage.trim() && chatOpen) ? '#000' : 'var(--color-text-muted)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        border: 'none', cursor: (newMessage.trim() && chatOpen) ? 'pointer' : 'not-allowed',
-                        transition: 'all 0.2s ease'
-                    }}
-                >
-                    <span className="material-symbols-outlined" style={{ fontSize: 20, transform: 'translateX(2px)' }}>send</span>
-                </button>
-            </form>
+            <div style={{ flexShrink: 0, marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {/* Reply Preview Bar */}
+                {replyingTo && (
+                    <div style={{
+                        background: 'var(--color-surface)',
+                        border: '1px solid var(--color-primary)',
+                        borderLeft: '4px solid var(--color-primary)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '8px 12px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                    }}>
+                        <div style={{ overflow: 'hidden' }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-primary)', marginBottom: 2 }}>
+                                Réponse à {replyingTo.profiles?.full_name || 'Utilisateur'}
+                            </div>
+                            <div className="line-clamp-1" style={{ fontSize: 13, color: 'var(--color-text)' }}>
+                                {replyingTo.content}
+                            </div>
+                        </div>
+                        <button onClick={() => setReplyingTo(null)} className="btn-ghost" style={{ padding: 4 }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
+                        </button>
+                    </div>
+                )}
+
+                <form onSubmit={handleSendMessage} style={{ 
+                    display: 'flex', 
+                    gap: 8,
+                    background: 'var(--color-surface)',
+                    padding: 'var(--space-2)',
+                    borderRadius: 'var(--radius-full)',
+                    border: '1px solid var(--color-border)',
+                    opacity: chatOpen ? 1 : 0.6
+                }}>
+                    <input 
+                        type="text" 
+                        value={newMessage}
+                        onChange={handleTyping}
+                        placeholder={chatOpen ? "Écrivez un message..." : "Le chat est fermé"} 
+                        disabled={!chatOpen}
+                        style={{ 
+                            flex: 1, 
+                            background: 'transparent', 
+                            border: 'none', 
+                            color: 'var(--color-text)',
+                            padding: '0 16px',
+                            outline: 'none',
+                            fontSize: 14
+                        }}
+                    />
+                    <button 
+                        type="submit" 
+                        disabled={!newMessage.trim() || !chatOpen}
+                        style={{ 
+                            width: 40, height: 40, borderRadius: '50%',
+                            background: (newMessage.trim() && chatOpen) ? 'var(--color-primary)' : 'var(--color-border)',
+                            color: (newMessage.trim() && chatOpen) ? '#000' : 'var(--color-text-muted)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            border: 'none', cursor: (newMessage.trim() && chatOpen) ? 'pointer' : 'not-allowed',
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        <span className="material-symbols-outlined" style={{ fontSize: 20, transform: 'translateX(2px)' }}>send</span>
+                    </button>
+                </form>
+            </div>
         </div>
     );
 }
