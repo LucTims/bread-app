@@ -149,8 +149,9 @@ function AppContent() {
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
+      <ChatProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
         
         <Route path="/" element={
           <ProtectedRoute>
@@ -219,6 +220,7 @@ function AppContent() {
           </ProtectedRoute>
         } />
       </Routes>
+      </ChatProvider>
     </BrowserRouter>
   );
 }
@@ -238,9 +240,7 @@ function App({ onReady }) {
 
   return (
     <AuthProvider>
-      <ChatProvider>
-        <AppContent />
-      </ChatProvider>
+      <AppContent />
     </AuthProvider>
   );
 }
