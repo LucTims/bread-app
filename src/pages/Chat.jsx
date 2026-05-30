@@ -444,7 +444,7 @@ export default function Chat() {
                                                 <div style={{
                                                     position: 'absolute',
                                                     top: '100%',
-                                                    [isMine ? 'right' : 'left']: 0,
+                                                    [isMine ? 'left' : 'right']: 0,
                                                     background: 'var(--color-surface)',
                                                     border: '1px solid var(--color-border)',
                                                     borderRadius: 'var(--radius-full)',
