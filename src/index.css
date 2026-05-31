@@ -442,3 +442,219 @@ input, select, textarea {
     border-radius: 3px;
     transition: width 0.5s ease;
 }
+
+/* ═══════════════════════════════════════
+   LIBRARY PAGE
+   ═══════════════════════════════════════ */
+.library-hero {
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    overflow: hidden;
+}
+.library-hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle at top right, rgba(255,215,0,0.1), transparent 50%);
+    pointer-events: none;
+}
+
+.library-stats-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+}
+.library-stat-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-lg);
+    padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
+}
+.library-stat-card-label {
+    font-size: 10px;
+    color: var(--color-text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.library-stat-card-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-top: 2px;
+}
+
+.library-storage-track {
+    background: rgba(0,0,0,0.4);
+    height: 6px;
+    border-radius: 3px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+.library-storage-bar {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.library-tabs {
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+.library-tab {
+    padding: 8px 16px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    color: var(--color-text-muted);
+    font-weight: 600;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+.library-tab.active {
+    background: var(--color-primary);
+    color: #000;
+    border-color: var(--color-primary);
+}
+
+.library-search-wrap {
+    display: flex;
+    align-items: center;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    padding: 10px 16px;
+    gap: 8px;
+    transition: border-color 0.2s ease;
+}
+.library-search-wrap:focus-within {
+    border-color: var(--color-primary);
+}
+.library-search-wrap input {
+    background: transparent;
+    border: none;
+    color: var(--color-text);
+    width: 100%;
+    outline: none;
+    font-size: 14px;
+}
+.library-search-wrap input::placeholder {
+    color: var(--color-text-muted);
+}
+.library-search-wrap .material-symbols-outlined {
+    color: var(--color-text-muted);
+    font-size: 20px;
+}
+
+.book-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: var(--space-4);
+    padding-bottom: var(--space-6);
+}
+@media (min-width: 480px) {
+    .book-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+}
+
+.book-card {
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.book-cover-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.book-card:hover .book-cover-wrap {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+}
+.book-cover-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.book-action-overlay {
+    position: absolute;
+    top: 6px; right: 6px;
+    display: flex;
+    gap: 4px;
+}
+.book-badge-icon {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+.book-badge-icon:hover {
+    background: rgba(0,0,0,0.8);
+    transform: scale(1.1);
+}
+.delete-badge:hover {
+    background: rgba(239, 68, 68, 0.9);
+    border-color: #ef4444;
+}
+
+.book-downloading-ring {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.book-progress-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 4px;
+    background: rgba(0,0,0,0.5);
+}
+.book-progress-fill {
+    height: 100%;
+    background: var(--color-primary);
+}
+
+.book-title {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.3;
+    margin: 0;
+}
+.book-author {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    margin: 0;
+}
+
+.empty-state {
+    background: var(--color-surface);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-xl);
+}
