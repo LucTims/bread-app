@@ -231,7 +231,7 @@ function App({ onReady }) {
     if (savedTheme) {
       document.documentElement.setAttribute('data-theme', savedTheme);
     } else {
-      document.documentElement.setAttribute('data-theme', 'dark'); // default
+      document.documentElement.setAttribute('data-theme', 'light'); // default
     }
 
     // Dismiss splash screen after first render

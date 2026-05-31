@@ -14,28 +14,19 @@ const GOOGLE_SVG = (
 );
 
 const Divider = () => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
-        <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
-        <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}>ou</span>
-        <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
+    <div className="login-divider">
+        <div className="login-divider-line" />
+        <span className="login-divider-text">ou</span>
+        <div className="login-divider-line" />
     </div>
 );
 
 const GoogleButton = ({ label, onClick, disabled }) => (
-    <button onClick={onClick} disabled={disabled}
-        style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-            width: '100%', padding: '14px 16px', borderRadius: 'var(--radius-full)',
-            background: '#fff', border: '1px solid #dadce0',
-            color: '#3c4043', fontSize: 14, fontWeight: 600, fontFamily: 'inherit',
-            cursor: 'pointer', transition: 'all 0.2s ease',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
-        }}
-    >
+    <button onClick={onClick} disabled={disabled} className="btn-social">
         {disabled ? (
             <div className="spinner" style={{ width: 20, height: 20, borderWidth: 2, borderTopColor: '#4285F4', borderColor: 'rgba(66,133,244,0.3)' }} />
         ) : (
-            <>{GOOGLE_SVG}<span>{label || 'Continuer avec Google'}</span></>
+            <>{GOOGLE_SVG}<span>{label || 'Connexion avec Google'}</span></>
         )}
     </button>
 );
@@ -48,7 +39,9 @@ export default function Login() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
-    const [view, setView] = useState('welcome');
+    const [view, setView] = useState('login'); // simplified: just login or signup directly
+    const [showPassword, setShowPassword] = useState(false);
+    
     const { signIn, user } = useAuth();
     const navigate = useNavigate();
 
@@ -95,12 +88,10 @@ export default function Login() {
             });
             if (signUpErr) throw signUpErr;
 
-            // Auto-login after sign up
             if (data?.user && !data.user.identities?.length === 0) {
                 setError("Ce compte existe déjà. Connectez-vous.");
                 setView('login');
             } else {
-                // Try auto sign-in
                 const { error: loginErr } = await signIn(email, password);
                 if (loginErr) {
                     setError("Compte créé ! Vérifiez votre email puis connectez-vous.");
@@ -116,135 +107,127 @@ export default function Login() {
         }
     };
 
-    // ─── Welcome Screen ───
-    if (view === 'welcome') {
-        return (
-            <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: isStandalone ? 'var(--space-6)' : 'calc(44px + var(--space-6)) var(--space-6) var(--space-6)', textAlign: 'center' }}>
-
-                {/* Install banner — fixed top */}
-                {!isStandalone && (
-                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60 }}>
-                        <InstallBanner />
-                    </div>
-                )}
-
-                <h1 style={{ fontFamily: 'var(--font-logo)', fontSize: 48, fontWeight: 700, color: 'var(--color-primary)', marginBottom: 'var(--space-4)' }}>BRead</h1>
-                <h2 style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, marginBottom: 'var(--space-4)', lineHeight: 1.2 }}>Votre liseuse hors-ligne.</h2>
-                <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-base)', marginBottom: 'var(--space-8)', maxWidth: 300, lineHeight: 1.6 }}>
-                    Lisez vos livres BoomBooks partout, même sans connexion. Une expérience de lecture premium et immersive.
-                </p>
-
-                <div style={{ width: '100%', maxWidth: 320, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                    <GoogleButton label="Continuer avec Google" onClick={handleGoogleLogin} disabled={googleLoading} />
-                    <Divider />
-                    <button className="btn btn-primary btn-lg btn-block" onClick={() => setView('login')}>
-                        Se connecter par email
-                    </button>
-                    <button className="btn btn-outline btn-lg btn-block" onClick={() => setView('signup')}>
-                        Créer un compte
-                    </button>
-                </div>
-
-                {error && <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'rgba(228,30,63,0.1)', border: '1px solid rgba(228,30,63,0.3)', color: '#E41E3F', fontSize: 'var(--text-sm)', marginTop: 16, maxWidth: 320, width: '100%' }}>{error}</div>}
-
-                <p style={{ color: 'var(--color-text-muted)', fontSize: 11, marginTop: 'var(--space-8)', maxWidth: 280, lineHeight: 1.5 }}>
-                    Connectez-vous avec le même compte que sur boombooks.shop pour synchroniser vos livres.
-                </p>
-            </div>
-        );
-    }
-
-    // ─── Sign Up Screen ───
-    if (view === 'signup') {
-        return (
-            <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', padding: isStandalone ? 'var(--space-6)' : 'calc(44px + var(--space-6)) var(--space-6) var(--space-6)' }}>
-                {!isStandalone && (
-                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60 }}>
-                        <InstallBanner />
-                    </div>
-                )}
-                <button className="btn-ghost" style={{ alignSelf: 'flex-start', padding: '8px 0', marginBottom: 'var(--space-6)' }} onClick={() => setView('welcome')}>
-                    <span className="material-symbols-outlined">arrow_back</span> Retour
-                </button>
-                
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', maxWidth: 400, margin: '0 auto', width: '100%' }}>
-                    <h1 style={{ fontFamily: 'var(--font-logo)', fontSize: 32, fontWeight: 700, color: 'var(--color-primary)', marginBottom: 'var(--space-2)' }}>BRead</h1>
-                    <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, marginBottom: 'var(--space-6)' }}>Créer votre compte</h2>
-                    
-                    {error && <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'rgba(228,30,63,0.1)', border: '1px solid rgba(228,30,63,0.3)', color: '#E41E3F', fontSize: 'var(--text-sm)', marginBottom: 16 }}>{error}</div>}
-
-                    <GoogleButton label="S'inscrire avec Google" onClick={handleGoogleLogin} disabled={googleLoading} />
-                    <Divider />
-
-                    <form onSubmit={handleSignUp}>
-                        <div style={{ marginBottom: 16, position: 'relative' }}>
-                            <span className="material-symbols-outlined" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', fontSize: 20, pointerEvents: 'none' }}>person</span>
-                            <input type="text" placeholder="Nom complet" value={fullName} onChange={e => setFullName(e.target.value)} className="form-input" style={{ padding: '16px 16px 16px 48px', borderRadius: 'var(--radius-full)', width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)' }} />
-                        </div>
-
-                        <div style={{ marginBottom: 16, position: 'relative' }}>
-                            <span className="material-symbols-outlined" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', fontSize: 20, pointerEvents: 'none' }}>email</span>
-                            <input type="email" placeholder="Adresse email" value={email} onChange={e => setEmail(e.target.value)} required className="form-input" style={{ padding: '16px 16px 16px 48px', borderRadius: 'var(--radius-full)', width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)' }} />
-                        </div>
-
-                        <div style={{ marginBottom: 24, position: 'relative' }}>
-                            <span className="material-symbols-outlined" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', fontSize: 20, pointerEvents: 'none' }}>lock</span>
-                            <input type="password" placeholder="Mot de passe (6+ caractères)" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} className="form-input" style={{ padding: '16px 16px 16px 48px', borderRadius: 'var(--radius-full)', width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)' }} />
-                        </div>
-
-                        <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={loading}>
-                            {loading ? <div className="spinner" style={{ width: 20, height: 20, borderWidth: 2, borderTopColor: '#000', borderColor: 'rgba(0,0,0,0.3)' }} /> : "S'inscrire"}
-                        </button>
-                    </form>
-
-                    <p style={{ textAlign: 'center', marginTop: 'var(--space-6)', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
-                        Déjà un compte ? <button style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer', font: 'inherit' }} onClick={() => setView('login')}>Se connecter</button>
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
-    // ─── Login Screen ───
     return (
-        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', padding: isStandalone ? 'var(--space-6)' : 'calc(44px + var(--space-6)) var(--space-6) var(--space-6)' }}>
-            {!isStandalone && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60 }}>
-                    <InstallBanner />
+        <div className="login-layout">
+            {/* Left side: Image */}
+            <div className="login-image-side">
+                <img src="/login-cover.png" alt="Lecture confortable" className="login-cover-img" />
+                <div className="login-image-overlay">
                 </div>
-            )}
-            <button className="btn-ghost" style={{ alignSelf: 'flex-start', padding: '8px 0', marginBottom: 'var(--space-6)' }} onClick={() => setView('welcome')}>
-                <span className="material-symbols-outlined">arrow_back</span> Retour
-            </button>
-            
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', maxWidth: 400, margin: '0 auto', width: '100%' }}>
-                <h1 style={{ fontFamily: 'var(--font-logo)', fontSize: 32, fontWeight: 700, color: 'var(--color-primary)', marginBottom: 'var(--space-2)' }}>BRead</h1>
-                <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, marginBottom: 'var(--space-6)' }}>Content de vous revoir.</h2>
+            </div>
+
+            {/* Right side: Form */}
+            <div className="login-form-side" style={{ padding: isStandalone ? 'var(--space-6)' : 'calc(44px + var(--space-6)) var(--space-6) var(--space-6)' }}>
+                {!isStandalone && (
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 60 }}>
+                        <InstallBanner />
+                    </div>
+                )}
                 
-                {error && <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'rgba(228,30,63,0.1)', border: '1px solid rgba(228,30,63,0.3)', color: '#E41E3F', fontSize: 'var(--text-sm)', marginBottom: 16 }}>{error}</div>}
+                <div className="login-form-container">
+                    <h1 className="login-brand">BRead</h1>
+                    <h2 className="login-title">
+                        {view === 'login' ? 'Ravis de vous revoir !' : 'Créer votre compte'}
+                    </h2>
+                    
+                    {error && <div className="login-error">{error}</div>}
 
-                <GoogleButton label="Continuer avec Google" onClick={handleGoogleLogin} disabled={googleLoading} />
-                <Divider />
+                    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+                        <GoogleButton 
+                            label={view === 'login' ? "Connexion avec Google" : "S'inscrire avec Google"} 
+                            onClick={handleGoogleLogin} 
+                            disabled={googleLoading} 
+                        />
+                    </div>
+                    
+                    <Divider />
 
-                <form onSubmit={handleLogin}>
-                    <div style={{ marginBottom: 16, position: 'relative' }}>
-                        <span className="material-symbols-outlined" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', fontSize: 20, pointerEvents: 'none' }}>email</span>
-                        <input type="email" placeholder="Adresse email" value={email} onChange={e => setEmail(e.target.value)} required className="form-input" style={{ padding: '16px 16px 16px 48px', borderRadius: 'var(--radius-full)', width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)' }} />
+                    {view === 'login' ? (
+                        <form onSubmit={handleLogin} className="login-form">
+                            <div className="login-input-group">
+                                <input 
+                                    type="email" 
+                                    placeholder="E-mail" 
+                                    value={email} 
+                                    onChange={e => setEmail(e.target.value)} 
+                                    required 
+                                    className="login-input" 
+                                />
+                            </div>
+
+                            <div className="login-input-group">
+                                <input 
+                                    type={showPassword ? 'text' : 'password'} 
+                                    placeholder="Mot de passe" 
+                                    value={password} 
+                                    onChange={e => setPassword(e.target.value)} 
+                                    required 
+                                    className="login-input" 
+                                />
+                                <button type="button" className="login-pwd-toggle" onClick={() => setShowPassword(!showPassword)}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
+                                        {showPassword ? 'visibility_off' : 'visibility'}
+                                    </span>
+                                </button>
+                            </div>
+
+                            <button type="submit" className="login-submit-btn" disabled={loading}>
+                                {loading ? <div className="spinner" style={{ width: 20, height: 20, borderWidth: 2, borderTopColor: '#fff', borderColor: 'rgba(255,255,255,0.3)' }} /> : 'Se connecter'}
+                            </button>
+                        </form>
+                    ) : (
+                        <form onSubmit={handleSignUp} className="login-form">
+                            <div className="login-input-group">
+                                <input type="text" placeholder="Nom complet" value={fullName} onChange={e => setFullName(e.target.value)} className="login-input" />
+                            </div>
+
+                            <div className="login-input-group">
+                                <input type="email" placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)} required className="login-input" />
+                            </div>
+
+                            <div className="login-input-group">
+                                <input type={showPassword ? 'text' : 'password'} placeholder="Mot de passe (6+ car.)" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} className="login-input" />
+                                <button type="button" className="login-pwd-toggle" onClick={() => setShowPassword(!showPassword)}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
+                                        {showPassword ? 'visibility_off' : 'visibility'}
+                                    </span>
+                                </button>
+                            </div>
+
+                            <button type="submit" className="login-submit-btn" disabled={loading}>
+                                {loading ? <div className="spinner" style={{ width: 20, height: 20, borderWidth: 2, borderTopColor: '#fff', borderColor: 'rgba(255,255,255,0.3)' }} /> : 'Créer mon compte'}
+                            </button>
+                        </form>
+                    )}
+
+                    {view === 'login' && (
+                        <div style={{ textAlign: 'center', margin: '16px 0' }}>
+                            <a href="#" className="login-link-muted" onClick={(e) => { e.preventDefault(); /* TODO: Reset pwd */ }}>Mot de passe oublié ?</a>
+                        </div>
+                    )}
+
+                    <div style={{ textAlign: 'center', marginTop: 'var(--space-6)' }}>
+                        <span style={{ color: 'var(--color-text)', fontSize: 'var(--text-sm)' }}>
+                            {view === 'login' ? 'Pas encore de compte ? ' : 'Déjà un compte ? '}
+                        </span>
+                        <button className="login-link-bold" onClick={() => setView(view === 'login' ? 'signup' : 'login')}>
+                            {view === 'login' ? 'Créer mon compte' : 'Se connecter'}
+                        </button>
                     </div>
 
-                    <div style={{ marginBottom: 24, position: 'relative' }}>
-                        <span className="material-symbols-outlined" style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', fontSize: 20, pointerEvents: 'none' }}>lock</span>
-                        <input type="password" placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} required className="form-input" style={{ padding: '16px 16px 16px 48px', borderRadius: 'var(--radius-full)', width: '100%', background: 'var(--color-surface)', border: '1px solid var(--color-border)' }} />
+                    {/* Trust/Reviews Section */}
+                    <div className="login-trust-section">
+                        <div className="login-stars">
+                            <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+                        </div>
+                        <div style={{ fontSize: '13px', color: 'var(--color-text)', marginTop: 4 }}>
+                            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                                <strong>Excellent</strong> | +30 avis positifs sur <span style={{ textDecoration: 'underline', color: 'var(--color-primary-text)' }}>Facebook</span>
+                            </a>
+                        </div>
                     </div>
 
-                    <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={loading}>
-                        {loading ? <div className="spinner" style={{ width: 20, height: 20, borderWidth: 2, borderTopColor: '#000', borderColor: 'rgba(0,0,0,0.3)' }} /> : 'Se connecter'}
-                    </button>
-                </form>
-
-                <p style={{ textAlign: 'center', marginTop: 'var(--space-6)', color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
-                    Pas encore de compte ? <button style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer', font: 'inherit' }} onClick={() => setView('signup')}>Créer un compte</button>
-                </p>
+                </div>
             </div>
         </div>
     );
