@@ -17,6 +17,7 @@ export default function Admin() {
     const [orders, setOrders] = useState([]);
     const [searchQueries, setSearchQueries] = useState([]);
     const [users, setUsers] = useState([]);
+    const [dailyUsers, setDailyUsers] = useState([]);
     
     // Search/filter states
     const [installSearch, setInstallSearch] = useState('');
@@ -98,6 +99,9 @@ export default function Admin() {
                 });
             }
 
+            // 9. Daily Active Users
+            const { data: dauData } = await supabase.rpc('get_daily_active_users', { days_limit: 7 });
+
             setStats({
                 usersCount: usersCount || 0,
                 installsCount: installsData?.length || 0,
@@ -106,6 +110,7 @@ export default function Admin() {
                 salesCount: salesCount
             });
 
+            setDailyUsers((dauData || []).reverse());
             setInstalls(installsData || []);
             setOrders(ordersData || []);
             setSearchQueries(queriesData || []);
@@ -272,6 +277,40 @@ export default function Admin() {
                                 <h3 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: 'var(--color-text)' }}>{stats.booksCount}</h3>
                                 <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8, margin: 0 }}>Catalogue BRead</p>
                             </div>
+                        </div>
+
+                        {/* Daily Active Users Chart */}
+                        <div className="card" style={{ padding: 24 }}>
+                            <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>bar_chart</span> Activité Quotidienne (7 derniers jours)
+                            </h3>
+                            {dailyUsers.length === 0 ? (
+                                <p style={{ color: 'var(--color-text-muted)', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>Aucune donnée d'activité récente.</p>
+                            ) : (
+                                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, height: 160, padding: '10px 0', borderBottom: '1px solid var(--color-border)' }}>
+                                    {dailyUsers.map((d, i) => {
+                                        const count = Number(d.daily_users);
+                                        const maxUsers = Math.max(...dailyUsers.map(x => Number(x.daily_users)), 1);
+                                        const heightPct = Math.max((count / maxUsers) * 100, 5); // min 5% for visibility
+                                        const dateLabel = new Date(d.visit_date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+                                        return (
+                                            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: 8 }}>
+                                                <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--color-text)' }}>{count}</div>
+                                                <div style={{ width: '100%', maxWidth: 40, height: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                                                    <div style={{
+                                                        width: '100%',
+                                                        height: `${heightPct}%`,
+                                                        background: 'linear-gradient(to top, #FF8C00, var(--color-primary))',
+                                                        borderRadius: '6px 6px 0 0',
+                                                        transition: 'height 1s ease'
+                                                    }} />
+                                                </div>
+                                                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', textAlign: 'center', whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{dateLabel}</div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
 
                         {/* Breakdown and Search Query Grid */}
