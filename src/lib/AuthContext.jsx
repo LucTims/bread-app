@@ -177,6 +177,7 @@ export function AuthProvider({ children }) {
         if (!error) {
             setProfile(null);
             clearCachedSession();
+            window.location.href = '/';
         }
         return { error };
     };

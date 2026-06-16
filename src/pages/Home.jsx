@@ -264,6 +264,61 @@ export default function Home() {
                     </div>
                 </>
             )}
+            {/* Formations Promo (Online only) */}
+            {!isOffline && (
+                <div style={{ marginTop: 'var(--space-6)', marginBottom: 'var(--space-8)' }}>
+                    <div className="section-header">
+                        <h2 className="section-title">Développez vos compétences</h2>
+                    </div>
+                    <div 
+                        className="card" 
+                        style={{ padding: 0, overflow: 'hidden', cursor: 'pointer', border: '1px solid var(--color-border)', background: 'var(--color-bg)' }}
+                        onClick={() => window.open('https://boombooks.shop/formations', '_blank')}
+                    >
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ 
+                                background: '#818cf8', 
+                                padding: 'var(--space-6)', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                position: 'relative',
+                                overflow: 'hidden'
+                            }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '120px', color: 'rgba(255,255,255,0.15)', position: 'absolute', right: '-20px', bottom: '-20px' }}>school</span>
+                                <div style={{
+                                    boxShadow: 'var(--shadow-lg)',
+                                    borderRadius: 'var(--radius-md)',
+                                    overflow: 'hidden',
+                                    width: '160px',
+                                    background: '#fff',
+                                    zIndex: 1,
+                                    aspectRatio: '16/9'
+                                }}>
+                                    <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Formations" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                </div>
+                            </div>
+                            <div style={{ padding: 'var(--space-5)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+                                    {[1,2,3,4,5].map(star => (
+                                        <span key={star} className="material-symbols-outlined" style={{ fontSize: 14, color: 'var(--color-text)', fontVariationSettings: '"FILL" 1' }}>star</span>
+                                    ))}
+                                    <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 4, fontWeight: 600 }}>(Premium)</span>
+                                </div>
+                                <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 800, marginBottom: 6, color: 'var(--color-text)' }}>
+                                    Formations Sélectionnées
+                                </h3>
+                                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-5)', lineHeight: 1.5 }}>
+                                    Découvrez notre catalogue des meilleures formations francophones. Apprenez avec des experts depuis BoomBooks.
+                                </p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-text)', background: 'var(--color-bg-dark)', padding: '10px 16px', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: 'var(--text-sm)', width: 'fit-content' }}>
+                                    Voir le catalogue <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_forward</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Empty state */}
             {!loading && myBooks.length === 0 && offlineBooks.length === 0 && (

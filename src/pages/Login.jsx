@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
 import { InstallBanner } from '../components/InstallPrompt';
@@ -46,7 +46,7 @@ export default function Login() {
     const navigate = useNavigate();
 
     const location = useLocation();
-    const redirectUrl = new URLSearchParams(location.search).get('redirect') || '/';
+    const redirectUrl = new URLSearchParams(location.search).get('redirect') || '/home';
 
     useEffect(() => { if (user) navigate(redirectUrl); }, [user, navigate, redirectUrl]);
 
@@ -125,7 +125,7 @@ export default function Login() {
                 )}
                 
                 <div className="login-form-container">
-                    <h1 className="login-brand">BRead</h1>
+                    <Link to="/" style={{ textDecoration: 'none', display: 'block', width: 'fit-content', margin: '0 auto' }}><h1 className="login-brand">BRead</h1></Link>
                     <h2 className="login-title">
                         {view === 'login' ? 'Ravis de vous revoir !' : 'Créer votre compte'}
                     </h2>

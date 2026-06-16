@@ -40,7 +40,7 @@ export default function BottomNav() {
 
     return (
         <nav className="bottom-nav">
-            <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} end>
+            <NavLink to="/home" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} end>
                 <span className="material-symbols-outlined">home</span>
                 Home
             </NavLink>

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import Login from './pages/Login';
 import Home from './pages/Home';
+import Landing from './pages/Landing';
 import Library from './pages/Library';
 import Search from './pages/Search';
 import Chat from './pages/Chat';
@@ -153,7 +154,9 @@ function AppContent() {
         <Routes>
           <Route path="/login" element={<Login />} />
         
-        <Route path="/" element={
+        <Route path="/" element={<Landing />} />
+        
+        <Route path="/home" element={
           <ProtectedRoute>
             <MainLayout><Home /></MainLayout>
           </ProtectedRoute>

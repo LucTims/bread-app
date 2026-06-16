@@ -394,7 +394,7 @@ export default function Reader() {
                 <span className="material-symbols-outlined empty-state-icon" style={{ color: 'var(--color-accent)' }}>error</span>
                 <h2>Impossible de lire le livre</h2>
                 <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: 20 }}>{error}</p>
-                <button className="btn btn-primary" onClick={() => navigate('/')}>Retour</button>
+                <button className="btn btn-primary" onClick={() => navigate('/home')}>Retour</button>
             </div>
         </div>
     );
@@ -405,7 +405,7 @@ export default function Reader() {
             
             {/* ── Top Toolbar ── */}
             <div className={`reader-toolbar ${!showToolbar ? 'hidden' : ''}`} style={{ flexShrink: 0, zIndex: 100 }}>
-                <button onClick={() => navigate('/')}><span className="material-symbols-outlined">arrow_back</span></button>
+                <button onClick={() => navigate('/home')}><span className="material-symbols-outlined">arrow_back</span></button>
                 <div className="reader-toolbar-title line-clamp-1">{bookMeta?.title || 'Lecture'}</div>
                 <button onClick={(e) => { e.stopPropagation(); }} style={{ visibility: 'hidden' }}>
                     <span className="material-symbols-outlined">more_vert</span>
