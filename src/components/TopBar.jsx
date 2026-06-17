@@ -1,15 +1,24 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
+import { supabase } from '../lib/supabase';
 import { InstallMenuItem } from './InstallPrompt';
 
 export default function TopBar() {
     const navigate = useNavigate();
     const { user, profile } = useAuth();
     const [menuOpen, setMenuOpen] = useState(false);
+    const [streak, setStreak] = useState(0);
     const menuRef = useRef(null);
 
-
+    useEffect(() => {
+        if (user && navigator.onLine) {
+            supabase.from('profiles').select('current_streak').eq('id', user.id).single()
+                .then(({ data }) => {
+                    if (data && data.current_streak) setStreak(data.current_streak);
+                }).catch(() => {});
+        }
+    }, [user]);
     useEffect(() => {
         function handleClickOutside(event) {
             if (menuRef.current && !menuRef.current.contains(event.target)) setMenuOpen(false);
@@ -77,6 +86,12 @@ export default function TopBar() {
                 <h1 style={{ fontFamily: 'var(--font-logo)', fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--color-text)' }}>BRead</h1>
                 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {streak > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(255,140,0,0.1)', padding: '4px 8px', borderRadius: 12, border: '1px solid rgba(255,140,0,0.3)' }} onClick={() => navigate('/profile')}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#FF8C00' }}>local_fire_department</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#FF8C00' }}>{streak}</span>
+                        </div>
+                    )}
                     <button className="btn-ghost" style={{ padding: 6, borderRadius: '50%', color: 'var(--color-text)' }} onClick={() => navigate('/search')}>
                         <span className="material-symbols-outlined" style={{ fontSize: 22 }}>search</span>
                     </button>

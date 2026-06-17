@@ -10,6 +10,7 @@ export default function Profile() {
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
     const [stats, setStats] = useState({ booksOwned: 0, booksOffline: 0 });
+    const [readingStats, setReadingStats] = useState({ pages: 0, streak: 0, longestStreak: 0 });
     const [storage, setStorage] = useState({ totalBytes: 0, bookCount: 0 });
     const [avatarUrl, setAvatarUrl] = useState(null);
     const [bio, setBio] = useState('');
@@ -29,6 +30,16 @@ export default function Profile() {
 
             (async () => {
                 try {
+                    const { data: profileData } = await supabase
+                        .from('profiles').select('total_pages_read, current_streak, longest_streak').eq('id', user.id).single();
+                    if (profileData) {
+                        setReadingStats({
+                            pages: profileData.total_pages_read || 0,
+                            streak: profileData.current_streak || 0,
+                            longestStreak: profileData.longest_streak || 0
+                        });
+                    }
+
                     const { data: access } = await supabase
                         .from('user_book_access').select('id').eq('user_id', user.id);
                     const offBooks = await getAllOfflineBooks();
@@ -212,6 +223,30 @@ export default function Profile() {
                         )}
                     </button>
                 )}
+            </div>
+
+            {/* Gamification / Sunk Cost Stats */}
+            <div className="card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-4)', background: 'linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,140,0,0.1))', border: '1px solid rgba(255,215,0,0.2)' }}>
+                <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>local_fire_department</span>
+                    Mes Statistiques de Lecture
+                </h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', textAlign: 'center' }}>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--color-text)' }}>{readingStats.streak}</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginTop: 4 }}>SÉRIE (JOURS)</div>
+                    </div>
+                    <div style={{ width: 1, background: 'rgba(128,128,128,0.2)', margin: '0 10px' }} />
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--color-text)' }}>{readingStats.pages}</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginTop: 4 }}>PAGES LUES</div>
+                    </div>
+                    <div style={{ width: 1, background: 'rgba(128,128,128,0.2)', margin: '0 10px' }} />
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--color-primary)' }}>{readingStats.longestStreak}</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginTop: 4 }}>RECORD (🔥)</div>
+                    </div>
+                </div>
             </div>
 
             {/* Stats */}

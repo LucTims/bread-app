@@ -70,12 +70,25 @@ export default function Reader() {
     const swipeRef = useRef({ startX: 0, startY: 0, startTime: 0 });
     const canvasRef = useRef(null);
     const pdfUrlRef = useRef(null);
+    
+    // Reading Stats Tracking
+    const localPagesReadRef = useRef(0);
 
-    // Cleanup Object URL + stop TTS on unmount
+    const sendReadingStats = async () => {
+        if (localPagesReadRef.current > 0) {
+            try {
+                await supabase.rpc('update_reading_stats', { pages_read: localPagesReadRef.current });
+                localPagesReadRef.current = 0;
+            } catch (err) { console.error('Error sending reading stats', err); }
+        }
+    };
+
+    // Cleanup Object URL + stop TTS on unmount + flush stats
     useEffect(() => {
         return () => {
             if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
             window.speechSynthesis?.cancel();
+            sendReadingStats(); // Flush any unsent pages
         };
     }, []);
 
@@ -164,8 +177,16 @@ export default function Reader() {
     // Define changePage with useCallback before it is used
     const changePage = useCallback(async (offset) => {
         const newPage = Math.min(Math.max(1, pageNumber + offset), numPages || 1);
+        if (newPage !== pageNumber) {
+            localPagesReadRef.current += 1;
+        }
         setPageNumber(newPage);
         if (numPages) await saveReadingProgress(bookId, newPage, numPages);
+        
+        // Flush stats every 5 pages
+        if (localPagesReadRef.current >= 5) {
+            sendReadingStats();
+        }
     }, [pageNumber, numPages, bookId]);
 
     useEffect(() => {
@@ -407,9 +428,14 @@ export default function Reader() {
             <div className={`reader-toolbar ${!showToolbar ? 'hidden' : ''}`} style={{ flexShrink: 0, zIndex: 100 }}>
                 <button onClick={() => navigate('/home')}><span className="material-symbols-outlined">arrow_back</span></button>
                 <div className="reader-toolbar-title line-clamp-1">{bookMeta?.title || 'Lecture'}</div>
-                <button onClick={(e) => { e.stopPropagation(); }} style={{ visibility: 'hidden' }}>
-                    <span className="material-symbols-outlined">more_vert</span>
-                </button>
+                <div style={{ display: 'flex', gap: 4 }}>
+                    <button onClick={(e) => { e.stopPropagation(); setScale(s => Math.max(0.5, s - 0.2)); }} title="Dézoomer">
+                        <span className="material-symbols-outlined">zoom_out</span>
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); setScale(s => Math.min(4.0, s + 0.2)); }} title="Zoomer">
+                        <span className="material-symbols-outlined">zoom_in</span>
+                    </button>
+                </div>
             </div>
 
             {/* ── Page Progress Bar ── */}

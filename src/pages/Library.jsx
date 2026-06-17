@@ -206,20 +206,20 @@ export default function Home() {
                     
                     <div className="library-stats-container">
                         <div className="library-stat-card">
-                            <span className="library-stat-card-label">TOTAL LIVRES</span>
-                            <span className="library-stat-card-value">{books.length}</span>
+                            <span className="library-stat-card-label" style={{ color: 'rgba(255,255,255,0.6)' }}>TOTAL LIVRES</span>
+                            <span className="library-stat-card-value" style={{ color: '#fff' }}>{books.length}</span>
                         </div>
                         <div className="library-stat-card">
-                            <span className="library-stat-card-label">HORS-LIGNE</span>
-                            <span className="library-stat-card-value">{Object.values(offlineStatus).filter(Boolean).length}</span>
+                            <span className="library-stat-card-label" style={{ color: 'rgba(255,255,255,0.6)' }}>HORS-LIGNE</span>
+                            <span className="library-stat-card-value" style={{ color: '#fff' }}>{Object.values(offlineStatus).filter(Boolean).length}</span>
                         </div>
                         <div className="library-stat-card" style={{ gridColumn: 'span 2' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span className="library-stat-card-label">STOCKAGE DISQUE</span>
+                                <span className="library-stat-card-label" style={{ color: 'rgba(255,255,255,0.6)' }}>STOCKAGE DISQUE</span>
                                 <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-primary)' }}>{storagePct}%</span>
                             </div>
-                            <span className="library-stat-card-value" style={{ fontSize: 13, marginTop: 2 }}>
-                                {formatSize(storage.totalBytes)} <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--color-text-muted)' }}>/ 100 Mo</span>
+                            <span className="library-stat-card-value" style={{ fontSize: 13, marginTop: 2, color: '#fff' }}>
+                                {formatSize(storage.totalBytes)} <span style={{ fontSize: 10, fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}>/ 100 Mo</span>
                             </span>
                             <div className="library-storage-track">
                                 <div className="library-storage-bar" style={{ width: `${storagePct}%` }} />
