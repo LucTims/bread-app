@@ -11,6 +11,8 @@ export default function Profile() {
     const fileInputRef = useRef(null);
     const [stats, setStats] = useState({ booksOwned: 0, booksOffline: 0 });
     const [readingStats, setReadingStats] = useState({ pages: 0, streak: 0, longestStreak: 0 });
+    const [booksRead, setBooksRead] = useState(0);
+    const [hideStats, setHideStats] = useState(localStorage.getItem('bread_hide_stats') === 'true');
     const [storage, setStorage] = useState({ totalBytes: 0, bookCount: 0 });
     const [avatarUrl, setAvatarUrl] = useState(null);
     const [bio, setBio] = useState('');
@@ -46,6 +48,17 @@ export default function Profile() {
                     const storageInfo = await getStorageUsage();
                     setStats({ booksOwned: access?.length || 0, booksOffline: offBooks.length });
                     setStorage(storageInfo);
+
+                    // Compute books read locally
+                    const progMap = getProgressMapSync();
+                    let readCount = 0;
+                    for (const key in progMap) {
+                        const p = progMap[key];
+                        if (p.currentPage && p.totalPages && p.currentPage >= p.totalPages - 2) {
+                            readCount++;
+                        }
+                    }
+                    setBooksRead(readCount);
                 } catch (err) { console.error('Profile stats error:', err); }
             })();
         }, 0);
@@ -120,6 +133,12 @@ export default function Profile() {
         } catch (err) {
             console.error('Name save error:', err);
         }
+    };
+
+    const toggleHideStats = () => {
+        const newVal = !hideStats;
+        setHideStats(newVal);
+        localStorage.setItem('bread_hide_stats', newVal);
     };
 
     return (
@@ -227,26 +246,49 @@ export default function Profile() {
 
             {/* Gamification / Sunk Cost Stats */}
             <div className="card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-4)', background: 'linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,140,0,0.1))', border: '1px solid rgba(255,215,0,0.2)' }}>
-                <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>local_fire_department</span>
-                    Mes Statistiques de Lecture
-                </h3>
-                <div style={{ display: 'flex', justifyContent: 'space-between', textAlign: 'center' }}>
-                    <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--color-text)' }}>{readingStats.streak}</div>
-                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginTop: 4 }}>SÉRIE (JOURS)</div>
-                    </div>
-                    <div style={{ width: 1, background: 'rgba(128,128,128,0.2)', margin: '0 10px' }} />
-                    <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--color-text)' }}>{readingStats.pages}</div>
-                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginTop: 4 }}>PAGES LUES</div>
-                    </div>
-                    <div style={{ width: 1, background: 'rgba(128,128,128,0.2)', margin: '0 10px' }} />
-                    <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--color-primary)' }}>{readingStats.longestStreak}</div>
-                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginTop: 4 }}>RECORD (🔥)</div>
-                    </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>local_fire_department</span>
+                        Mes Statistiques de Lecture
+                    </h3>
+                    <button onClick={toggleHideStats} style={{ 
+                        background: 'none', border: 'none', color: 'var(--color-text-muted)', 
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 4 
+                    }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
+                            {hideStats ? 'visibility_off' : 'visibility'}
+                        </span>
+                    </button>
                 </div>
+                
+                {hideStats ? (
+                    <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--color-text-muted)' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 32, opacity: 0.5, marginBottom: 8 }}>lock</span>
+                        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Vos statistiques sont masquées</p>
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', textAlign: 'center' }}>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--color-text)' }}>{readingStats.streak}</div>
+                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginTop: 4 }}>SÉRIE (JOURS)</div>
+                        </div>
+                        <div style={{ width: 1, background: 'rgba(128,128,128,0.2)', margin: '0 10px' }} />
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--color-text)' }}>{booksRead}</div>
+                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginTop: 4 }}>LIVRES LUS</div>
+                        </div>
+                        <div style={{ width: 1, background: 'rgba(128,128,128,0.2)', margin: '0 10px' }} />
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--color-text)' }}>{readingStats.pages}</div>
+                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginTop: 4 }}>PAGES LUES</div>
+                        </div>
+                        <div style={{ width: 1, background: 'rgba(128,128,128,0.2)', margin: '0 10px' }} />
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--color-primary)' }}>{readingStats.longestStreak}</div>
+                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginTop: 4 }}>RECORD (🔥)</div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Stats */}
