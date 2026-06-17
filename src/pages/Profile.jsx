@@ -49,12 +49,12 @@ export default function Profile() {
                     setStats({ booksOwned: access?.length || 0, booksOffline: offBooks.length });
                     setStorage(storageInfo);
 
-                    // Compute books read locally
+                    // Compute books read locally (books where the user has progressed past page 1)
                     const progMap = getProgressMapSync();
                     let readCount = 0;
                     for (const key in progMap) {
                         const p = progMap[key];
-                        if (p.currentPage && p.totalPages && p.currentPage >= p.totalPages - 2) {
+                        if (p.currentPage && p.currentPage > 1) {
                             readCount++;
                         }
                     }
