@@ -33,6 +33,13 @@ export default function Admin() {
     const [sending, setSending] = useState(false);
     const [sendResult, setSendResult] = useState(null);
 
+    // Quote states
+    const [quoteDate, setQuoteDate] = useState(new Date().toLocaleDateString('en-CA'));
+    const [quoteText, setQuoteText] = useState('');
+    const [quoteAuthor, setQuoteAuthor] = useState('');
+    const [quoteSaving, setQuoteSaving] = useState(false);
+    const [quoteResult, setQuoteResult] = useState(null);
+
     const loadAdminData = useCallback(async () => {
         setLoading(true);
         try {
@@ -131,6 +138,57 @@ export default function Admin() {
         return () => clearTimeout(timer);
     }, [loadAdminData]);
 
+    // Fetch quote for selected date when in quotes tab
+    useEffect(() => {
+        if (tab !== 'quotes') return;
+        const fetchQuote = async () => {
+            const { data } = await supabase.from('daily_quotes').select('*').eq('date', quoteDate).single();
+            if (data) {
+                setQuoteText(data.quote_text);
+                setQuoteAuthor(data.quote_author);
+            } else {
+                setQuoteText('');
+                setQuoteAuthor('');
+            }
+        };
+        fetchQuote();
+    }, [tab, quoteDate]);
+
+    const saveQuote = async () => {
+        if (!quoteText.trim() || !quoteAuthor.trim()) return;
+        setQuoteSaving(true);
+        try {
+            const { error } = await supabase.from('daily_quotes').upsert({
+                date: quoteDate,
+                quote_text: quoteText.trim(),
+                quote_author: quoteAuthor.trim()
+            }, { onConflict: 'date' });
+            if (error) throw error;
+            setQuoteResult({ success: true, message: 'Citation sauvegardée avec succès !' });
+        } catch (err) {
+            setQuoteResult({ success: false, message: err.message });
+        } finally {
+            setQuoteSaving(false);
+            setTimeout(() => setQuoteResult(null), 3000);
+        }
+    };
+
+    const deleteQuote = async () => {
+        setQuoteSaving(true);
+        try {
+            const { error } = await supabase.from('daily_quotes').delete().eq('date', quoteDate);
+            if (error) throw error;
+            setQuoteText('');
+            setQuoteAuthor('');
+            setQuoteResult({ success: true, message: 'Citation supprimée (retour au mode automatique).' });
+        } catch (err) {
+            setQuoteResult({ success: false, message: err.message });
+        } finally {
+            setQuoteSaving(false);
+            setTimeout(() => setQuoteResult(null), 3000);
+        }
+    };
+
     // Device breakdown calculation
     const getPlatformBreakdown = () => {
         const counts = { iOS: 0, Android: 0, Windows: 0, Mac: 0, Linux: 0, Autre: 0 };
@@ -210,6 +268,7 @@ export default function Admin() {
                 <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, borderBottom: '1px solid var(--color-border)' }}>
                     {[
                         { id: 'overview', label: 'Vue d\'ensemble', icon: 'dashboard' },
+                        { id: 'quotes', label: 'Citation du Jour', icon: 'format_quote' },
                         { id: 'notifications', label: `Notifications (${sentNotifs.length})`, icon: 'campaign' },
                         { id: 'installs', label: `Téléchargements PWA (${stats.installsCount})`, icon: 'install_mobile' },
                         { id: 'orders', label: 'Ventes & Commandes', icon: 'payments' },
@@ -870,6 +929,96 @@ export default function Admin() {
                                 </table>
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* 5. ONGLET CITATION DU JOUR */}
+                {tab === 'quotes' && (
+                    <div className="card" style={{ padding: 24, maxWidth: 600, margin: '0 auto' }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>format_quote</span>
+                            Gérer la Citation du Jour
+                        </h3>
+                        <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 24 }}>
+                            Définissez une citation personnalisée pour une date précise. Si aucune citation n'est définie ici, l'application affichera automatiquement l'une des citations pré-enregistrées.
+                        </p>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Date cible :</label>
+                                <input 
+                                    type="date" 
+                                    value={quoteDate} 
+                                    onChange={(e) => setQuoteDate(e.target.value)}
+                                    style={{
+                                        padding: '10px 14px', borderRadius: 10, border: '1px solid var(--color-border)',
+                                        background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: 14, width: '100%'
+                                    }}
+                                />
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Texte de la citation :</label>
+                                <textarea 
+                                    placeholder="La lecture est l'évasion de ceux qui..."
+                                    value={quoteText}
+                                    onChange={(e) => setQuoteText(e.target.value)}
+                                    rows={3}
+                                    style={{
+                                        padding: '12px 14px', borderRadius: 10, border: '1px solid var(--color-border)',
+                                        background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: 14, width: '100%', resize: 'vertical'
+                                    }}
+                                />
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Auteur :</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Nom de l'auteur..."
+                                    value={quoteAuthor}
+                                    onChange={(e) => setQuoteAuthor(e.target.value)}
+                                    style={{
+                                        padding: '10px 14px', borderRadius: 10, border: '1px solid var(--color-border)',
+                                        background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: 14, width: '100%'
+                                    }}
+                                />
+                            </div>
+
+                            <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                                <button 
+                                    onClick={saveQuote}
+                                    disabled={quoteSaving || !quoteText.trim() || !quoteAuthor.trim()}
+                                    className="btn btn-primary"
+                                    style={{ flex: 1, padding: '12px', fontSize: 14 }}
+                                >
+                                    {quoteSaving ? 'Sauvegarde...' : 'Enregistrer cette citation'}
+                                </button>
+
+                                {quoteText && (
+                                    <button 
+                                        onClick={deleteQuote}
+                                        disabled={quoteSaving}
+                                        className="btn btn-ghost"
+                                        style={{ padding: '12px', fontSize: 14, border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444' }}
+                                    >
+                                        Effacer
+                                    </button>
+                                )}
+                            </div>
+
+                            {quoteResult && (
+                                <div style={{
+                                    padding: '10px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, marginTop: 8,
+                                    background: quoteResult.success ? 'rgba(67,233,123,0.1)' : 'rgba(239,68,68,0.1)',
+                                    color: quoteResult.success ? '#43e97b' : '#ef4444',
+                                    border: quoteResult.success ? '1px solid rgba(67,233,123,0.2)' : '1px solid rgba(239,68,68,0.2)',
+                                    animation: 'fadeIn 0.3s ease'
+                                }}>
+                                    {quoteResult.message}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>

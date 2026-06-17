@@ -4,6 +4,7 @@ import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
 import { getAllOfflineBooks, getReadingProgress, preloadCoverUrls, getOfflineBooksSync, getProgressMapSync } from '../lib/offlineStore';
 import { InstallButton } from '../components/InstallPrompt';
+import { getDailyFallbackQuote } from '../lib/quotes';
 
 export default function Home() {
     const navigate = useNavigate();
@@ -44,6 +45,7 @@ export default function Home() {
     const [offlineBooks, setOfflineBooks] = useState(syncBooks);
     const [loading, setLoading] = useState(!isOffline); // Already rendered if offline
     const [coverUrls, setCoverUrls] = useState({});
+    const [quoteOfDay, setQuoteOfDay] = useState(getDailyFallbackQuote());
 
     // Load data
     const loadData = useCallback(async () => {
@@ -89,6 +91,15 @@ export default function Home() {
 
             const offBooks = await getAllOfflineBooks();
             setOfflineBooks(offBooks);
+
+            try {
+                const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+                const todayStr = (new Date(Date.now() - tzOffset)).toISOString().split('T')[0];
+                const { data: quoteData } = await supabase.from('daily_quotes').select('*').eq('date', todayStr).single();
+                if (quoteData) {
+                    setQuoteOfDay({ text: quoteData.quote_text, author: quoteData.quote_author });
+                }
+            } catch (e) { /* ignore error if no custom quote */ }
 
             const allBookIds = [...new Set([...bookList.map(b => b.id), ...offBooks.map(b => b.id)])];
             const urls = await preloadCoverUrls(allBookIds);
@@ -185,6 +196,21 @@ export default function Home() {
 
             {/* Install App card */}
             {!isOffline && <InstallButton style={{ marginBottom: 'var(--space-6)' }} />}
+
+            {/* Citation du Jour */}
+            <div className="card" style={{ padding: 'var(--space-6)', marginBottom: 'var(--space-6)', background: 'linear-gradient(135deg, rgba(30,58,138,0.1), rgba(124,58,237,0.1))', border: '1px solid rgba(124,58,237,0.2)', position: 'relative', overflow: 'hidden' }}>
+                <span className="material-symbols-outlined" style={{ position: 'absolute', top: -10, left: -10, fontSize: 100, color: 'var(--color-primary)', opacity: 0.05, transform: 'rotate(180deg)' }}>format_quote</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)', fontSize: 20 }}>auto_awesome</span>
+                    <h2 style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--color-primary)', margin: 0 }}>Citation du Jour</h2>
+                </div>
+                <p style={{ fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.5, marginBottom: 12, position: 'relative', zIndex: 1, fontStyle: 'italic' }}>
+                    "{quoteOfDay.text}"
+                </p>
+                <p style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text-muted)', textAlign: 'right', position: 'relative', zIndex: 1, margin: 0 }}>
+                    — {quoteOfDay.author}
+                </p>
+            </div>
 
             {/* Continue Reading */}
             {lastRead && (
