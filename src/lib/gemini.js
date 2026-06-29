@@ -13,6 +13,22 @@ Règles :
 - Tu peux résumer, expliquer, analyser, comparer des passages.
 - N'invente jamais d'informations qui ne sont pas dans le texte.`;
 
+// ─── Error Formatting ───
+function formatApiError(errMessage) {
+    if (typeof errMessage !== 'string') return "Une erreur inattendue s'est produite.";
+    const lower = errMessage.toLowerCase();
+    if (lower.includes('high demand') || lower.includes('spikes in demand') || lower.includes('rate limit') || lower.includes('too many requests') || lower.includes('429')) {
+        return "L'intelligence artificielle est actuellement très sollicitée par de nombreux utilisateurs. Veuillez réessayer dans quelques instants ! ⏳";
+    }
+    if (lower.includes('api key') || lower.includes('unauthorized')) {
+        return "Problème de clé API. L'assistant n'est pas autorisé à répondre.";
+    }
+    if (lower.includes('fetch') || lower.includes('network') || lower.includes('failed to fetch')) {
+        return "Problème de connexion internet. Vérifiez votre réseau et réessayez.";
+    }
+    return `Erreur du serveur IA : ${errMessage}`;
+}
+
 // ─── OpenRouter (primary) ───
 async function askOpenRouter(question, bookContext, chatHistory = []) {
     const messages = [
@@ -44,7 +60,7 @@ async function askOpenRouter(question, bookContext, chatHistory = []) {
 
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error?.message || `Erreur OpenRouter (${res.status})`);
+        throw new Error(formatApiError(err.error?.message || `Erreur OpenRouter (${res.status})`));
     }
 
     const data = await res.json();
@@ -70,7 +86,7 @@ async function askGeminiDirect(question, bookContext, chatHistory = []) {
 
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error?.message || `Erreur Gemini (${res.status})`);
+        throw new Error(formatApiError(err.error?.message || `Erreur Gemini (${res.status})`));
     }
 
     const data = await res.json();
@@ -143,7 +159,7 @@ export async function askGlobalGemini(question, activityContext, chatHistory = [
             });
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
-                throw new Error(err.error?.message || `Erreur OpenRouter (${res.status})`);
+                throw new Error(formatApiError(err.error?.message || `Erreur OpenRouter (${res.status})`));
             }
             const data = await res.json();
             return data.choices?.[0]?.message?.content || "Pas de réponse.";
@@ -169,7 +185,7 @@ export async function askGlobalGemini(question, activityContext, chatHistory = [
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error?.message || `Erreur Gemini (${res.status})`);
+        throw new Error(formatApiError(err.error?.message || `Erreur Gemini (${res.status})`));
     }
     const data = await res.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "Pas de réponse.";
