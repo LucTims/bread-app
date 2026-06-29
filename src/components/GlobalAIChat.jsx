@@ -16,10 +16,12 @@ export default function GlobalAIChat() {
     const [unread, setUnread] = useState(false);
     const [allBooks, setAllBooks] = useState(getOfflineBooksSync());
     const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
     
     useEffect(() => {
         const handleResize = () => {
             setViewportHeight(window.visualViewport ? window.visualViewport.height : window.innerHeight);
+            setIsMobile(window.innerWidth <= 768);
         };
         window.visualViewport?.addEventListener('resize', handleResize);
         window.addEventListener('resize', handleResize);
@@ -42,8 +44,16 @@ export default function GlobalAIChat() {
             setUnread(false);
             setTimeout(() => inputRef.current?.focus(), 300);
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            
+            if (isMobile) {
+                document.body.style.overflow = 'hidden';
+            }
+        } else {
+            document.body.style.overflow = '';
         }
-    }, [isOpen, messages]);
+        
+        return () => { document.body.style.overflow = ''; };
+    }, [isOpen, messages, isMobile]);
 
     // Fetch complete library from online
     useEffect(() => {
@@ -153,18 +163,30 @@ ${bookDetails || 'Aucun livre pour le moment'}
     if (isHidden) return null;
 
     return (
-        <div style={{ position: 'fixed', bottom: 'calc(var(--bottom-nav-height) + 16px)', right: '16px', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+        <div style={
+            (isOpen && isMobile) ? {
+                position: 'fixed', top: 0, left: 0, width: '100vw', height: `${viewportHeight}px`, zIndex: 99999,
+                display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.6)'
+            } : { 
+                position: 'fixed', bottom: 'calc(var(--bottom-nav-height) + 16px)', right: '16px', zIndex: 1000, 
+                display: 'flex', flexDirection: 'column', alignItems: 'flex-end' 
+            }
+        }>
             {/* Chat Window */}
             {isOpen && (
                 <div style={{
-                    width: 'calc(100vw - 32px)', maxWidth: '360px', height: '500px', 
-                    maxHeight: `${Math.max(250, viewportHeight - 120)}px`,
-                    marginBottom: '12px',
-                    background: 'rgba(20,20,20,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-                    borderRadius: 'var(--radius-xl)', border: '1px solid rgba(255,215,0,0.2)',
+                    width: isMobile ? '100%' : 'calc(100vw - 32px)', 
+                    maxWidth: isMobile ? 'none' : '360px', 
+                    height: isMobile ? '100%' : '500px', 
+                    maxHeight: isMobile ? 'none' : `${Math.max(250, viewportHeight - 120)}px`,
+                    marginBottom: isMobile ? 0 : '12px',
+                    borderRadius: isMobile ? 0 : 'var(--radius-xl)',
+                    background: 'rgba(20,20,20,0.95)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+                    border: isMobile ? 'none' : '1px solid rgba(255,215,0,0.2)',
                     boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
                     display: 'flex', flexDirection: 'column', overflow: 'hidden',
-                    animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                    animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                    marginTop: 'auto'
                 }}>
                     {/* Header */}
                     <div style={{
