@@ -160,9 +160,9 @@ ${bookDetails || 'Aucun livre pour le moment'}
                             <div style={{
                                 width: '32px', height: '32px', borderRadius: '10px',
                                 background: 'linear-gradient(135deg, var(--color-primary), #FF8C00)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
                             }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#000' }}>auto_awesome</span>
+                                <img src="/ai-logo.png" alt="AI Assistant" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             </div>
                             <div>
                                 <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#fff' }}>Compagnon BRead</h3>
@@ -251,11 +251,12 @@ ${bookDetails || 'Aucun livre pour le moment'}
                     background: 'linear-gradient(135deg, var(--color-primary), #FF8C00)',
                     boxShadow: '0 4px 20px rgba(255, 140, 0, 0.4)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', transition: 'transform 0.2s', position: 'relative'
+                    cursor: 'pointer', transition: 'transform 0.2s', position: 'relative',
+                    padding: 0, border: 'none', overflow: 'hidden'
                 }}
                 onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
                 onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '28px', color: '#000' }}>auto_awesome</span>
+                    <img src="/ai-logo.png" alt="AI Assistant" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     {unread && (
                         <span style={{
                             position: 'absolute', top: 0, right: 0, width: '14px', height: '14px',

@@ -103,12 +103,8 @@ export default function BookChat({ isOpen, onClose, extractPageText, pageNumber,
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {messages.length === 0 && (
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '20px 0' }}>
-                        <div style={{
-                            width: 64, height: 64, borderRadius: 20,
-                            background: 'linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,140,0,0.15))',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 32, color: 'var(--color-primary)' }}>auto_awesome</span>
+                        <div style={{ width: 64, height: 64, borderRadius: 20, overflow: 'hidden' }}>
+                            <img src="/ai-logo.png" alt="AI Assistant" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
                         <div style={{ textAlign: 'center' }}>
                             <h3 style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 6 }}>Discutez avec votre livre</h3>
