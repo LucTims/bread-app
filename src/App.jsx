@@ -15,6 +15,7 @@ import OfflineStatus from './pages/OfflineStatus';
 import Admin from './pages/Admin';
 import TopBar from './components/TopBar';
 import BottomNav from './components/BottomNav';
+import GlobalAIChat from './components/GlobalAIChat';
 import { ChatProvider } from './lib/ChatContext';
 
 // Composant pour protéger les routes utilisateurs connectés
@@ -82,6 +83,7 @@ function MainLayout({ children }) {
       <main className="container">
         {children}
       </main>
+      <GlobalAIChat />
       <BottomNav />
     </div>
   );
