@@ -15,6 +15,20 @@ export default function GlobalAIChat() {
     const [loading, setLoading] = useState(false);
     const [unread, setUnread] = useState(false);
     const [allBooks, setAllBooks] = useState(getOfflineBooksSync());
+    const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
+    
+    useEffect(() => {
+        const handleResize = () => {
+            setViewportHeight(window.visualViewport ? window.visualViewport.height : window.innerHeight);
+        };
+        window.visualViewport?.addEventListener('resize', handleResize);
+        window.addEventListener('resize', handleResize);
+        handleResize(); // Init
+        return () => {
+            window.visualViewport?.removeEventListener('resize', handleResize);
+            window.removeEventListener('resize', handleResize);
+        };
+    }, []);
     
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
@@ -143,7 +157,8 @@ ${bookDetails || 'Aucun livre pour le moment'}
             {/* Chat Window */}
             {isOpen && (
                 <div style={{
-                    width: 'calc(100vw - 32px)', maxWidth: '360px', height: '500px', maxHeight: 'calc(100dvh - 120px)', minHeight: '250px',
+                    width: 'calc(100vw - 32px)', maxWidth: '360px', height: '500px', 
+                    maxHeight: `${Math.max(250, viewportHeight - 120)}px`,
                     marginBottom: '12px',
                     background: 'rgba(20,20,20,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
                     borderRadius: 'var(--radius-xl)', border: '1px solid rgba(255,215,0,0.2)',
