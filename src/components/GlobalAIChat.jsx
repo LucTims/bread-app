@@ -143,7 +143,7 @@ ${bookDetails || 'Aucun livre pour le moment'}
             {/* Chat Window */}
             {isOpen && (
                 <div style={{
-                    width: 'calc(100vw - 32px)', maxWidth: '360px', height: '480px', maxHeight: '70vh',
+                    width: 'calc(100vw - 32px)', maxWidth: '360px', height: '500px', maxHeight: 'calc(100dvh - 120px)', minHeight: '250px',
                     marginBottom: '12px',
                     background: 'rgba(20,20,20,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
                     borderRadius: 'var(--radius-xl)', border: '1px solid rgba(255,215,0,0.2)',
