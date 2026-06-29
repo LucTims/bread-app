@@ -17,6 +17,12 @@ export default function GlobalAIChat() {
     const [allBooks, setAllBooks] = useState(getOfflineBooksSync());
     const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+    const [buttonOffset, setButtonOffset] = useState(() => {
+        const saved = localStorage.getItem('bread_ai_pos');
+        return saved ? JSON.parse(saved) : { x: 0, y: 0 };
+    });
+    
+    const dragRef = useRef({ isDragging: false, startX: 0, startY: 0, initialOffsetX: 0, initialOffsetY: 0, moved: false });
     
     useEffect(() => {
         const handleResize = () => {
@@ -160,6 +166,52 @@ ${bookDetails || 'Aucun livre pour le moment'}
         }
     };
 
+    const handlePointerDown = (e) => {
+        dragRef.current = {
+            isDragging: true,
+            startX: e.clientX,
+            startY: e.clientY,
+            initialOffsetX: buttonOffset.x,
+            initialOffsetY: buttonOffset.y,
+            moved: false
+        };
+        e.currentTarget.setPointerCapture(e.pointerId);
+    };
+
+    const handlePointerMove = (e) => {
+        if (!dragRef.current.isDragging) return;
+        const dx = e.clientX - dragRef.current.startX;
+        const dy = e.clientY - dragRef.current.startY;
+        
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+            dragRef.current.moved = true;
+        }
+        
+        setButtonOffset({
+            x: dragRef.current.initialOffsetX + dx,
+            y: dragRef.current.initialOffsetY + dy
+        });
+    };
+
+    const handlePointerUp = (e) => {
+        if (dragRef.current.isDragging) {
+            localStorage.setItem('bread_ai_pos', JSON.stringify(buttonOffset));
+        }
+        dragRef.current.isDragging = false;
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+        }
+    };
+
+    const handleButtonClick = (e) => {
+        if (dragRef.current.moved) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+        setIsOpen(true);
+    };
+
     if (isHidden) return null;
 
     return (
@@ -168,7 +220,10 @@ ${bookDetails || 'Aucun livre pour le moment'}
                 position: 'fixed', top: 0, left: 0, width: '100vw', height: `${viewportHeight}px`, zIndex: 99999,
                 display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.6)'
             } : { 
-                position: 'fixed', bottom: 'calc(var(--bottom-nav-height) + 16px)', right: '16px', zIndex: 1000, 
+                position: 'fixed', 
+                bottom: `calc(var(--bottom-nav-height) + 16px - ${buttonOffset.y}px)`, 
+                right: `calc(16px - ${buttonOffset.x}px)`, 
+                zIndex: 1000, 
                 display: 'flex', flexDirection: 'column', alignItems: 'flex-end' 
             }
         }>
@@ -283,21 +338,27 @@ ${bookDetails || 'Aucun livre pour le moment'}
 
             {/* Floating Bubble Button */}
             {!isOpen && (
-                <button onClick={() => setIsOpen(true)} style={{
-                    width: '56px', height: '56px', borderRadius: '28px',
-                    background: 'linear-gradient(135deg, var(--color-primary), #FF8C00)',
-                    boxShadow: '0 4px 20px rgba(255, 140, 0, 0.4)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', transition: 'transform 0.2s', position: 'relative',
-                    padding: 0, border: 'none', overflow: 'hidden'
-                }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
-                    <img src="/ai-logo.png" alt="AI Assistant" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <button 
+                    onClick={handleButtonClick} 
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerUp}
+                    style={{
+                        width: '56px', height: '56px', borderRadius: '28px',
+                        background: 'linear-gradient(135deg, var(--color-primary), #FF8C00)',
+                        boxShadow: '0 4px 20px rgba(255, 140, 0, 0.4)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'grab', transition: dragRef.current?.isDragging ? 'none' : 'transform 0.2s', position: 'relative',
+                        padding: 0, border: 'none', overflow: 'hidden', touchAction: 'none'
+                    }}
+                    onMouseEnter={e => { if (!dragRef.current?.isDragging) e.currentTarget.style.transform = 'scale(1.05)' }}
+                    onMouseLeave={e => { if (!dragRef.current?.isDragging) e.currentTarget.style.transform = 'scale(1)' }}>
+                    <img src="/ai-logo.png" alt="AI Assistant" style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
                     {unread && (
                         <span style={{
                             position: 'absolute', top: 0, right: 0, width: '14px', height: '14px',
-                            background: '#ef4444', borderRadius: '50%', border: '2px solid #121212'
+                            background: '#ef4444', borderRadius: '50%', border: '2px solid #121212', pointerEvents: 'none'
                         }} />
                     )}
                 </button>
