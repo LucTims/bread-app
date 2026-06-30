@@ -15,6 +15,8 @@ export default function Chat() {
     const [replyingTo, setReplyingTo] = useState(null);
     const [typingUsers, setTypingUsers] = useState([]);
     const [showEmojiPickerFor, setShowEmojiPickerFor] = useState(null);
+    const [selectedMessage, setSelectedMessage] = useState(null);
+    const [showInfoModal, setShowInfoModal] = useState(false);
     
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
@@ -281,29 +283,60 @@ export default function Chat() {
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - var(--header-height) - var(--bottom-nav-height) - var(--space-4) - var(--space-6))' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - var(--header-height) - var(--bottom-nav-height))', background: 'var(--color-bg)', position: 'relative' }}>
+            
+            {/* WhatsApp Style Header */}
             <div style={{ 
-                marginBottom: 'var(--space-2)', 
-                paddingBottom: 'var(--space-3)', 
+                padding: '10px 16px', 
+                background: 'var(--color-surface)',
                 borderBottom: '1px solid var(--color-border)', 
-                display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-                flexShrink: 0
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                flexShrink: 0,
+                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                zIndex: 10
             }}>
-                <div>
-                    <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>Communauté</h1>
-                    <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>Discutez avec d'autres lecteurs et partagez vos avis.</p>
-                    {!chatOpen && <p style={{ color: '#ef4444', fontSize: 'var(--text-sm)', fontWeight: 600, marginTop: 4 }}>Le chat est actuellement fermé.</p>}
-                </div>
-                {isAdmin && (
-                    <button onClick={toggleChatStatus} className="btn-ghost" style={{ 
-                        display: 'flex', alignItems: 'center', gap: 6, 
-                        color: chatOpen ? '#ef4444' : '#10b981',
-                        border: `1px solid ${chatOpen ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}`,
-                        borderRadius: 'var(--radius-md)', padding: '6px 12px', fontSize: 12, fontWeight: 600
-                    }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{chatOpen ? 'lock' : 'lock_open'}</span>
-                        {chatOpen ? 'Fermer' : 'Ouvrir'}
-                    </button>
+                {selectedMessage ? (
+                    <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: 16 }}>
+                        <button onClick={() => setSelectedMessage(null)} className="btn-ghost" style={{ padding: 4 }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 24 }}>arrow_back</span>
+                        </button>
+                        <div style={{ flex: 1, fontSize: 18, fontWeight: 600 }}>1</div>
+                        <button onClick={() => { setReplyingTo(selectedMessage); setSelectedMessage(null); }} className="btn-ghost" style={{ padding: 4 }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>reply</span>
+                        </button>
+                        <button onClick={() => { navigator.clipboard.writeText(selectedMessage.content); setSelectedMessage(null); }} className="btn-ghost" style={{ padding: 4 }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>content_copy</span>
+                        </button>
+                        {(isAdmin || selectedMessage.user_id === user.id) && (
+                            <button onClick={() => { handleDeleteMessage(selectedMessage.id); setSelectedMessage(null); }} className="btn-ghost" style={{ padding: 4 }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 22 }}>delete</span>
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary), #FF8C00)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                <img src="/ai-logo.png" alt="BRead" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <h1 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Communauté BRead</h1>
+                                <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                                    {typingUsers.length > 0 ? `${typingUsers.join(', ')} écrit...` : 'Cliquez pour les infos'}
+                                </span>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {isAdmin && (
+                                <button onClick={toggleChatStatus} className="btn-ghost" style={{ padding: 4, color: chatOpen ? 'inherit' : '#ef4444' }}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: 22 }}>{chatOpen ? 'lock_open' : 'lock'}</span>
+                                </button>
+                            )}
+                            <button onClick={() => setShowInfoModal(true)} className="btn-ghost" style={{ padding: 4 }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 22 }}>info</span>
+                            </button>
+                        </div>
+                    </div>
                 )}
             </div>
 
@@ -365,108 +398,91 @@ export default function Chat() {
                                 {/* Message Bubble & Actions */}
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMine ? 'flex-end' : 'flex-start' }}>
                                     {/* Sender Info */}
-                                    <div style={{ 
-                                        display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4,
-                                        flexDirection: isMine ? 'row-reverse' : 'row'
-                                    }}>
-                                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)' }}>
-                                            {isMine ? 'Vous' : displayName}
-                                        </span>
-                                        {msg.profiles?.role === 'admin' && (
-                                            <span style={{ 
-                                                background: 'rgba(255, 214, 10, 0.2)', color: '#FFD60A',
-                                                padding: '2px 6px', borderRadius: 8, fontSize: 9, fontWeight: 700
-                                            }}>ADMIN</span>
-                                        )}
-                                        <span style={{ fontSize: 10, color: 'var(--color-text-muted)', opacity: 0.7 }}>
-                                            {formatTime(msg.created_at)}
-                                        </span>
-                                    </div>
-
-                                    {/* Reply Preview */}
-                                    {msg.reply_to && (
-                                        <div onClick={() => {
-                                            // Optional: Scroll to message
-                                        }} style={{
-                                            background: isMine ? 'rgba(0,0,0,0.1)' : 'var(--color-bg)',
-                                            padding: '6px 10px',
-                                            borderRadius: '8px',
-                                            borderLeft: `3px solid ${isMine ? '#000' : 'var(--color-primary)'}`,
-                                            marginBottom: '4px',
-                                            fontSize: '12px',
-                                            opacity: 0.8,
-                                            maxWidth: '100%',
-                                            cursor: 'pointer'
-                                        }}>
-                                            <div style={{ fontWeight: 600, marginBottom: 2 }}>{msg.reply_to.profiles?.full_name || 'Utilisateur'}</div>
-                                            <div className="line-clamp-1">{msg.reply_to.content}</div>
+                                    {/* Sender Info (Only show for others since mine are right-aligned) */}
+                                    {!isMine && (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                            <span style={{ fontSize: 12, fontWeight: 600, color: `hsl(${msg.user_id.charCodeAt(0) * 15 % 360}, 70%, 40%)` }}>
+                                                {displayName}
+                                            </span>
+                                            {msg.profiles?.role === 'admin' && (
+                                                <span style={{ background: 'rgba(255, 214, 10, 0.2)', color: '#FFD60A', padding: '2px 6px', borderRadius: 8, fontSize: 9, fontWeight: 700 }}>
+                                                    ADMIN
+                                                </span>
+                                            )}
                                         </div>
                                     )}
 
                                     {/* Main Bubble */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: isMine ? 'row-reverse' : 'row' }}>
+                                    <div 
+                                        onClick={() => setSelectedMessage(selectedMessage?.id === msg.id ? null : msg)}
+                                        style={{ 
+                                        position: 'relative',
+                                        background: isMine ? '#dcf8c6' : '#ffffff',
+                                        color: '#000000',
+                                        padding: '6px 8px 8px 10px',
+                                        borderRadius: '8px',
+                                        borderTopLeftRadius: !isMine ? 0 : 8,
+                                        borderTopRightRadius: isMine ? 0 : 8,
+                                        fontSize: 15,
+                                        lineHeight: 1.4,
+                                        boxShadow: '0 1px 1px rgba(0,0,0,0.1)',
+                                        minWidth: '80px',
+                                        cursor: 'pointer',
+                                        ...(selectedMessage?.id === msg.id ? { outline: '2px solid rgba(0, 168, 132, 0.5)', background: isMine ? '#c8f2b0' : '#e6f7ff' } : {})
+                                    }}>
+                                        {/* Reply Preview */}
+                                        {msg.reply_to && (
+                                            <div style={{
+                                                background: 'rgba(0,0,0,0.05)',
+                                                padding: '6px 10px',
+                                                borderRadius: '4px',
+                                                borderLeft: `4px solid ${isMine ? '#00a884' : '#00a884'}`,
+                                                marginBottom: '4px',
+                                                fontSize: '13px',
+                                                maxWidth: '100%'
+                                            }}>
+                                                <div style={{ fontWeight: 600, color: '#00a884', marginBottom: 2 }}>{msg.reply_to.profiles?.full_name || 'Utilisateur'}</div>
+                                                <div className="line-clamp-1" style={{ color: 'rgba(0,0,0,0.6)' }}>{msg.reply_to.content}</div>
+                                            </div>
+                                        )}
+
+                                        <div style={{ paddingBottom: '12px' }}>{msg.content}</div>
+                                        
+                                        {/* Timestamp overlay */}
                                         <div style={{ 
-                                            background: isMine ? 'var(--color-primary)' : 'var(--color-surface)',
-                                            color: isMine ? '#000' : 'var(--color-text)',
-                                            padding: '10px 14px',
-                                            borderRadius: '16px',
-                                            borderTopLeftRadius: !isMine ? 4 : 16,
-                                            borderTopRightRadius: isMine ? 4 : 16,
-                                            fontSize: 14,
-                                            lineHeight: 1.5,
-                                            boxShadow: isMine ? '0 4px 12px rgba(255, 214, 10, 0.2)' : 'none',
-                                            border: isMine ? 'none' : '1px solid var(--color-border)'
+                                            position: 'absolute', bottom: '4px', right: '6px',
+                                            fontSize: '10px', color: 'rgba(0,0,0,0.45)',
+                                            display: 'flex', alignItems: 'center', gap: 2
                                         }}>
-                                            {msg.content}
+                                            {formatTime(msg.created_at)}
+                                            {isMine && <span className="material-symbols-outlined" style={{ fontSize: 14 }}>done_all</span>}
                                         </div>
 
-                                        {/* Action Buttons (Reply / Delete / React) */}
-                                        <div style={{ display: 'flex', gap: 4, position: 'relative' }}>
-                                            <button onClick={() => setReplyingTo(msg)} className="btn-ghost" title="Répondre"
-                                                style={{ padding: 4, borderRadius: '50%' }}>
-                                                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>reply</span>
-                                            </button>
-                                            
-                                            <button onClick={() => setShowEmojiPickerFor(showEmojiPickerFor === msg.id ? null : msg.id)} className="btn-ghost" title="Réagir"
-                                                style={{ padding: 4, borderRadius: '50%' }}>
-                                                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add_reaction</span>
-                                            </button>
-
-                                            {isAdmin && (
-                                                <button onClick={() => handleDeleteMessage(msg.id)} className="btn-ghost" title="Supprimer"
-                                                    style={{ padding: 4, color: '#ef4444', borderRadius: '50%' }}>
-                                                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>delete</span>
-                                                </button>
-                                            )}
-
-                                            {/* Emoji Picker Popup */}
-                                            {showEmojiPickerFor === msg.id && (
-                                                <div style={{
-                                                    position: 'absolute',
-                                                    top: '100%',
-                                                    [isMine ? 'left' : 'right']: 0,
-                                                    background: 'var(--color-surface)',
-                                                    border: '1px solid var(--color-border)',
-                                                    borderRadius: 'var(--radius-full)',
-                                                    padding: '4px 8px',
-                                                    display: 'flex',
-                                                    gap: '8px',
-                                                    boxShadow: 'var(--shadow-md)',
-                                                    zIndex: 10
-                                                }}>
-                                                    {QUICK_EMOJIS.map(emoji => (
-                                                        <span key={emoji} 
-                                                            onClick={() => handleReaction(msg.id, emoji)}
-                                                            style={{ cursor: 'pointer', fontSize: '18px', transition: 'transform 0.2s' }}
-                                                            onMouseEnter={(e) => e.target.style.transform = 'scale(1.2)'}
-                                                            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                                                        >
-                                                            {emoji}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
+                                        {/* Reactions popup if selected */}
+                                        {selectedMessage?.id === msg.id && (
+                                            <div style={{
+                                                position: 'absolute',
+                                                top: '-45px',
+                                                [isMine ? 'right' : 'left']: 0,
+                                                background: 'var(--color-surface)',
+                                                border: '1px solid var(--color-border)',
+                                                borderRadius: 'var(--radius-full)',
+                                                padding: '6px 12px',
+                                                display: 'flex',
+                                                gap: '12px',
+                                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                                zIndex: 20
+                                            }}>
+                                                {QUICK_EMOJIS.map(emoji => (
+                                                    <span key={emoji} 
+                                                        onClick={(e) => { e.stopPropagation(); handleReaction(msg.id, emoji); setSelectedMessage(null); }}
+                                                        style={{ cursor: 'pointer', fontSize: '22px', transition: 'transform 0.2s' }}
+                                                    >
+                                                        {emoji}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Reactions Badges */}
@@ -538,44 +554,75 @@ export default function Chat() {
                 <form onSubmit={handleSendMessage} style={{ 
                     display: 'flex', 
                     gap: 8,
-                    background: 'var(--color-surface)',
-                    padding: 'var(--space-2)',
-                    borderRadius: 'var(--radius-full)',
-                    border: '1px solid var(--color-border)',
+                    padding: '8px',
                     opacity: chatOpen ? 1 : 0.6
                 }}>
-                    <input 
-                        type="text" 
-                        value={newMessage}
-                        onChange={handleTyping}
-                        placeholder={chatOpen ? "Écrivez un message..." : "Le chat est fermé"} 
-                        disabled={!chatOpen}
-                        style={{ 
-                            flex: 1, 
-                            background: 'transparent', 
-                            border: 'none', 
-                            color: 'var(--color-text)',
-                            padding: '0 16px',
-                            outline: 'none',
-                            fontSize: 14
-                        }}
-                    />
+                    <div style={{
+                        flex: 1,
+                        background: 'var(--color-surface)',
+                        borderRadius: '24px',
+                        padding: '8px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                    }}>
+                        <input 
+                            type="text" 
+                            value={newMessage}
+                            onChange={handleTyping}
+                            placeholder={chatOpen ? "Message" : "Le chat est fermé"} 
+                            disabled={!chatOpen}
+                            style={{ 
+                                flex: 1, 
+                                background: 'transparent', 
+                                border: 'none', 
+                                color: 'var(--color-text)',
+                                outline: 'none',
+                                fontSize: 15
+                            }}
+                        />
+                    </div>
                     <button 
                         type="submit" 
                         disabled={!newMessage.trim() || !chatOpen}
                         style={{ 
-                            width: 40, height: 40, borderRadius: '50%',
-                            background: (newMessage.trim() && chatOpen) ? 'var(--color-primary)' : 'var(--color-border)',
-                            color: (newMessage.trim() && chatOpen) ? '#000' : 'var(--color-text-muted)',
+                            width: 48, height: 48, borderRadius: '50%',
+                            background: '#00a884',
+                            color: '#fff',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             border: 'none', cursor: (newMessage.trim() && chatOpen) ? 'pointer' : 'not-allowed',
-                            transition: 'all 0.2s ease'
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                            flexShrink: 0
                         }}
                     >
-                        <span className="material-symbols-outlined" style={{ fontSize: 20, transform: 'translateX(2px)' }}>send</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: 24, transform: 'translateX(2px)' }}>send</span>
                     </button>
                 </form>
             </div>
+
+            {/* Info Modal */}
+            {showInfoModal && (
+                <div style={{
+                    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', zIndex: 100,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: 20
+                }}>
+                    <div style={{
+                        background: 'var(--color-surface)',
+                        borderRadius: '16px', padding: 24, width: '100%', maxWidth: 400,
+                        boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
+                    }}>
+                        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Communauté BRead</h2>
+                        <p style={{ color: 'var(--color-text-muted)', fontSize: 14, lineHeight: 1.5, marginBottom: 20 }}>
+                            Bienvenue dans la communauté ! Discutez avec d'autres lecteurs, partagez vos coups de cœur et vos avis. Restez courtois et respectueux.
+                        </p>
+                        <button onClick={() => setShowInfoModal(false)} className="btn-primary" style={{ width: '100%', padding: 12, borderRadius: 8 }}>
+                            Fermer
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
