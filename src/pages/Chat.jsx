@@ -417,8 +417,8 @@ export default function Chat() {
                                         onClick={() => setSelectedMessage(selectedMessage?.id === msg.id ? null : msg)}
                                         style={{ 
                                         position: 'relative',
-                                        background: isMine ? '#dcf8c6' : '#ffffff',
-                                        color: '#000000',
+                                        background: isMine ? 'var(--color-primary)' : 'var(--color-surface)',
+                                        color: isMine ? '#000' : 'var(--color-text)',
                                         padding: '6px 8px 8px 10px',
                                         borderRadius: '8px',
                                         borderTopLeftRadius: !isMine ? 0 : 8,
@@ -428,7 +428,7 @@ export default function Chat() {
                                         boxShadow: '0 1px 1px rgba(0,0,0,0.1)',
                                         minWidth: '80px',
                                         cursor: 'pointer',
-                                        ...(selectedMessage?.id === msg.id ? { outline: '2px solid rgba(0, 168, 132, 0.5)', background: isMine ? '#c8f2b0' : '#e6f7ff' } : {})
+                                        ...(selectedMessage?.id === msg.id ? { outline: '2px solid rgba(255, 215, 0, 0.5)', background: isMine ? 'var(--color-primary-hover)' : 'rgba(255, 255, 255, 0.1)' } : {})
                                     }}>
                                         {/* Reply Preview */}
                                         {msg.reply_to && (
@@ -436,12 +436,12 @@ export default function Chat() {
                                                 background: 'rgba(0,0,0,0.05)',
                                                 padding: '6px 10px',
                                                 borderRadius: '4px',
-                                                borderLeft: `4px solid ${isMine ? '#00a884' : '#00a884'}`,
+                                                borderLeft: `4px solid ${isMine ? 'var(--color-bg)' : 'var(--color-primary)'}`,
                                                 marginBottom: '4px',
                                                 fontSize: '13px',
                                                 maxWidth: '100%'
                                             }}>
-                                                <div style={{ fontWeight: 600, color: '#00a884', marginBottom: 2 }}>{msg.reply_to.profiles?.full_name || 'Utilisateur'}</div>
+                                                <div style={{ fontWeight: 600, color: isMine ? 'var(--color-bg)' : 'var(--color-primary)', marginBottom: 2 }}>{msg.reply_to.profiles?.full_name || 'Utilisateur'}</div>
                                                 <div className="line-clamp-1" style={{ color: 'rgba(0,0,0,0.6)' }}>{msg.reply_to.content}</div>
                                             </div>
                                         )}
@@ -587,8 +587,8 @@ export default function Chat() {
                         disabled={!newMessage.trim() || !chatOpen}
                         style={{ 
                             width: 48, height: 48, borderRadius: '50%',
-                            background: '#00a884',
-                            color: '#fff',
+                            background: 'var(--color-primary)',
+                            color: '#000',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             border: 'none', cursor: (newMessage.trim() && chatOpen) ? 'pointer' : 'not-allowed',
                             boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
