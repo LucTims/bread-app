@@ -33,6 +33,11 @@ export default function Chat() {
     // Swipe to reply logic
     const swipeStateRef = useRef({ startX: 0, currentX: 0, isSwiping: false });
 
+    useEffect(() => {
+        document.body.classList.add('chat-mode');
+        return () => document.body.classList.remove('chat-mode');
+    }, []);
+
     const handleTouchStart = (e) => {
         swipeStateRef.current = {
             startX: e.touches[0].clientX,
@@ -285,7 +290,7 @@ export default function Chat() {
 
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `chat/${fileName}`;
+        const filePath = `avatars/chat_${fileName}`;
         
         try {
             const { error: uploadErr } = await supabase.storage.from('covers').upload(filePath, file);
@@ -716,7 +721,8 @@ export default function Chat() {
                         alignItems: 'center',
                         gap: '8px',
                         boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                        boxSizing: 'border-box'
+                        boxSizing: 'border-box',
+                        minWidth: 0
                     }}>
                         <button type="button" onClick={() => setShowEmojis(!showEmojis)} className="btn-ghost" style={{ padding: 4, color: showEmojis ? 'var(--color-primary)' : 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <span className="material-symbols-outlined" style={{ fontSize: 24 }}>sentiment_satisfied</span>
@@ -730,6 +736,7 @@ export default function Chat() {
                             disabled={!chatOpen}
                             style={{ 
                                 flex: 1, 
+                                minWidth: 0,
                                 background: 'transparent', 
                                 border: 'none', 
                                 color: 'var(--color-text)',

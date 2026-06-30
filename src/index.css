@@ -119,6 +119,13 @@ body {
     overflow-x: hidden;
 }
 
+body.chat-mode {
+    overflow: hidden !important;
+    position: fixed !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
 a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
 img { display: block; max-width: 100%; }
