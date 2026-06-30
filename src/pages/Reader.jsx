@@ -715,39 +715,37 @@ export default function Reader() {
                         </button>
                     </div>
 
-                    {/* ElevenLabs Toggle */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: 12 }}>
-                        <div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>Voix Premium (IA)</div>
-                            {elevenCredits && useElevenLabs && (
-                                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
-                                    Crédits: {elevenCredits.character_count} / {elevenCredits.character_limit}
-                                </div>
-                            )}
+                    {/* ElevenLabs Toggle & Voice selector */}
+                    <div style={{ marginBottom: 12, background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>Voix IA Premium</span>
+                                {elevenCredits && useElevenLabs && (
+                                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
+                                        ({elevenCredits.character_count}/{elevenCredits.character_limit} cr.)
+                                    </span>
+                                )}
+                            </div>
+                            <button onClick={() => setUseElevenLabs(!useElevenLabs)} style={{
+                                width: 40, height: 22, borderRadius: 11, background: useElevenLabs ? 'var(--color-primary)' : 'rgba(255,255,255,0.2)',
+                                position: 'relative', border: 'none', cursor: 'pointer', transition: '0.3s', flexShrink: 0
+                            }}>
+                                <div style={{
+                                    width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                                    position: 'absolute', top: 2, left: useElevenLabs ? 20 : 2, transition: '0.3s'
+                                }} />
+                            </button>
                         </div>
-                        <button onClick={() => setUseElevenLabs(!useElevenLabs)} style={{
-                            width: 44, height: 24, borderRadius: 12, background: useElevenLabs ? 'var(--color-primary)' : 'rgba(255,255,255,0.2)',
-                            position: 'relative', border: 'none', cursor: 'pointer', transition: '0.3s'
-                        }}>
-                            <div style={{
-                                width: 20, height: 20, borderRadius: '50%', background: '#fff',
-                                position: 'absolute', top: 2, left: useElevenLabs ? 22 : 2, transition: '0.3s'
-                            }} />
-                        </button>
-                    </div>
-
-                    {/* Voice selector */}
-                    <div style={{ marginBottom: 12 }}>
-                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 6, display: 'block' }}>Voix</span>
+                        
                         {useElevenLabs ? (
                             <select value={elevenVoiceId} onChange={e => setElevenVoiceId(e.target.value)}
-                                style={{ width: '100%', padding: '9px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.12)', fontSize: 12 }}>
-                                {elevenVoices.map((v, i) => <option key={i} value={v.voice_id} style={{ background: '#1a1a1a' }}>{v.name}</option>)}
+                                style={{ width: '100%', padding: '8px 10px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', fontSize: 12 }}>
+                                {elevenVoices.length > 0 ? elevenVoices.map((v, i) => <option key={i} value={v.voice_id} style={{ background: '#1a1a1a' }}>{v.name}</option>) : <option value="">Chargement...</option>}
                             </select>
                         ) : (
                             <select value={ttsVoiceIdx} onChange={e => setTtsVoiceIdx(Number(e.target.value))}
-                                style={{ width: '100%', padding: '9px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.12)', fontSize: 12 }}>
-                                {ttsVoices.map((v, i) => <option key={i} value={i} style={{ background: '#1a1a1a' }}>{v.name} ({v.lang})</option>)}
+                                style={{ width: '100%', padding: '8px 10px', borderRadius: 8, background: 'rgba(0,0,0,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', fontSize: 12 }}>
+                                {ttsVoices.length > 0 ? ttsVoices.map((v, i) => <option key={i} value={i} style={{ background: '#1a1a1a' }}>{v.name} ({v.lang})</option>) : <option value="">Aucune voix</option>}
                             </select>
                         )}
                     </div>
