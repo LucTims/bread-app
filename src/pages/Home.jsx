@@ -172,7 +172,6 @@ export default function Home() {
     const getCoverSrc = (book) => {
         if (coverUrls[book.id]) return coverUrls[book.id];
         if (book._coverUrl) return book._coverUrl;
-        if (!navigator.onLine) return null;
         return book.cover_url;
     };
 
@@ -221,7 +220,7 @@ export default function Home() {
                     <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 'var(--space-8)', cursor: 'pointer' }} onClick={() => navigate(`/read/${lastRead.id}`)}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'var(--space-6) 0', background: 'var(--color-bg-dark)' }}>
                             <div style={{ width: 120, height: 180, borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)', overflow: 'hidden', background: getBookGradient(lastRead.id) }}>
-                                {getCoverSrc(lastRead) && <img src={getCoverSrc(lastRead)} alt={lastRead.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                                {getCoverSrc(lastRead) && <img src={getCoverSrc(lastRead)} alt={lastRead.title} onError={(e) => e.target.style.display='none'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                             </div>
                         </div>
                         <div style={{ padding: 'var(--space-4)' }}>

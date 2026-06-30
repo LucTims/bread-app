@@ -19,6 +19,12 @@ const coverStore = localforage.createInstance({
   description: 'Couvertures de livres stockées en Blob pour affichage hors-ligne'
 });
 
+const syncQueueStore = localforage.createInstance({
+  name: 'bread-app',
+  storeName: 'sync_queue',
+  description: 'File d\'attente pour la synchronisation des statistiques de lecture'
+});
+
 // ─── localStorage fast index ────────────────────────
 // Stores lightweight book catalog for instant display (<5ms)
 // IndexedDB reads happen in background for heavy data (blobs, progress)
@@ -281,4 +287,31 @@ export function formatSize(bytes) {
   if (bytes < 1024) return bytes + ' o';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' Ko';
   return (bytes / (1024 * 1024)).toFixed(1) + ' Mo';
+}
+
+// ─── Sync Queue ────────────────────────
+
+export async function enqueueReadingStats(bookId, pagesRead, currentPage, totalPages) {
+  const id = `stats_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  await syncQueueStore.setItem(id, {
+    bookId,
+    pagesRead,
+    currentPage,
+    totalPages,
+    timestamp: Date.now()
+  });
+}
+
+export async function getSyncQueue() {
+  const keys = await syncQueueStore.keys();
+  const items = await Promise.all(keys.map(async k => {
+    const data = await syncQueueStore.getItem(k);
+    return { id: k, ...data };
+  }));
+  // Trier par date
+  return items.sort((a, b) => a.timestamp - b.timestamp);
+}
+
+export async function clearSyncQueueItem(id) {
+  await syncQueueStore.removeItem(id);
 }

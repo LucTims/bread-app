@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
-import { getOfflineBook, getBookMeta, saveReadingProgress, getReadingProgress, saveBookOffline, saveCoverOffline } from '../lib/offlineStore';
+import { getOfflineBook, getBookMeta, saveReadingProgress, getReadingProgress, saveBookOffline, saveCoverOffline, enqueueReadingStats } from '../lib/offlineStore';
 import { supabase } from '../lib/supabase';
 import { Document, Page, pdfjs } from 'react-pdf';
 import BookChat from '../components/BookChat';
@@ -76,10 +76,18 @@ export default function Reader() {
 
     const sendReadingStats = async () => {
         if (localPagesReadRef.current > 0) {
+            const pagesToSync = localPagesReadRef.current;
+            localPagesReadRef.current = 0;
+            if (!navigator.onLine) {
+                await enqueueReadingStats(bookId, pagesToSync, pageNumber, numPages || 1).catch(() => {});
+                return;
+            }
             try {
-                await supabase.rpc('update_reading_stats', { pages_read: localPagesReadRef.current });
-                localPagesReadRef.current = 0;
-            } catch (err) { console.error('Error sending reading stats', err); }
+                await supabase.rpc('update_reading_stats', { pages_read: pagesToSync });
+            } catch (err) { 
+                console.error('Error sending reading stats', err); 
+                await enqueueReadingStats(bookId, pagesToSync, pageNumber, numPages || 1).catch(() => {});
+            }
         }
     };
 

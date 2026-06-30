@@ -152,6 +152,16 @@ ${bookDetails || 'Aucun livre pour le moment'}
         const userMsg = { role: 'user', text: text.trim() };
         setMessages(prev => [...prev, userMsg]);
         setInput('');
+        
+        if (!navigator.onLine) {
+            setMessages(prev => [...prev, { 
+                role: 'assistant', 
+                text: "💤 L'assistant IA se repose car vous n'avez pas de connexion Internet. Revenez me parler quand vous serez en ligne !",
+                isError: true 
+            }]);
+            return;
+        }
+
         setLoading(true);
 
         try {

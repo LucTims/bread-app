@@ -177,7 +177,6 @@ export default function Home() {
     // Resolve cover image
     const getCoverSrc = (book) => {
         if (coverUrls[book.id]) return coverUrls[book.id];
-        if (!navigator.onLine) return null; // Don't try network URLs when offline
         return book.cover_url;
     };
 
@@ -290,7 +289,7 @@ export default function Home() {
                             return (
                                 <div key={b.id} className="book-card" onClick={() => navigate(`/read/${b.id}`)}>
                                     <div className="book-cover-wrap" style={{ background: getBookGradient(b.id) }}>
-                                        {coverSrc && <img src={coverSrc} alt={b.title} loading="lazy" />}
+                                        {coverSrc && <img src={coverSrc} alt={b.title} loading="lazy" onError={(e) => e.target.style.display='none'} />}
                                         
                                         {!isDownloading && (
                                             <div className="book-action-overlay">

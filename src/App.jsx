@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { supabase } from './lib/supabase';
+import { getSyncQueue, clearSyncQueueItem } from './lib/offlineStore';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import Login from './pages/Login';
 import Home from './pages/Home';
@@ -24,7 +26,19 @@ function ProtectedRoute({ children }) {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   useEffect(() => {
-    const handleOnline = () => setIsOffline(false);
+    const handleOnline = async () => {
+      setIsOffline(false);
+      // Process offline reading stats queue
+      try {
+        const queue = await getSyncQueue();
+        for (const item of queue) {
+          await supabase.rpc('update_reading_stats', { pages_read: item.pagesRead });
+          await clearSyncQueueItem(item.id);
+        }
+      } catch (err) {
+        console.error("Error syncing offline stats:", err);
+      }
+    };
     const handleOffline = () => setIsOffline(true);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
