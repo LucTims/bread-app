@@ -703,7 +703,9 @@ export default function Chat() {
                     display: 'flex', 
                     gap: 8,
                     padding: '8px',
-                    opacity: chatOpen ? 1 : 0.6
+                    opacity: chatOpen ? 1 : 0.6,
+                    boxSizing: 'border-box',
+                    width: '100%'
                 }}>
                     <div style={{
                         flex: 1,
@@ -713,7 +715,8 @@ export default function Chat() {
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                        boxSizing: 'border-box'
                     }}>
                         <button type="button" onClick={() => setShowEmojis(!showEmojis)} className="btn-ghost" style={{ padding: 4, color: showEmojis ? 'var(--color-primary)' : 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <span className="material-symbols-outlined" style={{ fontSize: 24 }}>sentiment_satisfied</span>
