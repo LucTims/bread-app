@@ -28,6 +28,11 @@ export default function Chat() {
     const [selectedMessage, setSelectedMessage] = useState(null);
     const [showInfoModal, setShowInfoModal] = useState(false);
     
+    const [previewImageFile, setPreviewImageFile] = useState(null);
+    const [previewImageUrl, setPreviewImageUrl] = useState(null);
+    const [imageCaption, setImageCaption] = useState('');
+    const [isUploading, setIsUploading] = useState(false);
+    
     const isAdmin = profile?.role === 'admin';
 
     // Swipe to reply logic
@@ -284,19 +289,30 @@ export default function Chat() {
         }
     };
 
-    const handleImageUpload = async (e) => {
+    const handleImageSelect = (e) => {
         const file = e.target.files[0];
         if (!file || !user || !chatOpen) return;
 
-        const fileExt = file.name.split('.').pop();
+        setPreviewImageFile(file);
+        setPreviewImageUrl(URL.createObjectURL(file));
+        setImageCaption('');
+        e.target.value = '';
+    };
+
+    const handleSendPreviewImage = async () => {
+        if (!previewImageFile || !user || !chatOpen || isUploading) return;
+        setIsUploading(true);
+
+        const fileExt = previewImageFile.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
         const filePath = `avatars/chat_${fileName}`;
         
         try {
-            const { error: uploadErr } = await supabase.storage.from('covers').upload(filePath, file);
+            const { error: uploadErr } = await supabase.storage.from('covers').upload(filePath, previewImageFile);
             if (!uploadErr) {
                 const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(filePath);
-                const content = `[IMAGE]${publicUrl}`;
+                const captionText = imageCaption.trim() ? `\n${imageCaption.trim()}` : '';
+                const content = `[IMAGE]${publicUrl}${captionText}`;
                 await supabase.from('chat_messages').insert([{ user_id: user.id, content, reply_to_id: replyingTo?.id || null }]);
                 setReplyingTo(null);
             }
@@ -304,8 +320,10 @@ export default function Chat() {
             console.error('[Chat] Image upload error:', err);
         }
         
-        // Reset input
-        e.target.value = '';
+        setIsUploading(false);
+        setPreviewImageFile(null);
+        setPreviewImageUrl(null);
+        setImageCaption('');
     };
 
     const handleReaction = async (messageId, emoji) => {
@@ -457,7 +475,13 @@ export default function Chat() {
                         const groupedReactions = getReactionsCount(msg.chat_reactions);
                         
                         const isImage = msg.content && msg.content.startsWith('[IMAGE]');
-                        const imageUrl = isImage ? msg.content.replace('[IMAGE]', '') : null;
+                        let imageUrl = null;
+                        let caption = null;
+                        if (isImage) {
+                            const parts = msg.content.split('\n');
+                            imageUrl = parts[0].replace('[IMAGE]', '');
+                            caption = parts.slice(1).join('\n');
+                        }
                         
                         return (
                             <div key={msg.id} 
@@ -554,9 +578,10 @@ export default function Chat() {
                                         {isImage ? (
                                             <div style={{ paddingBottom: '12px' }}>
                                                 <img src={imageUrl} alt="Image envoyée" style={{ maxWidth: '100%', borderRadius: 8, marginTop: 4, display: 'block' }} loading="lazy" />
+                                                {caption && <div style={{ marginTop: 8, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{caption}</div>}
                                             </div>
                                         ) : (
-                                            <div style={{ paddingBottom: '12px', wordBreak: 'break-word' }}>{msg.content}</div>
+                                            <div style={{ paddingBottom: '12px', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{msg.content}</div>
                                         )}
                                         
                                         {/* Timestamp overlay */}
@@ -634,6 +659,63 @@ export default function Chat() {
                 <div ref={messagesEndRef} />
             </div>
 
+            {/* Full screen image preview overlay */}
+            {previewImageUrl && (
+                <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    backgroundColor: '#000',
+                    zIndex: 100,
+                    display: 'flex',
+                    flexDirection: 'column'
+                }}>
+                    {/* Header */}
+                    <div style={{ display: 'flex', padding: 16, alignItems: 'center' }}>
+                        <button onClick={() => {
+                            setPreviewImageFile(null);
+                            setPreviewImageUrl(null);
+                            setImageCaption('');
+                        }} className="btn-ghost" style={{ color: '#fff' }}>
+                            <span className="material-symbols-outlined">arrow_back</span>
+                        </button>
+                    </div>
+                    {/* Image Preview */}
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                        <img src={previewImageUrl} alt="Aperçu" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                    </div>
+                    {/* Caption Input & Send */}
+                    <div style={{ padding: 16, display: 'flex', gap: 8, background: 'rgba(0,0,0,0.5)' }}>
+                        <div style={{
+                            flex: 1,
+                            background: 'var(--color-surface)',
+                            borderRadius: '24px',
+                            padding: '8px 16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}>
+                            <input 
+                                type="text" 
+                                placeholder="Ajouter une légende..."
+                                value={imageCaption}
+                                onChange={(e) => setImageCaption(e.target.value)}
+                                disabled={isUploading}
+                                style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--color-text)', minWidth: 0, outline: 'none', fontSize: 15 }}
+                            />
+                        </div>
+                        <button onClick={handleSendPreviewImage} disabled={isUploading} style={{ 
+                            width: 48, height: 48, borderRadius: '50%', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: 'none' 
+                        }}>
+                            {isUploading ? (
+                                <div style={{ width: 20, height: 20, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: '#000', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                            ) : (
+                                <span className="material-symbols-outlined" style={{ color: '#000', transform: 'translateX(2px)' }}>send</span>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Input Area */}
             <div style={{ flexShrink: 0, marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {/* Reply Preview Bar */}
@@ -693,7 +775,7 @@ export default function Chat() {
                     accept="image/*" 
                     style={{ display: 'none' }} 
                     ref={fileInputRef}
-                    onChange={handleImageUpload}
+                    onChange={handleImageSelect}
                 />
                 <input 
                     type="file" 
@@ -701,7 +783,7 @@ export default function Chat() {
                     capture="environment" 
                     style={{ display: 'none' }} 
                     ref={cameraInputRef}
-                    onChange={handleImageUpload}
+                    onChange={handleImageSelect}
                 />
 
                 <form onSubmit={handleSendMessage} style={{ 
