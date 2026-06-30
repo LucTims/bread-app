@@ -387,9 +387,10 @@ export default function Chat() {
                 overflowY: 'auto', 
                 display: 'flex', 
                 flexDirection: 'column', 
-                gap: 'var(--space-4)',
-                paddingBottom: 'var(--space-4)',
-                paddingRight: '4px' // for scrollbar
+                gap: 'var(--space-2)',
+                padding: 'var(--space-4)',
+                backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%239C92AC\' fill-opacity=\'0.08\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+                backgroundColor: 'var(--color-bg)'
             }}>
                 {messages.length === 0 ? (
                     <div className="empty-state" style={{ margin: 'auto' }}>
@@ -420,37 +421,39 @@ export default function Chat() {
                                 onTouchEnd={(e) => handleTouchEnd(e, msg)}
                                 style={{ 
                                 display: 'flex', 
-                                gap: 12, 
+                                gap: 8, 
                                 alignSelf: isMine ? 'flex-end' : 'flex-start',
                                 maxWidth: '85%',
                                 flexDirection: isMine ? 'row-reverse' : 'row'
                             }}>
-                                {/* Avatar */}
-                                <div style={{ 
-                                    width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                                    background: isMine ? 'var(--color-primary)' : 'var(--color-surface)',
-                                    color: isMine ? '#000' : 'var(--color-text)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontWeight: 600, fontSize: 12, overflow: 'hidden',
-                                    border: `1px solid ${isMine ? 'rgba(0,0,0,0.1)' : 'var(--color-border)'}`
-                                }}>
-                                    {displayAvatar 
-                                        ? <img src={displayAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                        : initial
-                                    }
-                                </div>
+                                {/* Avatar (Only for others) */}
+                                {!isMine && (
+                                    <div style={{ 
+                                        width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                                        background: 'var(--color-surface)',
+                                        color: 'var(--color-text)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontWeight: 600, fontSize: 11, overflow: 'hidden',
+                                        border: '1px solid var(--color-border)'
+                                    }}>
+                                        {displayAvatar 
+                                            ? <img src={displayAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            : initial
+                                        }
+                                    </div>
+                                )}
 
                                 {/* Message Bubble & Actions */}
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMine ? 'flex-end' : 'flex-start' }}>
-                                    {/* Sender Info */}
-                                    {/* Sender Info (Only show for others since mine are right-aligned) */}
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMine ? 'flex-end' : 'flex-start', position: 'relative' }}>
+                                    
+                                    {/* Sender Info (Only show for others) */}
                                     {!isMine && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                            <span style={{ fontSize: 12, fontWeight: 600, color: `hsl(${msg.user_id.charCodeAt(0) * 15 % 360}, 70%, 40%)` }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, paddingLeft: 4 }}>
+                                            <span style={{ fontSize: 11, fontWeight: 600, color: `hsl(${msg.user_id.charCodeAt(0) * 15 % 360}, 70%, 40%)` }}>
                                                 {displayName}
                                             </span>
                                             {msg.profiles?.role === 'admin' && (
-                                                <span style={{ background: 'rgba(255, 214, 10, 0.2)', color: '#FFD60A', padding: '2px 6px', borderRadius: 8, fontSize: 9, fontWeight: 700 }}>
+                                                <span style={{ background: 'rgba(255, 214, 10, 0.2)', color: '#FFD60A', padding: '1px 4px', borderRadius: 6, fontSize: 8, fontWeight: 700 }}>
                                                     ADMIN
                                                 </span>
                                             )}
@@ -464,27 +467,39 @@ export default function Chat() {
                                         position: 'relative',
                                         background: isMine ? 'var(--color-primary)' : 'var(--color-surface)',
                                         color: isMine ? '#000' : 'var(--color-text)',
-                                        padding: '6px 8px 8px 10px',
+                                        padding: '4px 6px 6px 8px',
                                         borderRadius: '8px',
                                         borderTopLeftRadius: !isMine ? 0 : 8,
                                         borderTopRightRadius: isMine ? 0 : 8,
-                                        fontSize: 15,
+                                        fontSize: 14,
                                         lineHeight: 1.4,
                                         boxShadow: '0 1px 1px rgba(0,0,0,0.1)',
                                         minWidth: '80px',
                                         cursor: 'pointer',
                                         ...(selectedMessage?.id === msg.id ? { outline: '2px solid rgba(255, 215, 0, 0.5)', background: isMine ? 'var(--color-primary-hover)' : 'rgba(255, 255, 255, 0.1)' } : {})
                                     }}>
+                                        {/* Speech Bubble Tail */}
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            [isMine ? 'right' : 'left']: -8,
+                                            width: 0,
+                                            height: 0,
+                                            borderTop: `10px solid ${isMine ? 'var(--color-primary)' : 'var(--color-surface)'}`,
+                                            [isMine ? 'borderRight' : 'borderLeft']: '10px solid transparent'
+                                        }} />
+
                                         {/* Reply Preview */}
                                         {msg.reply_to && (
                                             <div style={{
                                                 background: 'rgba(0,0,0,0.05)',
-                                                padding: '6px 10px',
+                                                padding: '4px 8px',
                                                 borderRadius: '4px',
                                                 borderLeft: `4px solid ${isMine ? 'var(--color-bg)' : 'var(--color-primary)'}`,
                                                 marginBottom: '4px',
-                                                fontSize: '13px',
-                                                maxWidth: '100%'
+                                                fontSize: '12px',
+                                                maxWidth: '100%',
+                                                marginTop: '2px'
                                             }}>
                                                 <div style={{ fontWeight: 600, color: isMine ? 'var(--color-bg)' : 'var(--color-primary)', marginBottom: 2 }}>{msg.reply_to.profiles?.full_name || 'Utilisateur'}</div>
                                                 <div className="line-clamp-1" style={{ color: 'rgba(0,0,0,0.6)' }}>{msg.reply_to.content}</div>
