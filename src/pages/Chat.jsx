@@ -12,17 +12,21 @@ export default function Chat() {
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [chatOpen, setChatOpen] = useState(true);
+    const [showEmojis, setShowEmojis] = useState(false);
     
+    // Refs
+    const messagesEndRef = useRef(null);
+    const presenceChannelRef = useRef(null);
+    const typingTimeoutRef = useRef(null);
+    const fileInputRef = useRef(null);
+    const cameraInputRef = useRef(null);
+
     // New features state
     const [replyingTo, setReplyingTo] = useState(null);
     const [typingUsers, setTypingUsers] = useState([]);
     const [showEmojiPickerFor, setShowEmojiPickerFor] = useState(null);
     const [selectedMessage, setSelectedMessage] = useState(null);
     const [showInfoModal, setShowInfoModal] = useState(false);
-    
-    const messagesEndRef = useRef(null);
-    const typingTimeoutRef = useRef(null);
-    const presenceChannelRef = useRef(null);
     
     const isAdmin = profile?.role === 'admin';
 
@@ -225,7 +229,7 @@ export default function Chat() {
     };
 
     const handleSendMessage = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         if (!newMessage.trim() || !user || !chatOpen) return;
 
         const content = newMessage.trim();
@@ -233,6 +237,7 @@ export default function Chat() {
         
         setNewMessage(''); 
         setReplyingTo(null);
+        setShowEmojis(false);
         if (presenceChannelRef.current) {
             presenceChannelRef.current.track({ isTyping: false, name: user.user_metadata?.full_name || 'Quelqu\'un' });
         }
@@ -272,6 +277,30 @@ export default function Chat() {
         } catch (err) {
             console.error('[Chat] Delete error:', err);
         }
+    };
+
+    const handleImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file || !user || !chatOpen) return;
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `chat/${fileName}`;
+        
+        try {
+            const { error: uploadErr } = await supabase.storage.from('covers').upload(filePath, file);
+            if (!uploadErr) {
+                const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(filePath);
+                const content = `[IMAGE]${publicUrl}`;
+                await supabase.from('chat_messages').insert([{ user_id: user.id, content, reply_to_id: replyingTo?.id || null }]);
+                setReplyingTo(null);
+            }
+        } catch (err) {
+            console.error('[Chat] Image upload error:', err);
+        }
+        
+        // Reset input
+        e.target.value = '';
     };
 
     const handleReaction = async (messageId, emoji) => {
@@ -422,6 +451,9 @@ export default function Chat() {
                         const initial = displayName.charAt(0).toUpperCase();
                         const groupedReactions = getReactionsCount(msg.chat_reactions);
                         
+                        const isImage = msg.content && msg.content.startsWith('[IMAGE]');
+                        const imageUrl = isImage ? msg.content.replace('[IMAGE]', '') : null;
+                        
                         return (
                             <div key={msg.id} 
                                 onTouchStart={handleTouchStart}
@@ -514,7 +546,13 @@ export default function Chat() {
                                             </div>
                                         )}
 
-                                        <div style={{ paddingBottom: '12px' }}>{msg.content}</div>
+                                        {isImage ? (
+                                            <div style={{ paddingBottom: '12px' }}>
+                                                <img src={imageUrl} alt="Image envoyée" style={{ maxWidth: '100%', borderRadius: 8, marginTop: 4, display: 'block' }} loading="lazy" />
+                                            </div>
+                                        ) : (
+                                            <div style={{ paddingBottom: '12px', wordBreak: 'break-word' }}>{msg.content}</div>
+                                        )}
                                         
                                         {/* Timestamp overlay */}
                                         <div style={{ 
@@ -619,6 +657,48 @@ export default function Chat() {
                     </div>
                 )}
 
+                {showEmojis && (
+                    <div style={{
+                        position: 'absolute',
+                        bottom: '70px',
+                        left: '16px',
+                        background: 'var(--color-surface)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '16px',
+                        padding: '12px',
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(6, 1fr)',
+                        gap: '12px',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                        zIndex: 50
+                    }}>
+                        {['😀', '😂', '😍', '😭', '🙏', '👍', '🔥', '❤️', '👏', '😮', '🤔', '😎', '🎉', '✨', '💯', '🙌', '👀', '🤷'].map(emoji => (
+                            <span key={emoji} 
+                                onClick={() => setNewMessage(prev => prev + emoji)}
+                                style={{ cursor: 'pointer', fontSize: '24px', textAlign: 'center', userSelect: 'none' }}
+                            >
+                                {emoji}
+                            </span>
+                        ))}
+                    </div>
+                )}
+
+                <input 
+                    type="file" 
+                    accept="image/*" 
+                    style={{ display: 'none' }} 
+                    ref={fileInputRef}
+                    onChange={handleImageUpload}
+                />
+                <input 
+                    type="file" 
+                    accept="image/*" 
+                    capture="environment" 
+                    style={{ display: 'none' }} 
+                    ref={cameraInputRef}
+                    onChange={handleImageUpload}
+                />
+
                 <form onSubmit={handleSendMessage} style={{ 
                     display: 'flex', 
                     gap: 8,
@@ -635,13 +715,14 @@ export default function Chat() {
                         gap: '8px',
                         boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
                     }}>
-                        <button type="button" className="btn-ghost" style={{ padding: 4, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <button type="button" onClick={() => setShowEmojis(!showEmojis)} className="btn-ghost" style={{ padding: 4, color: showEmojis ? 'var(--color-primary)' : 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <span className="material-symbols-outlined" style={{ fontSize: 24 }}>sentiment_satisfied</span>
                         </button>
                         <input 
                             type="text" 
                             value={newMessage}
                             onChange={handleTyping}
+                            onFocus={() => setShowEmojis(false)}
                             placeholder={chatOpen ? "Message" : "Le chat est fermé"} 
                             disabled={!chatOpen}
                             style={{ 
@@ -653,10 +734,10 @@ export default function Chat() {
                                 fontSize: 15
                             }}
                         />
-                        <button type="button" className="btn-ghost" style={{ padding: 4, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <button type="button" onClick={() => fileInputRef.current?.click()} className="btn-ghost" style={{ padding: 4, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <span className="material-symbols-outlined" style={{ fontSize: 22 }}>attach_file</span>
                         </button>
-                        <button type="button" className="btn-ghost" style={{ padding: 4, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <button type="button" onClick={() => cameraInputRef.current?.click()} className="btn-ghost" style={{ padding: 4, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <span className="material-symbols-outlined" style={{ fontSize: 22 }}>photo_camera</span>
                         </button>
                     </div>
