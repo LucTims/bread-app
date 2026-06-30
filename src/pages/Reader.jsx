@@ -78,6 +78,7 @@ export default function Reader() {
         if (localPagesReadRef.current > 0) {
             const pagesToSync = localPagesReadRef.current;
             localPagesReadRef.current = 0;
+            if (bookId.startsWith('local_')) return;
             if (!navigator.onLine) {
                 await enqueueReadingStats(bookId, pagesToSync, pageNumber, numPages || 1).catch(() => {});
                 return;
@@ -133,6 +134,9 @@ export default function Reader() {
                 setBlobAsPdf(offlinePdfBlob);
                 setBookMeta(offlineMeta);
             } else {
+                if (bookId.startsWith('local_')) {
+                    throw new Error("Ce fichier local est introuvable ou a été supprimé de l'appareil.");
+                }
                 if (!navigator.onLine) {
                     throw new Error("Ce livre n'est pas téléchargé et vous n'avez pas de connexion Internet.");
                 }
@@ -434,7 +438,7 @@ export default function Reader() {
             
             {/* ── Top Toolbar ── */}
             <div className={`reader-toolbar ${!showToolbar ? 'hidden' : ''}`} style={{ flexShrink: 0, zIndex: 100 }}>
-                <button onClick={() => navigate('/home')}><span className="material-symbols-outlined">arrow_back</span></button>
+                <button onClick={() => navigate(-1)}><span className="material-symbols-outlined">arrow_back</span></button>
                 <div className="reader-toolbar-title line-clamp-1">{bookMeta?.title || 'Lecture'}</div>
                 <div style={{ display: 'flex', gap: 4 }}>
                     <button onClick={(e) => { e.stopPropagation(); setScale(s => Math.max(0.5, s - 0.2)); }} title="Dézoomer">

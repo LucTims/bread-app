@@ -9,6 +9,7 @@ export default function TopBar() {
     const { user, profile } = useAuth();
     const [menuOpen, setMenuOpen] = useState(false);
     const [streak, setStreak] = useState(0);
+    const [unreadCount, setUnreadCount] = useState(0);
     const menuRef = useRef(null);
 
     useEffect(() => {
@@ -18,6 +19,22 @@ export default function TopBar() {
                     if (data && data.current_streak) setStreak(data.current_streak);
                 }).catch(() => {});
         }
+    }, [user]);
+
+    useEffect(() => {
+        if (!user) return;
+        async function fetchUnread() {
+            try {
+                const { count: totalCount } = await supabase.from('notifications').select('id', { count: 'exact', head: true });
+                const { count: readCount } = await supabase.from('notification_reads').select('id', { count: 'exact', head: true }).eq('user_id', user.id);
+                setUnreadCount(Math.max(0, (totalCount || 0) - (readCount || 0)));
+            } catch (err) {
+                console.error('[TopBar] Unread count error:', err);
+            }
+        }
+        fetchUnread();
+        const interval = setInterval(fetchUnread, 30000);
+        return () => clearInterval(interval);
     }, [user]);
     useEffect(() => {
         function handleClickOutside(event) {
@@ -95,16 +112,23 @@ export default function TopBar() {
                     <button className="btn-ghost" style={{ padding: 6, borderRadius: '50%', color: 'var(--color-text)' }} onClick={() => navigate('/search')}>
                         <span className="material-symbols-outlined" style={{ fontSize: 22 }}>search</span>
                     </button>
-                    <div onClick={() => navigate('/profile')} style={{ 
-                        width: 32, height: 32, borderRadius: '50%', background: 'var(--color-primary)',
-                        cursor: 'pointer', border: '1px solid var(--color-border)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#000', fontSize: 14, fontWeight: 700, overflow: 'hidden'
+                    <div onClick={() => navigate('/notifications')} style={{ 
+                        width: 36, height: 36, borderRadius: '50%', background: 'transparent',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        position: 'relative'
                     }}>
-                        {user?.user_metadata?.avatar_url 
-                            ? <img src={user.user_metadata.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            : initial
-                        }
+                        <span className="material-symbols-outlined" style={{ fontSize: 26, color: 'var(--color-text)' }}>notifications</span>
+                        {unreadCount > 0 && (
+                            <span style={{
+                                position: 'absolute', top: 4, right: 2,
+                                minWidth: 16, height: 16, borderRadius: 8,
+                                background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 800,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                padding: '0 4px', boxShadow: '0 1px 4px rgba(239,68,68,0.4)', lineHeight: 1
+                            }}>
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                        )}
                     </div>
                 </div>
             </header>

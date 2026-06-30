@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Home from './pages/Home';
 import Landing from './pages/Landing';
 import Library from './pages/Library';
+import LocalLibrary from './pages/LocalLibrary';
 import Search from './pages/Search';
 import Chat from './pages/Chat';
 import Notifications from './pages/Notifications';
@@ -181,6 +182,12 @@ function AppContent() {
         <Route path="/library" element={
           <ProtectedRoute>
             <MainLayout><Library /></MainLayout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/local-books" element={
+          <ProtectedRoute>
+            <MainLayout><LocalLibrary /></MainLayout>
           </ProtectedRoute>
         } />
         
