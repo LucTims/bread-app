@@ -377,6 +377,16 @@ export default function Chat() {
         );
     }
 
+    const renderReplyContent = (content) => {
+        if (!content) return '';
+        if (content.startsWith('[IMAGE]')) {
+            const parts = content.split('\n');
+            const caption = parts.length > 1 ? parts.slice(1).join(' ').trim() : '';
+            return caption ? `📷 Photo - ${caption}` : '📷 Photo';
+        }
+        return content;
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', background: 'var(--color-bg)', position: 'relative' }}>
             
@@ -571,7 +581,7 @@ export default function Chat() {
                                                 marginTop: '2px'
                                             }}>
                                                 <div style={{ fontWeight: 600, color: isMine ? 'var(--color-bg)' : 'var(--color-primary)', marginBottom: 2 }}>{msg.reply_to.profiles?.full_name || 'Utilisateur'}</div>
-                                                <div className="line-clamp-1" style={{ color: 'rgba(0,0,0,0.6)' }}>{msg.reply_to.content}</div>
+                                                <div className="line-clamp-1" style={{ color: 'rgba(0,0,0,0.6)' }}>{renderReplyContent(msg.reply_to.content)}</div>
                                             </div>
                                         )}
 
@@ -735,7 +745,7 @@ export default function Chat() {
                                 Réponse à {replyingTo.profiles?.full_name || 'Utilisateur'}
                             </div>
                             <div className="line-clamp-1" style={{ fontSize: 13, color: 'var(--color-text)' }}>
-                                {replyingTo.content}
+                                {renderReplyContent(replyingTo.content)}
                             </div>
                         </div>
                         <button onClick={() => setReplyingTo(null)} className="btn-ghost" style={{ padding: 4 }}>
