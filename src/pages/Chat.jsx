@@ -326,7 +326,7 @@ export default function Chat() {
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--color-bg)', position: 'relative' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', background: 'var(--color-bg)', position: 'relative' }}>
             
             {/* WhatsApp Style Header */}
             <div style={{ 
