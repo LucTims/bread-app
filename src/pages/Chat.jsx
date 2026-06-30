@@ -479,8 +479,8 @@ export default function Chat() {
                         let caption = null;
                         if (isImage) {
                             const parts = msg.content.split('\n');
-                            imageUrl = parts[0].replace('[IMAGE]', '');
-                            caption = parts.slice(1).join('\n');
+                            imageUrl = parts[0].replace('[IMAGE]', '').trim();
+                            caption = parts.slice(1).join('\n').trim();
                         }
                         
                         return (
