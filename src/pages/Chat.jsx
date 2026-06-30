@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 
@@ -6,6 +7,7 @@ const QUICK_EMOJIS = ['👍', '❤️', '😂', '👏', '😮'];
 
 export default function Chat() {
     const { user, profile } = useAuth();
+    const navigate = useNavigate();
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
@@ -324,7 +326,7 @@ export default function Chat() {
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - var(--header-height) - var(--bottom-nav-height))', background: 'var(--color-bg)', position: 'relative' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--color-bg)', position: 'relative' }}>
             
             {/* WhatsApp Style Header */}
             <div style={{ 
@@ -356,7 +358,10 @@ export default function Chat() {
                     </div>
                 ) : (
                     <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <button onClick={() => navigate('/home')} className="btn-ghost" style={{ padding: 4, marginRight: 4 }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 24 }}>arrow_back</span>
+                            </button>
                             <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary), #FF8C00)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                                 <img src="/ai-logo.png" alt="BRead" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             </div>
@@ -373,6 +378,9 @@ export default function Chat() {
                                     <span className="material-symbols-outlined" style={{ fontSize: 22 }}>{chatOpen ? 'lock_open' : 'lock'}</span>
                                 </button>
                             )}
+                            <button onClick={() => navigate('/profile')} className="btn-ghost" style={{ padding: 4 }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 24 }}>account_circle</span>
+                            </button>
                             <button onClick={() => setShowInfoModal(true)} className="btn-ghost" style={{ padding: 4 }}>
                                 <span className="material-symbols-outlined" style={{ fontSize: 22 }}>info</span>
                             </button>
@@ -624,8 +632,12 @@ export default function Chat() {
                         padding: '8px 16px',
                         display: 'flex',
                         alignItems: 'center',
+                        gap: '8px',
                         boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
                     }}>
+                        <button type="button" className="btn-ghost" style={{ padding: 4, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 24 }}>sentiment_satisfied</span>
+                        </button>
                         <input 
                             type="text" 
                             value={newMessage}
@@ -641,6 +653,12 @@ export default function Chat() {
                                 fontSize: 15
                             }}
                         />
+                        <button type="button" className="btn-ghost" style={{ padding: 4, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>attach_file</span>
+                        </button>
+                        <button type="button" className="btn-ghost" style={{ padding: 4, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>photo_camera</span>
+                        </button>
                     </div>
                     <button 
                         type="submit" 

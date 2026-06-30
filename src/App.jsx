@@ -192,7 +192,10 @@ function AppContent() {
 
         <Route path="/chat" element={
           <ProtectedRoute>
-            <MainLayout><Chat /></MainLayout>
+            <div className="page" style={{ height: '100vh', overflow: 'hidden' }}>
+              <Chat />
+              <GlobalAIChat />
+            </div>
           </ProtectedRoute>
         } />
         
