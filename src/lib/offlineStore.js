@@ -110,6 +110,36 @@ export async function saveBookOffline(bookId, pdfBlob, metadata) {
 }
 
 /**
+ * Enregistre un fichier local (importé par l'utilisateur) dans IndexedDB
+ */
+export async function saveLocalBook(file, coverBlob = null) {
+  const bookId = `local_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  await bookStore.setItem(`pdf_${bookId}`, file);
+  
+  if (coverBlob) {
+    await coverStore.setItem(`cover_${bookId}`, coverBlob);
+  }
+
+  const meta = {
+    title: file.name.replace(/\.[^/.]+$/, ""), // retire l'extension
+    author: 'Fichier local',
+    isLocal: true,
+    downloadedAt: Date.now(),
+    sizeBytes: file.size,
+    cover_url: coverBlob ? `local_cover_${bookId}` : null
+  };
+  await metaStore.setItem(`meta_${bookId}`, meta);
+
+  if (_metaCache) _metaCache.set(bookId, meta);
+
+  const index = _readIndex();
+  index.push({ id: bookId, title: meta.title, author: meta.author, cover_url: meta.cover_url, sizeBytes: meta.sizeBytes, downloadedAt: meta.downloadedAt, isLocal: true });
+  _writeIndex(index);
+  
+  return bookId;
+}
+
+/**
  * Télécharge et stocke la couverture d'un livre en Blob
  */
 export async function saveCoverOffline(bookId, coverUrl) {
