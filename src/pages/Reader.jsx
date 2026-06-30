@@ -5,6 +5,7 @@ import { getOfflineBook, getBookMeta, saveReadingProgress, getReadingProgress, s
 import { supabase } from '../lib/supabase';
 import { Document, Page, pdfjs } from 'react-pdf';
 import BookChat from '../components/BookChat';
+import { fetchElevenLabsVoices, generateElevenLabsSpeech, getElevenLabsCredits } from '../lib/elevenLabs';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -65,6 +66,13 @@ export default function Reader() {
     const pdfDocRef = useRef(null);
     const ttsActiveRef = useRef(false);
     
+    // ElevenLabs States
+    const [useElevenLabs, setUseElevenLabs] = useState(false);
+    const [elevenVoices, setElevenVoices] = useState([]);
+    const [elevenVoiceId, setElevenVoiceId] = useState('');
+    const [elevenCredits, setElevenCredits] = useState(null);
+    const elevenAudioRef = useRef(null);
+    
     // Touch / Pinch zoom
     const pinchRef = useRef({ startDist: 0, startScale: 1 });
     const swipeRef = useRef({ startX: 0, startY: 0, startTime: 0 });
@@ -101,18 +109,31 @@ export default function Reader() {
         };
     }, []);
 
-    // Load available TTS voices
+    // Load available     // TTS Voices load
     useEffect(() => {
         const loadVoices = () => {
-            const v = window.speechSynthesis?.getVoices() || [];
-            const frVoices = v.filter(voice => voice.lang.startsWith('fr'));
-            const allVoices = frVoices.length > 0 ? frVoices : v;
-            setTtsVoices(allVoices);
+            const allVoices = window.speechSynthesis?.getVoices() || [];
+            // Try to filter for French, but keep all if none found
+            const frVoices = allVoices.filter(v => v.lang.startsWith('fr'));
+            setTtsVoices(frVoices.length > 0 ? frVoices : allVoices);
         };
         loadVoices();
         window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
         return () => window.speechSynthesis?.removeEventListener('voiceschanged', loadVoices);
     }, []);
+
+    // ElevenLabs load
+    useEffect(() => {
+        if (showAudioPanel) {
+            fetchElevenLabsVoices().then(voices => {
+                setElevenVoices(voices);
+                if (voices.length > 0 && !elevenVoiceId) {
+                    setElevenVoiceId(voices[0].voice_id);
+                }
+            });
+            getElevenLabsCredits().then(setElevenCredits);
+        }
+    }, [showAudioPanel, elevenVoiceId]);
 
     // Convert blob to fast Object URL
     const setBlobAsPdf = (blob) => {
@@ -349,7 +370,7 @@ export default function Reader() {
         } catch { return ''; }
     };
 
-    const speakSentence = (sentences, idx) => {
+    const speakSentence = async (sentences, idx) => {
         if (!ttsActiveRef.current || idx >= sentences.length) {
             // Page finished — auto-advance?
             if (ttsActiveRef.current && ttsAutoAdvance && pageNumber < (numPages || 1)) {
@@ -370,23 +391,50 @@ export default function Reader() {
             } else { ttsStop(); }
             return;
         }
+        
         window.speechSynthesis.cancel();
+        if (elevenAudioRef.current) { elevenAudioRef.current.pause(); elevenAudioRef.current = null; }
+        
         setTtsSentenceIdx(idx);
-        const utter = new SpeechSynthesisUtterance(sentences[idx]);
-        if (ttsVoices[ttsVoiceIdx]) utter.voice = ttsVoices[ttsVoiceIdx];
-        utter.rate = ttsRate;
-        utter.onend = () => speakSentence(sentences, idx + 1);
-        utter.onerror = () => ttsStop();
-        window.speechSynthesis.speak(utter);
         setTtsPlaying(true); setTtsPaused(false);
+        
+        if (useElevenLabs && elevenVoiceId) {
+            setTtsLoading(true);
+            const audioUrl = await generateElevenLabsSpeech(sentences[idx], elevenVoiceId);
+            setTtsLoading(false);
+            if (!ttsActiveRef.current) return;
+            if (audioUrl) {
+                const audio = new Audio(audioUrl);
+                elevenAudioRef.current = audio;
+                audio.playbackRate = ttsRate;
+                audio.onended = () => { URL.revokeObjectURL(audioUrl); speakSentence(sentences, idx + 1); };
+                audio.onerror = () => { URL.revokeObjectURL(audioUrl); ttsStop(); };
+                audio.play().catch(() => ttsStop());
+                // update credits periodically
+                if (idx % 2 === 0) getElevenLabsCredits().then(setElevenCredits);
+            } else {
+                ttsStop();
+            }
+        } else {
+            const utter = new SpeechSynthesisUtterance(sentences[idx]);
+            if (ttsVoices[ttsVoiceIdx]) utter.voice = ttsVoices[ttsVoiceIdx];
+            utter.rate = ttsRate;
+            utter.onend = () => speakSentence(sentences, idx + 1);
+            utter.onerror = () => ttsStop();
+            window.speechSynthesis.speak(utter);
+        }
     };
 
     const ttsSpeak = async (fromIdx) => {
-        if (!window.speechSynthesis) { alert('Audio non supporté.'); return; }
+        if (!window.speechSynthesis && !useElevenLabs) { alert('Audio non supporté.'); return; }
         if (ttsPaused && typeof fromIdx === 'undefined') {
-            window.speechSynthesis.resume(); setTtsPaused(false); setTtsPlaying(true); return;
+            if (useElevenLabs && elevenAudioRef.current) elevenAudioRef.current.play();
+            else window.speechSynthesis.resume(); 
+            setTtsPaused(false); setTtsPlaying(true); return;
         }
         window.speechSynthesis.cancel();
+        if (elevenAudioRef.current) { elevenAudioRef.current.pause(); elevenAudioRef.current = null; }
+        
         ttsActiveRef.current = true;
         if (ttsSentences.length && typeof fromIdx === 'number') {
             speakSentence(ttsSentences, fromIdx); return;
@@ -402,8 +450,16 @@ export default function Reader() {
         speakSentence(sentences, startIdx);
     };
 
-    const ttsPause = () => { window.speechSynthesis.pause(); setTtsPaused(true); setTtsPlaying(false); };
-    const ttsStop = () => { window.speechSynthesis.cancel(); ttsActiveRef.current = false; setTtsPlaying(false); setTtsPaused(false); };
+    const ttsPause = () => { 
+        if (useElevenLabs && elevenAudioRef.current) elevenAudioRef.current.pause();
+        else window.speechSynthesis.pause(); 
+        setTtsPaused(true); setTtsPlaying(false); 
+    };
+    const ttsStop = () => { 
+        if (elevenAudioRef.current) { elevenAudioRef.current.pause(); elevenAudioRef.current = null; }
+        window.speechSynthesis.cancel(); 
+        ttsActiveRef.current = false; setTtsPlaying(false); setTtsPaused(false); 
+    };
     const ttsSkipNext = () => { if (ttsSentenceIdx < ttsSentences.length - 1) ttsSpeak(ttsSentenceIdx + 1); };
     const ttsSkipPrev = () => { if (ttsSentenceIdx > 0) ttsSpeak(ttsSentenceIdx - 1); else ttsSpeak(0); };
     const ttsJumpToSentence = (idx) => ttsSpeak(idx);
@@ -659,16 +715,42 @@ export default function Reader() {
                         </button>
                     </div>
 
+                    {/* ElevenLabs Toggle */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: 12 }}>
+                        <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>Voix Premium (IA)</div>
+                            {elevenCredits && useElevenLabs && (
+                                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+                                    Crédits: {elevenCredits.character_count} / {elevenCredits.character_limit}
+                                </div>
+                            )}
+                        </div>
+                        <button onClick={() => setUseElevenLabs(!useElevenLabs)} style={{
+                            width: 44, height: 24, borderRadius: 12, background: useElevenLabs ? 'var(--color-primary)' : 'rgba(255,255,255,0.2)',
+                            position: 'relative', border: 'none', cursor: 'pointer', transition: '0.3s'
+                        }}>
+                            <div style={{
+                                width: 20, height: 20, borderRadius: '50%', background: '#fff',
+                                position: 'absolute', top: 2, left: useElevenLabs ? 22 : 2, transition: '0.3s'
+                            }} />
+                        </button>
+                    </div>
+
                     {/* Voice selector */}
-                    {ttsVoices.length > 0 && (
-                        <div style={{ marginBottom: 12 }}>
-                            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 6, display: 'block' }}>Voix</span>
+                    <div style={{ marginBottom: 12 }}>
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 6, display: 'block' }}>Voix</span>
+                        {useElevenLabs ? (
+                            <select value={elevenVoiceId} onChange={e => setElevenVoiceId(e.target.value)}
+                                style={{ width: '100%', padding: '9px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.12)', fontSize: 12 }}>
+                                {elevenVoices.map((v, i) => <option key={i} value={v.voice_id} style={{ background: '#1a1a1a' }}>{v.name}</option>)}
+                            </select>
+                        ) : (
                             <select value={ttsVoiceIdx} onChange={e => setTtsVoiceIdx(Number(e.target.value))}
                                 style={{ width: '100%', padding: '9px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.12)', fontSize: 12 }}>
                                 {ttsVoices.map((v, i) => <option key={i} value={i} style={{ background: '#1a1a1a' }}>{v.name} ({v.lang})</option>)}
                             </select>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     {/* Sentence list (jump to) */}
                     {ttsSentences.length > 1 && (
