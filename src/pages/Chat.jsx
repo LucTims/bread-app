@@ -24,6 +24,47 @@ export default function Chat() {
     
     const isAdmin = profile?.role === 'admin';
 
+    // Swipe to reply logic
+    const swipeStateRef = useRef({ startX: 0, currentX: 0, isSwiping: false });
+
+    const handleTouchStart = (e) => {
+        swipeStateRef.current = {
+            startX: e.touches[0].clientX,
+            currentX: e.touches[0].clientX,
+            isSwiping: true
+        };
+    };
+
+    const handleTouchMove = (e) => {
+        if (!swipeStateRef.current.isSwiping) return;
+        const currentX = e.touches[0].clientX;
+        const deltaX = currentX - swipeStateRef.current.startX;
+        swipeStateRef.current.currentX = currentX;
+
+        // Allow swiping right
+        if (deltaX > 0 && deltaX < 80) {
+            e.currentTarget.style.transform = `translateX(${deltaX}px)`;
+            e.currentTarget.style.transition = 'none';
+        }
+    };
+
+    const handleTouchEnd = (e, msg) => {
+        if (!swipeStateRef.current.isSwiping) return;
+        swipeStateRef.current.isSwiping = false;
+        
+        const deltaX = swipeStateRef.current.currentX - swipeStateRef.current.startX;
+        
+        e.currentTarget.style.transform = 'translateX(0)';
+        e.currentTarget.style.transition = 'transform 0.2s ease-out';
+        
+        if (deltaX > 50) {
+            setReplyingTo(msg);
+            if (window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate(50);
+            }
+        }
+    };
+
     // Scroll to bottom when messages change
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -373,7 +414,11 @@ export default function Chat() {
                         const groupedReactions = getReactionsCount(msg.chat_reactions);
                         
                         return (
-                            <div key={msg.id} style={{ 
+                            <div key={msg.id} 
+                                onTouchStart={handleTouchStart}
+                                onTouchMove={handleTouchMove}
+                                onTouchEnd={(e) => handleTouchEnd(e, msg)}
+                                style={{ 
                                 display: 'flex', 
                                 gap: 12, 
                                 alignSelf: isMine ? 'flex-end' : 'flex-start',
