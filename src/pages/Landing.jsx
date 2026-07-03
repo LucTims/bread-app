@@ -95,7 +95,7 @@ export default function Landing() {
                     justifyContent: 'space-between', 
                     alignItems: 'center', 
                     position: 'relative', 
-                    zIndex: 10,
+                    zIndex: 20, // Z-index augmenté à 20 pour être au-dessus du main content (-80px margin)
                     width: '100%',
                     maxWidth: 'var(--container-max)',
                     margin: '0 auto'
@@ -128,7 +128,7 @@ export default function Landing() {
                             <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>storefront</span>
                             La Boutique
                         </a>
-                        <button onClick={() => navigate('/login')} className="btn btn-primary btn-sm" style={{ fontWeight: 'bold', padding: '8px 16px', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap' }}>Se Connecter</button>
+                        <button onClick={() => navigate('/login')} className="btn btn-primary btn-sm" style={{ fontWeight: 'bold', padding: '8px 16px', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap', cursor: 'pointer' }}>Se Connecter</button>
                     </div>
                 </header>
 
