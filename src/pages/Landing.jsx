@@ -7,7 +7,7 @@ import heroVideo from '../assets/animation/ChengYiUniverse888_pindown.io_1781629
 // Configuration des animations
 const fadeInUp = {
     hidden: { opacity: 0, y: 40 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+    visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
 };
 
 const staggerContainer = {
@@ -15,14 +15,14 @@ const staggerContainer = {
     visible: {
         opacity: 1,
         transition: {
-            staggerChildren: 0.15
+            staggerChildren: 0.2
         }
     }
 };
 
 const scaleUp = {
-    hidden: { opacity: 0, scale: 0.8 },
-    visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: "easeOut" } }
+    hidden: { opacity: 0, scale: 0.9 },
+    visible: { opacity: 1, scale: 1, transition: { duration: 0.6, ease: "easeOut" } }
 };
 
 export default function Landing() {
@@ -37,274 +37,399 @@ export default function Landing() {
     }, [user, loading, navigate]);
 
     if (loading) {
-        return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="spinner"></div></div>;
+        return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a' }}><div className="spinner"></div></div>;
     }
 
+    // Nous forçons un thème sombre pour la Landing Page afin de garantir un look "Premium"
+    const darkThemeColors = {
+        bg: '#0a0a0a',
+        bgDark: '#000000',
+        text: '#f3f4f6',
+        textMuted: '#9ca3af',
+        surface: 'rgba(255, 255, 255, 0.03)',
+        border: 'rgba(255, 255, 255, 0.08)'
+    };
+
     return (
-        <div style={{ minHeight: '100vh', background: 'var(--color-bg)', color: 'var(--color-text)', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
-            {/* Header / Nav */}
-            <header style={{ padding: 'var(--space-4) var(--space-6)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(10,10,10,0.7)', backdropFilter: 'blur(16px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ fontFamily: 'var(--font-logo)', fontSize: '24px', fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '-0.5px' }}>BRead</div>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                    <a href="https://boombooks.shop" target="_blank" rel="noreferrer" style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', fontWeight: 600 }} className="hide-on-mobile login-link-muted">Aller sur BoomBooks</a>
-                    <button onClick={() => navigate('/login')} className="btn btn-primary btn-sm" style={{ fontWeight: 'bold' }}>Se Connecter</button>
+        <div style={{ minHeight: '100vh', background: darkThemeColors.bg, color: darkThemeColors.text, display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
+            
+            {/* 1. SECTION HERO (Vidéo Plein Écran) */}
+            <section style={{ 
+                position: 'relative',
+                minHeight: '100vh',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+            }}>
+                {/* Vidéo de fond */}
+                <video 
+                    src={heroVideo} 
+                    autoPlay 
+                    loop 
+                    muted 
+                    playsInline
+                    style={{ 
+                        position: 'absolute', 
+                        top: 0, 
+                        left: 0, 
+                        width: '100%', 
+                        height: '100%', 
+                        objectFit: 'cover', 
+                        zIndex: 0,
+                        opacity: 0.8
+                    }}
+                />
+                
+                {/* Dégradé de superposition */}
+                <div style={{ 
+                    position: 'absolute', 
+                    inset: 0, 
+                    background: `linear-gradient(to bottom, rgba(10, 10, 10, 0.3) 0%, rgba(10, 10, 10, 0.8) 70%, ${darkThemeColors.bg} 100%)`, 
+                    zIndex: 1 
+                }} />
+
+                {/* Header / Nav */}
+                <header style={{ 
+                    padding: 'var(--space-4) var(--space-6)', 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    position: 'relative', 
+                    zIndex: 10,
+                    width: '100%',
+                    maxWidth: 'var(--container-max)',
+                    margin: '0 auto'
+                }}>
+                    <div style={{ fontFamily: 'var(--font-logo)', fontSize: '28px', fontWeight: 800, color: 'var(--color-primary)', letterSpacing: '-0.5px' }}>BRead</div>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        {/* BOUTON BOOMBOOKS AMÉLIORÉ (Plus compact) */}
+                        <a 
+                            href="https://boombooks.shop" 
+                            target="_blank" 
+                            rel="noreferrer" 
+                            style={{ 
+                                fontSize: '13px', 
+                                color: darkThemeColors.text, 
+                                fontWeight: 600, 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '4px',
+                                padding: '6px 12px',
+                                background: 'rgba(255,255,255,0.1)',
+                                backdropFilter: 'blur(10px)',
+                                borderRadius: 'var(--radius-full)',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                transition: 'all 0.3s ease',
+                                whiteSpace: 'nowrap'
+                            }} 
+                            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+                        >
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>storefront</span>
+                            La Boutique
+                        </a>
+                        <button onClick={() => navigate('/login')} className="btn btn-primary btn-sm" style={{ fontWeight: 'bold', padding: '8px 16px', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap' }}>Se Connecter</button>
+                    </div>
+                </header>
+
+                {/* Contenu principal du Hero */}
+                <div style={{ 
+                    position: 'relative', 
+                    zIndex: 10, 
+                    flex: 1, 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    padding: 'var(--space-6)',
+                    textAlign: 'center',
+                    marginTop: '-80px'
+                }}>
+                    <motion.div 
+                        variants={staggerContainer}
+                        initial="hidden"
+                        animate="visible"
+                        style={{ maxWidth: '800px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+                    >
+                        <motion.div variants={fadeInUp} style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '8px', 
+                            padding: '8px 20px', 
+                            background: 'rgba(255,215,0,0.1)', 
+                            backdropFilter: 'blur(10px)',
+                            borderRadius: 'var(--radius-full)', 
+                            border: '1px solid rgba(255,215,0,0.3)', 
+                            color: 'var(--color-primary)', 
+                            fontSize: 'var(--text-sm)', 
+                            fontWeight: 700, 
+                            marginBottom: 'var(--space-6)',
+                            boxShadow: '0 4px 12px rgba(255,215,0,0.1)'
+                        }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>bolt</span>
+                            Nouveau : Mode hors-ligne disponible ✨
+                        </motion.div>
+
+                        <motion.h1 variants={fadeInUp} style={{ 
+                            fontFamily: 'var(--font-slogan)', 
+                            fontSize: 'clamp(44px, 8vw, 84px)', 
+                            lineHeight: 1.1, 
+                            fontWeight: 800,
+                            color: '#FFFFFF',
+                            marginBottom: 'var(--space-5)',
+                            textShadow: '0 10px 30px rgba(0,0,0,0.8)'
+                        }}>
+                            Vos livres BoomBooks,<br/>
+                            <span style={{ 
+                                background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                            }}>partout avec vous.</span>
+                        </motion.h1>
+
+                        <motion.p variants={fadeInUp} style={{ 
+                            fontSize: 'clamp(16px, 2vw, 20px)', 
+                            color: 'rgba(255,255,255,0.85)', 
+                            lineHeight: 1.6,
+                            marginBottom: 'var(--space-8)',
+                            maxWidth: '600px',
+                            textShadow: '0 2px 10px rgba(0,0,0,0.8)'
+                        }}>
+                            L'application officielle conçue exclusivement pour lire vos ouvrages achetés sur BoomBooks. Profitez d'une expérience de lecture premium, fluide et immersive.
+                        </motion.p>
+                        
+                        <motion.div variants={fadeInUp} style={{ 
+                            display: 'flex', 
+                            gap: 'var(--space-4)', 
+                            flexWrap: 'wrap', 
+                            justifyContent: 'center',
+                            width: '100%'
+                        }}>
+                            <motion.button 
+                                whileHover={{ scale: 1.05, boxShadow: '0 10px 30px rgba(255,215,0,0.4)' }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => navigate('/login')} 
+                                className="btn btn-primary btn-lg" 
+                                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 32px', fontSize: '18px', borderRadius: 'var(--radius-full)' }}
+                            >
+                                Accéder à l'appli
+                                <span className="material-symbols-outlined">arrow_forward</span>
+                            </motion.button>
+                        </motion.div>
+                    </motion.div>
                 </div>
-            </header>
+            </section>
 
             <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                {/* Hero Section */}
-                <section style={{ 
-                    padding: 'clamp(40px, 10vh, 100px) var(--space-6)', 
-                    position: 'relative',
-                    overflow: 'hidden'
-                }}>
-                    {/* Background glows */}
-                    <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '500px', height: '500px', background: 'rgba(255,215,0,0.08)', filter: 'blur(120px)', borderRadius: '50%', pointerEvents: 'none' }} />
-                    <div style={{ position: 'absolute', bottom: '-20%', right: '-10%', width: '400px', height: '400px', background: 'rgba(245,158,11,0.06)', filter: 'blur(100px)', borderRadius: '50%', pointerEvents: 'none' }} />
-
-                    <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-8)' }}>
-                        {/* Text Column */}
-                        <motion.div 
-                            style={{ flex: '1 1 500px', zIndex: 10 }}
-                            variants={staggerContainer}
-                            initial="hidden"
-                            animate="visible"
-                        >
-                            <motion.div variants={fadeInUp} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 16px', background: 'rgba(255,215,0,0.1)', borderRadius: 'var(--radius-full)', border: '1px solid rgba(255,215,0,0.2)', color: 'var(--color-primary)', fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--space-4)' }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>bolt</span>
-                                Nouveau : Mode hors-ligne disponible ✨
-                            </motion.div>
-
-                            <motion.h1 variants={fadeInUp} style={{ 
-                                fontFamily: 'var(--font-slogan)', 
-                                fontSize: 'clamp(40px, 6vw, 72px)', 
-                                lineHeight: 1.1, 
-                                fontWeight: 800,
-                                color: '#FFF',
-                                marginBottom: 'var(--space-4)',
-                            }}>
-                                Vos livres BoomBooks,<br/>
-                                <span style={{ 
-                                    background: 'linear-gradient(135deg, #FFD700 0%, #F59E0B 100%)',
-                                    WebkitBackgroundClip: 'text',
-                                    WebkitTextFillColor: 'transparent',
-                                }}>partout avec vous.</span>
-                            </motion.h1>
-
-                            <motion.p variants={fadeInUp} style={{ 
-                                fontSize: 'clamp(16px, 1.5vw, 18px)', 
-                                color: 'var(--color-text-muted)', 
-                                lineHeight: 1.6,
-                                marginBottom: 'var(--space-6)',
-                                maxWidth: '540px'
-                            }}>
-                                L'application officielle conçue exclusivement pour lire vos ouvrages achetés sur BoomBooks. Profitez d'une expérience de lecture premium, fluide et immersive.
-                            </motion.p>
-                            
-                            <motion.div variants={fadeInUp} style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
-                                <motion.button 
-                                    whileHover={{ scale: 1.05, boxShadow: '0 10px 30px rgba(255,215,0,0.3)' }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={() => window.open('https://boombooks.shop', '_blank')} 
-                                    className="btn btn-primary btn-lg" 
-                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '14px 28px', fontSize: '16px' }}
-                                >
-                                    <span className="material-symbols-outlined">shopping_bag</span>
-                                    Acheter des livres
-                                </motion.button>
-                                <motion.button 
-                                    whileHover={{ scale: 1.05, backgroundColor: 'rgba(255,255,255,0.05)' }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={() => navigate('/login')} 
-                                    className="btn btn-outline btn-lg" 
-                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '14px 28px', fontSize: '16px', border: '1px solid rgba(255,255,255,0.2)' }}
-                                >
-                                    Accéder à l'appli
-                                    <span className="material-symbols-outlined">arrow_forward</span>
-                                </motion.button>
-                            </motion.div>
-                        </motion.div>
-
-                        {/* Video / Graphic Column */}
-                        <motion.div 
-                            style={{ flex: '1 1 400px', display: 'flex', justifyContent: 'center', position: 'relative', zIndex: 10 }}
-                            initial={{ opacity: 0, x: 50 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
-                        >
-                            {/* Glassmorphic Frame */}
-                            <motion.div 
-                                animate={{ y: [0, -15, 0] }}
-                                transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
-                                style={{ 
-                                    position: 'relative',
-                                    background: 'rgba(255,255,255,0.03)',
-                                    borderRadius: '32px',
-                                    padding: '12px',
-                                    border: '1px solid rgba(255,255,255,0.1)',
-                                    boxShadow: '0 30px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2)',
-                                    backdropFilter: 'blur(20px)',
-                                    maxWidth: '320px',
-                                    width: '100%'
-                                }}
-                            >
-                                <div style={{ 
-                                    borderRadius: '24px', 
-                                    overflow: 'hidden', 
-                                    background: '#000',
-                                    position: 'relative',
-                                    aspectRatio: '9/16'
-                                }}>
-                                    <video 
-                                        src={heroVideo} 
-                                        autoPlay 
-                                        loop 
-                                        muted 
-                                        playsInline
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                    />
-                                    {/* Reflection highlight */}
-                                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '40%', background: 'linear-gradient(to bottom, rgba(255,255,255,0.15) 0%, transparent 100%)', pointerEvents: 'none' }} />
-                                </div>
-                            </motion.div>
-                            
-                            {/* Decorative floating elements */}
-                            <motion.div 
-                                animate={{ y: [0, 20, 0], rotate: [0, 10, 0] }}
-                                transition={{ repeat: Infinity, duration: 8, ease: "easeInOut", delay: 1 }}
-                                style={{ position: 'absolute', bottom: '10%', left: '-10%', width: '80px', height: '80px', background: 'rgba(255,215,0,0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,215,0,0.2)', borderRadius: '20px', transform: 'rotate(-15deg)', zIndex: 5 }}
-                            />
-                            <motion.div 
-                                animate={{ y: [0, -25, 0], rotate: [0, -15, 0] }}
-                                transition={{ repeat: Infinity, duration: 7, ease: "easeInOut", delay: 2 }}
-                                style={{ position: 'absolute', top: '20%', right: '-5%', width: '60px', height: '60px', background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50%', zIndex: 15 }}
-                            />
-                        </motion.div>
+                {/* 2. SECTION COMMENT ÇA MARCHE */}
+                <section style={{ padding: 'var(--space-16) var(--space-6)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', position: 'relative' }}>
+                    
+                    <div style={{ marginBottom: 'var(--space-10)' }}>
+                        <h2 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 800, color: '#FFFFFF' }}>L'écosystème parfait</h2>
+                        <p style={{ color: darkThemeColors.textMuted, fontSize: '18px', marginTop: '8px' }}>De l'achat à la lecture en un clin d'œil.</p>
                     </div>
-                </section>
 
-                {/* Visual / Connection Section */}
-                <section style={{ padding: 'var(--space-12) var(--space-6)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', position: 'relative' }}>
                     <motion.div 
                         initial="hidden"
                         whileInView="visible"
                         viewport={{ once: true, margin: "-100px" }}
                         variants={staggerContainer}
-                        style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-8)', justifyContent: 'center', maxWidth: '1000px', width: '100%', alignItems: 'center' }}
+                        style={{ 
+                            display: 'flex', 
+                            flexWrap: 'wrap', 
+                            gap: 'var(--space-6)', 
+                            justifyContent: 'center', 
+                            maxWidth: '1000px', 
+                            width: '100%', 
+                            alignItems: 'center' 
+                        }}
                     >
-                        <motion.div variants={fadeInUp} style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        {/* Étape 1 */}
+                        <motion.div variants={fadeInUp} style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '20px', minWidth: '300px' }}>
                             <motion.div 
-                                whileHover={{ scale: 1.02, rotateY: 0 }}
-                                style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-2xl)', padding: 'var(--space-2)', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.05)', transform: 'perspective(1000px) rotateY(5deg)', transition: 'transform 0.4s ease' }}
+                                whileHover={{ y: -5 }}
+                                style={{ 
+                                    background: 'linear-gradient(145deg, #111111 0%, #0a0a0a 100%)', 
+                                    borderRadius: 'var(--radius-2xl)', 
+                                    padding: 'var(--space-8)', 
+                                    boxShadow: '0 20px 40px rgba(0,0,0,0.5)', 
+                                    border: `1px solid ${darkThemeColors.border}`, 
+                                    transition: 'all 0.4s ease',
+                                    position: 'relative',
+                                    overflow: 'hidden'
+                                }}
                             >
-                                <div style={{ background: 'var(--color-bg-dark)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-8)', height: '280px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                                    <h3 style={{ fontSize: '32px', fontWeight: 800, color: '#FFF', letterSpacing: '-1px' }}>BoomBooks.shop</h3>
-                                    <p style={{ color: 'var(--color-text-muted)', marginTop: '8px' }}>La boutique officielle</p>
-                                    <div style={{ marginTop: '24px', display: 'flex', gap: '8px' }}>
-                                        <div style={{ width: '40px', height: '60px', background: 'linear-gradient(135deg, #667eea, #764ba2)', borderRadius: '4px' }}></div>
-                                        <div style={{ width: '40px', height: '60px', background: 'linear-gradient(135deg, #f093fb, #f5576c)', borderRadius: '4px' }}></div>
-                                        <div style={{ width: '40px', height: '60px', background: 'linear-gradient(135deg, #4facfe, #00f2fe)', borderRadius: '4px' }}></div>
+                                {/* Effet de lueur */}
+                                <div style={{ position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%', background: 'radial-gradient(circle at center, rgba(100,100,255,0.05) 0%, transparent 50%)', pointerEvents: 'none' }}></div>
+                                
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2 }}>
+                                    <h3 style={{ fontSize: '26px', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.5px' }}>BoomBooks<span style={{color: '#888'}}>.shop</span></h3>
+                                    <p style={{ color: darkThemeColors.textMuted, marginTop: '8px', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px' }}>La Boutique</p>
+                                    
+                                    <div style={{ marginTop: '32px', display: 'flex', gap: '16px', alignItems: 'flex-end', height: '80px' }}>
+                                        <div style={{ width: '40px', height: '60px', background: 'linear-gradient(to top, #667eea, #764ba2)', borderRadius: '4px', boxShadow: '0 10px 20px rgba(102,126,234,0.3)' }}></div>
+                                        <div style={{ width: '48px', height: '72px', background: 'linear-gradient(to top, #f093fb, #f5576c)', borderRadius: '4px', boxShadow: '0 10px 20px rgba(245,87,108,0.3)' }}></div>
+                                        <div style={{ width: '40px', height: '60px', background: 'linear-gradient(to top, #4facfe, #00f2fe)', borderRadius: '4px', boxShadow: '0 10px 20px rgba(79,172,254,0.3)' }}></div>
                                     </div>
                                 </div>
                             </motion.div>
-                            <h4 style={{ fontSize: 'var(--text-xl)', fontWeight: 'bold' }}>1. Achetez vos livres</h4>
-                            <p style={{ color: 'var(--color-text-muted)' }}>Trouvez et achetez vos ebooks préférés directement sur notre boutique BoomBooks.shop.</p>
+                            <div>
+                                <h4 style={{ fontSize: '22px', fontWeight: 'bold', color: '#FFFFFF' }}>1. Trouvez votre pépite</h4>
+                                <p style={{ color: darkThemeColors.textMuted, marginTop: '8px', lineHeight: 1.5 }}>Achetez vos ebooks préférés sur notre boutique en ligne partenaire.</p>
+                            </div>
                         </motion.div>
                         
-                        <motion.div variants={scaleUp} className="hide-on-mobile" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '48px' }}>sync_alt</span>
+                        {/* Flèche */}
+                        <motion.div variants={scaleUp} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.2)', padding: '16px' }}>
+                            <span className="material-symbols-outlined" style={{ 
+                                fontSize: '48px', 
+                                transform: window.innerWidth < 768 ? 'rotate(90deg)' : 'rotate(0deg)' 
+                            }}>
+                                sync_alt
+                            </span>
                         </motion.div>
                         
-                        <motion.div variants={fadeInUp} style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        {/* Étape 2 */}
+                        <motion.div variants={fadeInUp} style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '20px', minWidth: '300px' }}>
                             <motion.div 
-                                whileHover={{ scale: 1.02, rotateY: 0 }}
-                                style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-2xl)', padding: 'var(--space-2)', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.05)', transform: 'perspective(1000px) rotateY(-5deg)', transition: 'transform 0.4s ease' }}
+                                whileHover={{ y: -5 }}
+                                style={{ 
+                                    background: 'linear-gradient(145deg, #111111 0%, #0a0a0a 100%)', 
+                                    borderRadius: 'var(--radius-2xl)', 
+                                    padding: 'var(--space-8)', 
+                                    boxShadow: '0 20px 40px rgba(0,0,0,0.5)', 
+                                    border: '1px solid rgba(255,215,0,0.3)', 
+                                    transition: 'all 0.4s ease',
+                                    position: 'relative',
+                                    overflow: 'hidden'
+                                }}
                             >
-                                <div style={{ background: 'var(--color-bg-dark)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-8)', height: '280px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-                                    <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, rgba(255,215,0,0.1), transparent)', pointerEvents: 'none' }} />
+                                {/* Effet de lueur dorée */}
+                                <div style={{ position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%', background: 'radial-gradient(circle at center, rgba(255,215,0,0.08) 0%, transparent 50%)', pointerEvents: 'none' }}></div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2 }}>
                                     <h3 style={{ fontSize: '32px', fontWeight: 800, color: 'var(--color-primary)', letterSpacing: '-1px', fontFamily: 'var(--font-logo)' }}>BRead</h3>
-                                    <p style={{ color: 'var(--color-text-muted)', marginTop: '8px' }}>L'application de lecture</p>
-                                    <div style={{ marginTop: '24px', width: '120px', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
+                                    <p style={{ color: darkThemeColors.textMuted, marginTop: '8px', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px' }}>L'Application</p>
+                                    
+                                    <div style={{ marginTop: '48px', marginBottom: '16px', width: '120px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
                                         <motion.div 
                                             initial={{ width: 0 }}
-                                            whileInView={{ width: '60%' }}
-                                            transition={{ duration: 1, delay: 0.5 }}
-                                            style={{ height: '100%', background: 'var(--color-primary)' }}
+                                            whileInView={{ width: '75%' }}
+                                            transition={{ duration: 1.5, delay: 0.5, ease: "easeOut" }}
+                                            style={{ height: '100%', background: 'var(--color-primary)', borderRadius: '3px' }}
                                         />
                                     </div>
                                 </div>
                             </motion.div>
-                            <h4 style={{ fontSize: 'var(--text-xl)', fontWeight: 'bold' }}>2. Lisez en toute fluidité</h4>
-                            <p style={{ color: 'var(--color-text-muted)' }}>Ouvrez BRead, vos livres vous y attendent déjà. Profitez d'une liseuse conçue pour vous.</p>
+                            <div>
+                                <h4 style={{ fontSize: '22px', fontWeight: 'bold', color: '#FFFFFF' }}>2. Lisez instantanément</h4>
+                                <p style={{ color: darkThemeColors.textMuted, marginTop: '8px', lineHeight: 1.5 }}>Connectez-vous à BRead. Vos achats sont synchronisés et prêts à être lus.</p>
+                            </div>
                         </motion.div>
                     </motion.div>
                 </section>
 
-                {/* Features Section */}
+                {/* 3. SECTION FONCTIONNALITÉS */}
                 <section style={{ padding: 'var(--space-16) var(--space-6)', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+                    
+                    <div style={{ textAlign: 'center', marginBottom: 'var(--space-12)' }}>
+                        <h2 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 800, color: '#FFFFFF' }}>Une expérience de lecture Premium</h2>
+                    </div>
+
                     <motion.div 
                         initial="hidden"
                         whileInView="visible"
                         viewport={{ once: true, margin: "-50px" }}
                         variants={staggerContainer}
-                        style={{ display: 'grid', gap: 'var(--space-6)', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}
+                        style={{ 
+                            display: 'grid', 
+                            gap: 'var(--space-6)', 
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' 
+                        }}
                     >
-                        <motion.div variants={scaleUp} whileHover={{ y: -8, backgroundColor: 'rgba(255,255,255,0.05)' }} className="card" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'left', padding: 'var(--space-8)', transition: 'background-color 0.3s ease' }}>
-                            <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(255,215,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)', marginBottom: 'var(--space-4)', border: '1px solid rgba(255,215,0,0.2)' }}>
+                        {/* Carte Fonctionnalité 1 */}
+                        <motion.div variants={scaleUp} whileHover={{ y: -8 }} style={{ 
+                            background: darkThemeColors.surface, 
+                            border: `1px solid ${darkThemeColors.border}`, 
+                            padding: 'var(--space-8)', 
+                            borderRadius: 'var(--radius-2xl)',
+                            transition: 'all 0.3s ease' 
+                        }}>
+                            <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', marginBottom: 'var(--space-5)' }}>
                                 <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>wifi_off</span>
                             </div>
-                            <h3 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>Lecture 100% Hors-Ligne</h3>
-                            <p style={{ color: 'var(--color-text-muted)', lineHeight: 1.6 }}>Téléchargez vos livres sur votre appareil et lisez-les n'importe où : dans l'avion, dans le métro ou en pleine nature, sans aucune connexion.</p>
+                            <h3 style={{ fontSize: '20px', fontWeight: 700, marginBottom: 'var(--space-3)', color: '#FFFFFF' }}>100% Hors-Ligne</h3>
+                            <p style={{ color: darkThemeColors.textMuted, lineHeight: 1.6, fontSize: '15px' }}>Téléchargez vos livres et profitez-en dans l'avion ou le métro, sans aucune connexion internet.</p>
                         </motion.div>
 
-                        <motion.div variants={scaleUp} whileHover={{ y: -8, backgroundColor: 'rgba(255,255,255,0.05)' }} className="card" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'left', padding: 'var(--space-8)', transition: 'background-color 0.3s ease' }}>
-                            <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(255,215,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)', marginBottom: 'var(--space-4)', border: '1px solid rgba(255,215,0,0.2)' }}>
+                        {/* Carte Fonctionnalité 2 */}
+                        <motion.div variants={scaleUp} whileHover={{ y: -8 }} style={{ 
+                            background: darkThemeColors.surface, 
+                            border: `1px solid ${darkThemeColors.border}`, 
+                            padding: 'var(--space-8)', 
+                            borderRadius: 'var(--radius-2xl)',
+                            transition: 'all 0.3s ease' 
+                        }}>
+                            <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', marginBottom: 'var(--space-5)' }}>
                                 <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>devices</span>
                             </div>
-                            <h3 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>Multi-Plateformes</h3>
-                            <p style={{ color: 'var(--color-text-muted)', lineHeight: 1.6 }}>Installez BRead comme une application native sur votre téléphone, tablette ou ordinateur. Reprenez votre lecture exactement là où vous l'avez laissée.</p>
+                            <h3 style={{ fontSize: '20px', fontWeight: 700, marginBottom: 'var(--space-3)', color: '#FFFFFF' }}>Multi-Plateformes</h3>
+                            <p style={{ color: darkThemeColors.textMuted, lineHeight: 1.6, fontSize: '15px' }}>Installez l'app sur téléphone, tablette ou PC. Reprenez votre lecture exactement où vous l'avez laissée.</p>
                         </motion.div>
 
-                        <motion.div variants={scaleUp} whileHover={{ y: -8, backgroundColor: 'rgba(255,255,255,0.05)' }} className="card" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'left', padding: 'var(--space-8)', transition: 'background-color 0.3s ease' }}>
-                            <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(255,215,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)', marginBottom: 'var(--space-4)', border: '1px solid rgba(255,215,0,0.2)' }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>tune</span>
+                        {/* Carte Fonctionnalité 3 */}
+                        <motion.div variants={scaleUp} whileHover={{ y: -8 }} style={{ 
+                            background: darkThemeColors.surface, 
+                            border: `1px solid ${darkThemeColors.border}`, 
+                            padding: 'var(--space-8)', 
+                            borderRadius: 'var(--radius-2xl)',
+                            transition: 'all 0.3s ease' 
+                        }}>
+                            <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,165,0,0.1))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)', marginBottom: 'var(--space-5)', border: '1px solid rgba(255,215,0,0.2)' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>record_voice_over</span>
                             </div>
-                            <h3 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>Liseuse Personnalisable</h3>
-                            <p style={{ color: 'var(--color-text-muted)', lineHeight: 1.6 }}>Mode sombre, mode clair, tailles de police ajustables et navigation fluide. BRead s'adapte à vos préférences pour un confort des yeux optimal.</p>
+                            <h3 style={{ fontSize: '20px', fontWeight: 700, marginBottom: 'var(--space-3)', color: '#FFFFFF' }}>Voix IA Ultra-Réalistes</h3>
+                            <p style={{ color: darkThemeColors.textMuted, lineHeight: 1.6, fontSize: '15px' }}>Fermez les yeux et écoutez. L'IA lit vos livres avec une intonation humaine parfaite grâce à ElevenLabs.</p>
                         </motion.div>
                     </motion.div>
                 </section>
                 
-                {/* CTA Section */}
+                {/* 4. SECTION CTA */}
                 <motion.section 
-                    initial={{ opacity: 0, y: 50 }}
-                    whileInView={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
                     viewport={{ once: true }}
-                    transition={{ duration: 0.8 }}
-                    style={{ padding: 'var(--space-16) var(--space-6)', textAlign: 'center', background: 'linear-gradient(to top, rgba(255,215,0,0.05) 0%, rgba(0,0,0,0) 100%)' }}
+                    transition={{ duration: 1 }}
+                    style={{ 
+                        padding: 'var(--space-20) var(--space-6)', 
+                        textAlign: 'center', 
+                        background: `linear-gradient(to top, rgba(255,215,0,0.03) 0%, ${darkThemeColors.bg} 100%)`,
+                        borderTop: `1px solid ${darkThemeColors.border}`
+                    }}
                 >
-                    <h2 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 800, marginBottom: 'var(--space-6)' }}>Prêt à plonger dans votre prochain livre ?</h2>
+                    <h2 style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 800, marginBottom: 'var(--space-6)', color: '#FFFFFF' }}>Prêt à plonger ?</h2>
                     <motion.button 
-                        whileHover={{ scale: 1.05, boxShadow: '0 10px 30px rgba(255,215,0,0.3)' }}
+                        whileHover={{ scale: 1.05, boxShadow: '0 10px 40px rgba(255,215,0,0.4)' }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => navigate('/login')} 
                         className="btn btn-primary btn-lg" 
-                        style={{ padding: '18px 48px', fontSize: '20px', borderRadius: 'var(--radius-full)' }}
+                        style={{ padding: '18px 48px', fontSize: '20px', borderRadius: 'var(--radius-full)', fontWeight: 800 }}
                     >
-                        Se connecter à BRead
+                        Ouvrir BRead
                     </motion.button>
                 </motion.section>
             </main>
 
             {/* Footer */}
-            <footer style={{ padding: 'var(--space-8) var(--space-6)', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', background: 'var(--color-bg-dark)' }}>
+            <footer style={{ padding: 'var(--space-10) var(--space-6)', textAlign: 'center', borderTop: `1px solid ${darkThemeColors.border}`, background: darkThemeColors.bgDark }}>
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginBottom: 'var(--space-4)' }}>
-                    <span style={{ fontFamily: 'var(--font-logo)', fontSize: '24px', fontWeight: 700, color: 'var(--color-text)' }}>BRead</span>
-                    <span style={{ color: 'var(--color-text-muted)' }}>&times;</span>
-                    <span style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-text)' }}>BoomBooks</span>
+                    <span style={{ fontFamily: 'var(--font-logo)', fontSize: '24px', fontWeight: 800, color: darkThemeColors.text }}>BRead</span>
+                    <span style={{ color: darkThemeColors.textMuted }}>&times;</span>
+                    <span style={{ fontSize: '20px', fontWeight: 800, color: darkThemeColors.text }}>BoomBooks</span>
                 </div>
-                <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>&copy; {new Date().getFullYear()} BRead App. L'application officielle de BoomBooks.</p>
+                <p style={{ color: darkThemeColors.textMuted, fontSize: '14px' }}>&copy; {new Date().getFullYear()} BRead App. L'application officielle de BoomBooks.</p>
             </footer>
         </div>
     );
 }
+
