@@ -18,8 +18,9 @@ import OfflineStatus from './pages/OfflineStatus';
 import Admin from './pages/Admin';
 import TopBar from './components/TopBar';
 import BottomNav from './components/BottomNav';
-import GlobalAIChat from './components/GlobalAIChat';
 import { ChatProvider } from './lib/ChatContext';
+import ChatIndex from './pages/ChatIndex';
+import AIChat from './pages/AIChat';
 
 // Composant pour protéger les routes utilisateurs connectés
 function ProtectedRoute({ children }) {
@@ -98,7 +99,6 @@ function MainLayout({ children }) {
       <main className="container">
         {children}
       </main>
-      <GlobalAIChat />
       <BottomNav />
     </div>
   );
@@ -200,8 +200,23 @@ function AppContent() {
         <Route path="/chat" element={
           <ProtectedRoute>
             <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--color-bg)', overflow: 'hidden' }}>
+              <ChatIndex />
+            </div>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/chat/community" element={
+          <ProtectedRoute>
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--color-bg)', overflow: 'hidden' }}>
               <Chat />
-              <GlobalAIChat />
+            </div>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/chat/ai" element={
+          <ProtectedRoute>
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--color-bg)', overflow: 'hidden' }}>
+              <AIChat />
             </div>
           </ProtectedRoute>
         } />

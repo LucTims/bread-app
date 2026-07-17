@@ -421,7 +421,7 @@ export default function Chat() {
                 ) : (
                     <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <button onClick={() => navigate('/home')} className="btn-ghost" style={{ padding: 4, marginRight: 4 }}>
+                            <button onClick={() => navigate('/chat')} className="btn-ghost" style={{ padding: 4, marginRight: 4 }}>
                                 <span className="material-symbols-outlined" style={{ fontSize: 24 }}>arrow_back</span>
                             </button>
                             <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary), #FF8C00)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>

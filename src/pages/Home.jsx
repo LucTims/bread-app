@@ -372,6 +372,34 @@ export default function Home() {
                     <div className="spinner" />
                 </div>
             )}
+
+            {/* Floating Action Button (WhatsApp Style) for AI Chat */}
+            <button 
+                onClick={() => navigate('/chat/ai')}
+                style={{
+                    position: 'fixed',
+                    bottom: 'calc(var(--bottom-nav-height) + 16px)',
+                    right: '16px',
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, var(--color-primary), #FF8C00)',
+                    boxShadow: '0 4px 12px rgba(255, 140, 0, 0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: 'none',
+                    padding: 0,
+                    zIndex: 1000,
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s',
+                    overflow: 'hidden'
+                }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+            >
+                <img src="/ai-logo.png" alt="AI Chat" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </button>
         </div>
     );
 }
