@@ -425,10 +425,10 @@ export default function Chat() {
                                 <span className="material-symbols-outlined" style={{ fontSize: 24 }}>arrow_back</span>
                             </button>
                             <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary), #FF8C00)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                                <img src="/ai-logo.png" alt="BRead" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                <img src="/ai-logo.png" alt="BoomRead" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <h1 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Communauté BRead</h1>
+                                <h1 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Communauté BoomRead</h1>
                                 <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
                                     {typingUsers.length > 0 ? `${typingUsers.join(', ')} écrit...` : 'Cliquez pour les infos'}
                                 </span>
@@ -874,7 +874,7 @@ export default function Chat() {
                         borderRadius: '16px', padding: 24, width: '100%', maxWidth: 400,
                         boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
                     }}>
-                        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Communauté BRead</h2>
+                        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Communauté BoomRead</h2>
                         <p style={{ color: 'var(--color-text-muted)', fontSize: 14, lineHeight: 1.5, marginBottom: 20 }}>
                             Bienvenue dans la communauté ! Discutez avec d'autres lecteurs, partagez vos coups de cœur et vos avis. Restez courtois et respectueux.
                         </p>

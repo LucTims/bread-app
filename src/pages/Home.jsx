@@ -350,7 +350,7 @@ export default function Home() {
                 <div className="empty-state" style={{ paddingTop: 60 }}>
                     <span className="material-symbols-outlined empty-state-icon" style={{ color: 'var(--color-primary)', fontSize: 56 }}>library_books</span>
                     <h3 style={{ fontWeight: 700, marginTop: 12 }}>
-                        {isOffline ? 'Aucun livre hors-ligne' : 'Bienvenue sur BRead !'}
+                        {isOffline ? 'Aucun livre hors-ligne' : 'Bienvenue sur BoomRead !'}
                     </h3>
                     <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', marginTop: 8, maxWidth: 280, lineHeight: 1.6, margin: '8px auto 0' }}>
                         {isOffline 

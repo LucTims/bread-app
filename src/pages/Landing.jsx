@@ -100,7 +100,7 @@ export default function Landing() {
                     maxWidth: 'var(--container-max)',
                     margin: '0 auto'
                 }}>
-                    <div style={{ fontFamily: 'var(--font-logo)', fontSize: '28px', fontWeight: 800, color: 'var(--color-primary)', letterSpacing: '-0.5px' }}>BRead</div>
+                    <div style={{ fontFamily: 'var(--font-logo)', fontSize: '28px', fontWeight: 800, color: 'var(--color-primary)', letterSpacing: '-0.5px' }}>BoomRead</div>
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                         {/* BOUTON BOOMBOOKS AMÉLIORÉ (Plus compact) */}
                         <a 
@@ -308,7 +308,7 @@ export default function Landing() {
                                 <div style={{ position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%', background: 'radial-gradient(circle at center, rgba(255,215,0,0.08) 0%, transparent 50%)', pointerEvents: 'none' }}></div>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2 }}>
-                                    <h3 style={{ fontSize: '32px', fontWeight: 800, color: 'var(--color-primary)', letterSpacing: '-1px', fontFamily: 'var(--font-logo)' }}>BRead</h3>
+                                    <h3 style={{ fontSize: '32px', fontWeight: 800, color: 'var(--color-primary)', letterSpacing: '-1px', fontFamily: 'var(--font-logo)' }}>BoomRead</h3>
                                     <p style={{ color: darkThemeColors.textMuted, marginTop: '8px', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px' }}>L'Application</p>
                                     
                                     <div style={{ marginTop: '48px', marginBottom: '16px', width: '120px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
@@ -323,7 +323,7 @@ export default function Landing() {
                             </motion.div>
                             <div>
                                 <h4 style={{ fontSize: '22px', fontWeight: 'bold', color: '#FFFFFF' }}>2. Lisez instantanément</h4>
-                                <p style={{ color: darkThemeColors.textMuted, marginTop: '8px', lineHeight: 1.5 }}>Connectez-vous à BRead. Vos achats sont synchronisés et prêts à être lus.</p>
+                                <p style={{ color: darkThemeColors.textMuted, marginTop: '8px', lineHeight: 1.5 }}>Connectez-vous à BoomRead. Vos achats sont synchronisés et prêts à être lus.</p>
                             </div>
                         </motion.div>
                     </motion.div>
@@ -415,7 +415,7 @@ export default function Landing() {
                         className="btn btn-primary btn-lg" 
                         style={{ padding: '18px 48px', fontSize: '20px', borderRadius: 'var(--radius-full)', fontWeight: 800 }}
                     >
-                        Ouvrir BRead
+                        Ouvrir BoomRead
                     </motion.button>
                 </motion.section>
             </main>
@@ -423,11 +423,11 @@ export default function Landing() {
             {/* Footer */}
             <footer style={{ padding: 'var(--space-10) var(--space-6)', textAlign: 'center', borderTop: `1px solid ${darkThemeColors.border}`, background: darkThemeColors.bgDark }}>
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginBottom: 'var(--space-4)' }}>
-                    <span style={{ fontFamily: 'var(--font-logo)', fontSize: '24px', fontWeight: 800, color: darkThemeColors.text }}>BRead</span>
+                    <span style={{ fontFamily: 'var(--font-logo)', fontSize: '24px', fontWeight: 800, color: darkThemeColors.text }}>BoomRead</span>
                     <span style={{ color: darkThemeColors.textMuted }}>&times;</span>
                     <span style={{ fontSize: '20px', fontWeight: 800, color: darkThemeColors.text }}>BoomBooks</span>
                 </div>
-                <p style={{ color: darkThemeColors.textMuted, fontSize: '14px' }}>&copy; {new Date().getFullYear()} BRead App. L'application officielle de BoomBooks.</p>
+                <p style={{ color: darkThemeColors.textMuted, fontSize: '14px' }}>&copy; {new Date().getFullYear()} BoomRead App. L'application officielle de BoomBooks.</p>
             </footer>
         </div>
     );

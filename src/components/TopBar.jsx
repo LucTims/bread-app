@@ -100,7 +100,7 @@ export default function TopBar() {
                     )}
                 </div>
                 
-                <h1 style={{ fontFamily: 'var(--font-logo)', fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--color-text)' }}>BRead</h1>
+                <h1 style={{ fontFamily: 'var(--font-logo)', fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--color-text)' }}>BoomRead</h1>
                 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     {streak > 0 && (

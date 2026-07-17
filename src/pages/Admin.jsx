@@ -334,7 +334,7 @@ export default function Admin() {
                                     <span className="material-symbols-outlined" style={{ color: '#fccb90', fontSize: 20 }}>book_2</span>
                                 </div>
                                 <h3 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: 'var(--color-text)' }}>{stats.booksCount}</h3>
-                                <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8, margin: 0 }}>Catalogue BRead</p>
+                                <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8, margin: 0 }}>Catalogue BoomRead</p>
                             </div>
                         </div>
 
@@ -877,7 +877,7 @@ export default function Admin() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
                             <div>
                                 <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Profils des Utilisateurs Synchronisés</h3>
-                                <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: 0 }}>Comptes créés sur BRead ou synchronisés de BoomBooks</p>
+                                <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: 0 }}>Comptes créés sur BoomRead ou synchronisés de BoomBooks</p>
                             </div>
                             <input 
                                 type="text"

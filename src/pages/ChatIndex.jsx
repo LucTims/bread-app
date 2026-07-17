@@ -83,7 +83,7 @@ export default function ChatIndex() {
                     
                     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' }}>
-                            <h2 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0, color: 'var(--color-text)' }}>Assistant IA BRead</h2>
+                            <h2 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0, color: 'var(--color-text)' }}>Assistant IA BoomRead</h2>
                             <span style={{ fontSize: '12px', color: 'var(--color-primary)', fontWeight: 500 }}>En ligne</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

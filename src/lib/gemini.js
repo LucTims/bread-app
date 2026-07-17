@@ -1,8 +1,9 @@
-// AI Chat helper for BRead — supports OpenRouter + Gemini fallback
+// AI Chat helper for BoomRead — supports OpenRouter + Gemini fallback
+
 const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-const SYSTEM_PROMPT = `Tu es un assistant de lecture intelligent intégré dans l'application BRead. 
+const SYSTEM_PROMPT = `Tu es un assistant de lecture intelligent intégré dans l'application BoomRead. 
 Tu aides les lecteurs à comprendre le livre qu'ils lisent.
 
 Règles :
@@ -48,7 +49,7 @@ async function askOpenRouter(question, bookContext, chatHistory = []) {
             'Authorization': `Bearer ${OPENROUTER_KEY}`,
             'Content-Type': 'application/json',
             'HTTP-Referer': 'https://breadapp.shop',
-            'X-Title': 'BRead - Liseuse IA'
+            'X-Title': 'BoomRead - Liseuse IA'
         },
         body: JSON.stringify({
             model: 'google/gemini-2.5-flash',
@@ -114,7 +115,7 @@ export const QUICK_ACTIONS = [
     { icon: 'quiz', label: 'Quiz', prompt: 'Génère 3 questions de compréhension basées sur cette page avec les réponses.' },
 ];
 
-const GLOBAL_SYSTEM_PROMPT = `Tu es un compagnon de lecture et assistant intelligent intégré dans l'application BRead.
+const GLOBAL_SYSTEM_PROMPT = `Tu es un compagnon de lecture et assistant intelligent intégré dans l'application BoomRead.
 Tu connais l'activité de l'utilisateur sur l'application (les livres de sa bibliothèque, leur résumé complet, son livre actuellement en cours de lecture, sa progression, son profil).
 
 Ton but est d'accompagner l'utilisateur dans son parcours de lecteur :
@@ -148,7 +149,7 @@ export async function askGlobalGemini(question, activityContext, chatHistory = [
                     'Authorization': `Bearer ${OPENROUTER_KEY}`,
                     'Content-Type': 'application/json',
                     'HTTP-Referer': 'https://breadapp.shop',
-                    'X-Title': 'BRead - Compagnon IA'
+                    'X-Title': 'BoomRead - Compagnon IA'
                 },
                 body: JSON.stringify({
                     model: 'google/gemini-2.5-flash',

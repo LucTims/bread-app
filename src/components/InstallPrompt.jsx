@@ -77,7 +77,7 @@ function InstallHelpModal({ isOpen, onClose }) {
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
             <div onClick={e => e.stopPropagation()} style={{ background: 'var(--color-surface, #1a1a2e)', borderRadius: 20, padding: '28px 24px', maxWidth: 340, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                    <h3 style={{ fontSize: 18, fontWeight: 700 }}>📲 Installer BRead</h3>
+                    <h3 style={{ fontSize: 18, fontWeight: 700 }}>📲 Installer BoomRead</h3>
                     <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
                         <span className="material-symbols-outlined">close</span>
                     </button>

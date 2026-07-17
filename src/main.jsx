@@ -11,7 +11,7 @@ const updateSW = registerSW({
     updateSW(true)
   },
   onOfflineReady() {
-    console.log('✅ BRead est prêt pour une utilisation hors-ligne !')
+    console.log('✅ BoomRead est prêt pour une utilisation hors-ligne !')
   },
 })
 

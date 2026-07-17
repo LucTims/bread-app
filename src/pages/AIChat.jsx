@@ -64,7 +64,7 @@ export default function AIChat() {
         if (messages.length === 0 && user) {
             const firstName = profile?.full_name?.split(' ')[0] || 'lecteur';
             setMessages([
-                { role: 'assistant', text: `Bonjour ${firstName} ! 👋 Je suis l'assistant IA de BRead. Je vois que vous avez ${allBooks.length} livre(s) dans votre bibliothèque. Que puis-je faire pour vous aujourd'hui ?` }
+                { role: 'assistant', text: `Bonjour ${firstName} ! 👋 Je suis l'assistant IA de BoomRead. Je vois que vous avez ${allBooks.length} livre(s) dans votre bibliothèque. Que puis-je faire pour vous aujourd'hui ?` }
             ]);
         }
     }, [messages.length, user, profile, allBooks.length]);
@@ -150,7 +150,7 @@ ${bookDetails || 'Aucun livre pour le moment'}
                     <img src="/ai-logo.png" alt="AI Assistant" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </div>
                 <div>
-                    <h1 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--color-text)' }}>Assistant IA BRead</h1>
+                    <h1 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--color-text)' }}>Assistant IA BoomRead</h1>
                     <p style={{ margin: 0, fontSize: '12px', color: 'var(--color-primary)', fontWeight: 500 }}>En ligne</p>
                 </div>
             </div>
