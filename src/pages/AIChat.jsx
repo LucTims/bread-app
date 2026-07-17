@@ -61,13 +61,13 @@ export default function AIChat() {
 
     // Initial greeting if empty
     useEffect(() => {
-        if (messages.length === 0 && user) {
+        if (user && (messages.length === 0 || (messages.length === 1 && messages[0].role === 'assistant'))) {
             const firstName = profile?.full_name?.split(' ')[0] || 'lecteur';
             setMessages([
                 { role: 'assistant', text: `Bonjour ${firstName} ! 👋 Je suis l'assistant IA de BoomRead. Je vois que vous avez ${allBooks.length} livre(s) dans votre bibliothèque. Que puis-je faire pour vous aujourd'hui ?` }
             ]);
         }
-    }, [messages.length, user, profile, allBooks.length]);
+    }, [user, profile, allBooks.length]);
 
     const getActivityContext = () => {
         const books = allBooks;
