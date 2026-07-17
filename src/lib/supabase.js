@@ -8,3 +8,16 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+export async function getFreeBooks() {
+    try {
+        const { data } = await supabase
+            .from('books')
+            .select('id, title, author, cover_url, file_url, description')
+            .ilike('title', '%devenez riche%')
+            .limit(1);
+        return data || [];
+    } catch (e) {
+        return [];
+    }
+}

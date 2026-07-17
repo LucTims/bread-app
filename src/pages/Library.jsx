@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase, getFreeBooks } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import {
     isBookOffline, getReadingProgress, getStorageUsage, formatSize,
@@ -98,15 +98,21 @@ export default function Home() {
                 let bookList = [];
                 if (accessRows?.length) {
                     bookList = accessRows.filter(r => r.books).map(r => ({ ...r.books, granted_at: r.granted_at }));
-                } else {
-                    const { data: orders } = await supabase.from('orders')
-                        .select('id, order_items(book_id, books(id, title, author, cover_url, file_url))')
-                        .eq('user_id', user.id).eq('status', 'paid');
-                    const seen = new Set();
-                    (orders || []).forEach(o => o.order_items?.forEach(oi => {
-                        if (oi.books && !seen.has(oi.books.id)) { seen.add(oi.books.id); bookList.push(oi.books); }
-                    }));
                 }
+                
+                const { data: orders } = await supabase.from('orders')
+                    .select('id, order_items(book_id, books(id, title, author, cover_url, file_url))')
+                    .eq('user_id', user.id).eq('status', 'paid');
+                const seen = new Set(bookList.map(b => b.id));
+                (orders || []).forEach(o => o.order_items?.forEach(oi => {
+                    if (oi.books && !seen.has(oi.books.id)) { seen.add(oi.books.id); bookList.push(oi.books); }
+                }));
+
+                const freeBooks = await getFreeBooks();
+                freeBooks.forEach(fb => {
+                    if (!seen.has(fb.id)) { seen.add(fb.id); bookList.push({...fb, is_free_offer: true}); }
+                });
+
                 setBooks(bookList);
                 await refreshOfflineStatus(bookList);
 

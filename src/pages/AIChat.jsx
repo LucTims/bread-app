@@ -3,7 +3,7 @@ import { useAuth } from '../lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { askGlobalGemini, GLOBAL_QUICK_ACTIONS } from '../lib/gemini';
 import { getOfflineBooksSync, getProgressMapSync } from '../lib/offlineStore';
-import { supabase } from '../lib/supabase';
+import { supabase, getFreeBooks } from '../lib/supabase';
 
 export default function AIChat() {
     const { user, profile } = useAuth();
@@ -34,15 +34,20 @@ export default function AIChat() {
 
                 if (accessRows?.length) {
                     bookList = accessRows.filter(r => r.books).map(r => ({ ...r.books, granted_at: r.granted_at }));
-                } else {
-                    const { data: orders } = await supabase.from('orders')
-                        .select('id, order_items(book_id, books(id, title, author, description))')
-                        .eq('user_id', user.id).eq('status', 'paid');
-                    const seen = new Set();
-                    (orders || []).forEach(o => o.order_items?.forEach(oi => {
-                        if (oi.books && !seen.has(oi.books.id)) { seen.add(oi.books.id); bookList.push(oi.books); }
-                    }));
                 }
+                
+                const { data: orders } = await supabase.from('orders')
+                    .select('id, order_items(book_id, books(id, title, author, description))')
+                    .eq('user_id', user.id).eq('status', 'paid');
+                const seen = new Set(bookList.map(b => b.id));
+                (orders || []).forEach(o => o.order_items?.forEach(oi => {
+                    if (oi.books && !seen.has(oi.books.id)) { seen.add(oi.books.id); bookList.push(oi.books); }
+                }));
+
+                const freeBooks = await getFreeBooks();
+                freeBooks.forEach(fb => {
+                    if (!seen.has(fb.id)) { seen.add(fb.id); bookList.push(fb); }
+                });
                 
                 // Merge with offline books
                 const offline = getOfflineBooksSync();
