@@ -5,7 +5,7 @@ export default function BookChat({ isOpen, onClose, extractPageText, pageNumber,
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
-    const [contextPages, setContextPages] = useState('current'); // 'current' | '3pages' | '5pages'
+    const [contextPages, setContextPages] = useState('current'); // 'current' | '3pages' | '5pages' | 'all'
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
 
@@ -27,6 +27,9 @@ export default function BookChat({ isOpen, onClose, extractPageText, pageNumber,
         } else if (contextPages === '5pages') {
             start = Math.max(1, pageNumber - 2);
             end = Math.min(numPages || pageNumber, pageNumber + 2);
+        } else if (contextPages === 'all') {
+            start = 1;
+            end = numPages || pageNumber;
         }
 
         for (let p = start; p <= end; p++) {
@@ -44,6 +47,7 @@ export default function BookChat({ isOpen, onClose, extractPageText, pageNumber,
         setLoading(true);
 
         try {
+            // If "all" is selected, the context extraction can take a few seconds
             const context = await getBookContext();
             // Only send last 6 messages for context window
             const history = [...messages.slice(-6), userMsg];
@@ -92,6 +96,7 @@ export default function BookChat({ isOpen, onClose, extractPageText, pageNumber,
                         <option value="current" style={{ background: '#1a1a1a' }}>1 page</option>
                         <option value="3pages" style={{ background: '#1a1a1a' }}>3 pages</option>
                         <option value="5pages" style={{ background: '#1a1a1a' }}>5 pages</option>
+                        <option value="all" style={{ background: '#1a1a1a' }}>Tout le livre (Lent)</option>
                     </select>
                     <button onClick={onClose} style={{ color: '#fff', padding: 4 }}>
                         <span className="material-symbols-outlined" style={{ fontSize: 22 }}>close</span>
