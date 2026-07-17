@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { getOfflineBook, getBookMeta, saveReadingProgress, getReadingProgress, saveBookOffline, saveCoverOffline, enqueueReadingStats } from '../lib/offlineStore';
-import { supabase } from '../lib/supabase';
+import { supabase, getFreeBooks } from '../lib/supabase';
 import { Document, Page, pdfjs } from 'react-pdf';
 import BookChat from '../components/BookChat';
 import { fetchElevenLabsVoices, generateElevenLabsSpeech, getElevenLabsCredits } from '../lib/elevenLabs';
@@ -172,6 +172,10 @@ export default function Reader() {
                         .select('id, order_items(book_id)')
                         .eq('user_id', user.id).eq('status', 'paid');
                     hasAccess = orders?.some(o => o.order_items?.some(oi => oi.book_id === bookId));
+                }
+                if (!hasAccess) {
+                    const freeBooks = await getFreeBooks();
+                    hasAccess = freeBooks.some(fb => fb.id === bookId);
                 }
                 if (!hasAccess) throw new Error("Accès non autorisé. Vous n'avez pas acheté ce livre.");
 
