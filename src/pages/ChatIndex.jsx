@@ -60,7 +60,7 @@ export default function ChatIndex() {
                 </div>
             </header>
 
-            <div style={{ flex: 1, overflowY: 'auto' }}>
+            <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 'var(--bottom-nav-height)' }}>
                 {/* Chat IA */}
                 <div 
                     onClick={() => navigate('/chat/ai')}
