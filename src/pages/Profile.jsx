@@ -43,9 +43,23 @@ export default function Profile() {
 
                     const { data: access } = await supabase
                         .from('user_book_access').select('id').eq('user_id', user.id);
+                    
+                    const { data: orders } = await supabase.from('orders')
+                        .select('id, order_items(book_id)')
+                        .eq('user_id', user.id).eq('status', 'paid');
+                    
+                    let totalBooks = access?.length || 0;
+                    if (orders) {
+                        const seen = new Set();
+                        orders.forEach(o => o.order_items?.forEach(oi => {
+                            if (oi.book_id && !seen.has(oi.book_id)) { seen.add(oi.book_id); }
+                        }));
+                        totalBooks += seen.size;
+                    }
+
                     const offBooks = await getAllOfflineBooks();
                     const storageInfo = await getStorageUsage();
-                    setStats({ booksOwned: access?.length || 0, booksOffline: offBooks.length });
+                    setStats({ booksOwned: totalBooks, booksOffline: offBooks.length });
                     setStorage(storageInfo);
                 } catch (err) { console.error('Profile stats error:', err); }
             })();
