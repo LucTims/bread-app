@@ -185,12 +185,19 @@ export default function Reader() {
 
                 const filePath = book.file_url || `pdfs/${bookId}.pdf`;
                 let blob = null;
-                const { data: directBlob, error: dlErr } = await supabase.storage.from('books').download(filePath);
-                if (!dlErr && directBlob) { blob = directBlob; }
-                else {
-                    const { data: sd } = await supabase.storage.from('books').createSignedUrl(filePath, 3600);
-                    if (sd?.signedUrl) { const r = await fetch(sd.signedUrl); if (r.ok) blob = await r.blob(); }
+                
+                if (filePath.startsWith('http')) {
+                    const r = await fetch(filePath);
+                    if (r.ok) blob = await r.blob();
+                } else {
+                    const { data: directBlob, error: dlErr } = await supabase.storage.from('books').download(filePath);
+                    if (!dlErr && directBlob) { blob = directBlob; }
+                    else {
+                        const { data: sd } = await supabase.storage.from('books').createSignedUrl(filePath, 3600);
+                        if (sd?.signedUrl) { const r = await fetch(sd.signedUrl); if (r.ok) blob = await r.blob(); }
+                    }
                 }
+                
                 if (!blob) throw new Error("Le fichier PDF n'est pas disponible.");
 
                 await saveBookOffline(bookId, blob, { title: book.title, author: book.author, cover_url: book.cover_url });
@@ -482,11 +489,11 @@ export default function Reader() {
     );
 
     if (error) return (
-        <div className="reader-container" style={{ alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+        <div className="reader-container" style={{ alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg)', color: 'var(--color-text)' }}>
             <div className="empty-state">
                 <span className="material-symbols-outlined empty-state-icon" style={{ color: 'var(--color-accent)' }}>error</span>
                 <h2>Impossible de lire le livre</h2>
-                <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: 20 }}>{error}</p>
+                <p style={{ color: 'var(--color-text-muted)', marginBottom: 20 }}>{error}</p>
                 <button className="btn btn-primary" onClick={() => navigate('/home')}>Retour</button>
             </div>
         </div>
