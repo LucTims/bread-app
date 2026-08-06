@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import heroVideo from '../assets/animation/ChengYiUniverse888_pindown.io_1781629419.mp4';
 import ecosystemImg from '../assets/ecosystem_illustration.jpg';
 import premiumImg from '../assets/premium_reading.jpg';
+import logoImg from '../assets/logo.jpg';
 
 // Configuration des animations
 const fadeInUp = {
@@ -105,7 +106,10 @@ export default function Landing() {
                     maxWidth: '1200px',
                     margin: '0 auto'
                 }}>
-                    <div style={{ fontFamily: 'var(--font-logo)', fontSize: '28px', fontWeight: 800, color: 'var(--color-primary)', letterSpacing: '-0.5px' }}>BoomRead</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <img src={logoImg} alt="BoomRead Logo" style={{ width: '40px', height: '40px', borderRadius: '10px' }} />
+                        <div style={{ fontFamily: 'var(--font-logo)', fontSize: '28px', fontWeight: 800, color: 'var(--color-primary)', letterSpacing: '-0.5px' }}>BoomRead</div>
+                    </div>
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                         <a 
                             href="https://boombooks.shop" 
