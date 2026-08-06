@@ -95,20 +95,10 @@ export default function Landing() {
                     zIndex: 1 
                 }} />
 
-                <header style={{ 
-                    padding: 'var(--space-4) var(--space-6)', 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center', 
-                    position: 'relative', 
-                    zIndex: 20,
-                    width: '100%',
-                    maxWidth: '1200px',
-                    margin: '0 auto'
-                }}>
+                <header className="landing-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <img src={logoImg} alt="BoomRead Logo" style={{ width: '40px', height: '40px', borderRadius: '10px' }} />
-                        <div style={{ fontFamily: 'var(--font-logo)', fontSize: '28px', fontWeight: 800, color: 'var(--color-primary)', letterSpacing: '-0.5px' }}>BoomRead</div>
+                        <div className="header-brand-text" style={{ fontFamily: 'var(--font-logo)', fontSize: '28px', fontWeight: 800, color: 'var(--color-primary)', letterSpacing: '-0.5px' }}>BoomRead</div>
                     </div>
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                         <a 
