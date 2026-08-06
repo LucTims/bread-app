@@ -844,3 +844,22 @@ input, select, textarea {
     font-size: 18px;
     letter-spacing: 2px;
 }
+
+/* Landing Page Responsive */
+.landing-grid {
+    display: grid;
+    gap: 60px;
+    align-items: center;
+    grid-template-columns: 1fr;
+}
+@media (min-width: 768px) {
+    .landing-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+.landing-section-2-text { order: 2; }
+.landing-section-2-img { order: 1; }
+@media (min-width: 768px) {
+    .landing-section-2-text { order: 1; }
+    .landing-section-2-img { order: 2; }
+}

@@ -3,6 +3,8 @@ import { useAuth } from '../lib/AuthContext';
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import heroVideo from '../assets/animation/ChengYiUniverse888_pindown.io_1781629419.mp4';
+import ecosystemImg from '../assets/ecosystem_illustration.jpg';
+import premiumImg from '../assets/premium_reading.jpg';
 
 // Configuration des animations
 const fadeInUp = {
@@ -40,7 +42,7 @@ export default function Landing() {
 
     // Couleurs pour le Hero (sombre)
     const heroColors = {
-        bg: '#0a0a0a',
+        bg: '#374151', // Gris cassé (foncé)
         text: '#f3f4f6',
         textMuted: '#9ca3af',
     };
@@ -61,11 +63,12 @@ export default function Landing() {
             {/* 1. SECTION HERO (Sombre avec Vidéo) */}
             <section style={{ 
                 position: 'relative',
-                minHeight: '100vh',
+                minHeight: '75vh',
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
-                background: heroColors.bg
+                background: heroColors.bg,
+                paddingBottom: '40px'
             }}>
                 <video 
                     src={heroVideo} 
@@ -81,13 +84,13 @@ export default function Landing() {
                         height: '100%', 
                         objectFit: 'cover', 
                         zIndex: 0,
-                        opacity: 0.8
+                        opacity: 0.6
                     }}
                 />
                 <div style={{ 
                     position: 'absolute', 
                     inset: 0, 
-                    background: `linear-gradient(to bottom, rgba(10, 10, 10, 0.4) 0%, rgba(10, 10, 10, 0.8) 70%, ${heroColors.bg} 100%)`, 
+                    background: `linear-gradient(to bottom, rgba(55, 65, 81, 0.4) 0%, rgba(55, 65, 81, 0.9) 100%)`, 
                     zIndex: 1 
                 }} />
 
@@ -194,7 +197,6 @@ export default function Landing() {
                             variants={fadeInUp}
                             onClick={() => navigate('/login')} 
                             style={{ 
-                                background: '#FF3B30', // Rouge vibrant inspiré de Tribbut ou on peut utiliser du noir
                                 background: '#000',
                                 color: '#FFF',
                                 padding: '16px 40px', 
@@ -219,14 +221,21 @@ export default function Landing() {
                 </div>
             </section>
 
+            {/* DEGRADÉ DE TRANSITION */}
+            <div style={{
+                height: '60px',
+                background: `linear-gradient(to bottom, ${heroColors.bg} 0%, ${lightColors.bg} 100%)`,
+                marginTop: '-1px' /* Pour éviter une ligne blanche de pixel */
+            }}></div>
+
             {/* DEBUT DU THEME CLAIR */}
-            <main style={{ flex: 1, display: 'flex', flexDirection: 'column', background: lightColors.bg }}>
+            <main style={{ flex: 1, display: 'flex', flexDirection: 'column', background: lightColors.bg, marginTop: 0 }}>
                 
                 {/* 2. SECTION ÉCOSYSTÈME (Inspiration Tribbut : Image à gauche, Texte à droite) */}
                 <section style={{ padding: '80px 24px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
                     
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '60px', alignItems: 'center' }}>
-                        {/* Côté "Image" (Design Abstrait/Graphique) */}
+                    <div className="landing-grid">
+                        {/* Côté "Image" (Image générée) */}
                         <motion.div 
                             initial={{ opacity: 0, x: -50 }}
                             whileInView={{ opacity: 1, x: 0 }}
@@ -235,7 +244,7 @@ export default function Landing() {
                             style={{ 
                                 background: lightColors.bgWhite, 
                                 borderRadius: '24px',
-                                padding: '40px',
+                                padding: '0',
                                 border: `1px solid ${lightColors.border}`,
                                 boxShadow: '0 20px 40px rgba(0,0,0,0.05)',
                                 display: 'flex',
@@ -247,13 +256,7 @@ export default function Landing() {
                                 overflow: 'hidden'
                             }}
                         >
-                            <div style={{ position: 'absolute', top: -50, right: -50, width: 200, height: 200, background: 'rgba(255,215,0,0.1)', borderRadius: '50%', filter: 'blur(40px)' }}></div>
-                            <h3 style={{ fontSize: '32px', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-logo)' }}>BoomBooks.shop</h3>
-                            <div style={{ display: 'flex', gap: '16px', marginTop: '40px', alignItems: 'flex-end', height: '100px' }}>
-                                <div style={{ width: '40px', height: '80px', background: '#e5e7eb', borderRadius: '8px' }}></div>
-                                <div style={{ width: '48px', height: '100px', background: 'var(--color-primary)', borderRadius: '8px' }}></div>
-                                <div style={{ width: '40px', height: '60px', background: '#e5e7eb', borderRadius: '8px' }}></div>
-                            </div>
+                            <img src={ecosystemImg} alt="BoomBooks Ecosystem" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </motion.div>
 
                         {/* Côté Texte */}
@@ -306,7 +309,7 @@ export default function Landing() {
                 {/* 3. SECTION FONCTIONNALITÉS (Inspiration Tribbut : Alternance) */}
                 <section style={{ padding: '80px 24px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
                     
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '60px', alignItems: 'center' }}>
+                    <div className="landing-grid">
                         
                         {/* Côté Texte */}
                         <motion.div 
@@ -314,7 +317,8 @@ export default function Landing() {
                             whileInView="visible"
                             viewport={{ once: true }}
                             variants={staggerContainer}
-                            style={{ paddingLeft: '20px', order: window.innerWidth < 768 ? 2 : 1 }}
+                            className="landing-section-2-text"
+                            style={{ paddingLeft: '20px' }}
                         >
                             <motion.h2 variants={fadeInUp} style={{ fontSize: 'clamp(32px, 4vw, 40px)', fontWeight: 800, color: lightColors.text, marginBottom: '24px', fontFamily: 'var(--font-slogan)', lineHeight: 1.2 }}>
                                 Une expérience de lecture Premium.
@@ -363,10 +367,11 @@ export default function Landing() {
                             whileInView={{ opacity: 1, x: 0 }}
                             viewport={{ once: true }}
                             transition={{ duration: 0.8 }}
+                            className="landing-section-2-img"
                             style={{ 
                                 background: lightColors.bgWhite, 
                                 borderRadius: '24px',
-                                padding: '40px',
+                                padding: '0',
                                 border: `1px solid ${lightColors.border}`,
                                 boxShadow: '0 20px 40px rgba(0,0,0,0.05)',
                                 display: 'flex',
@@ -374,13 +379,11 @@ export default function Landing() {
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 minHeight: '400px',
-                                order: window.innerWidth < 768 ? 1 : 2
+                                position: 'relative',
+                                overflow: 'hidden'
                             }}
                         >
-                            <span className="material-symbols-outlined" style={{ fontSize: '100px', color: 'rgba(255,215,0,0.2)', marginBottom: '24px' }}>auto_awesome</span>
-                            <div style={{ width: '80%', height: '8px', background: '#e5e7eb', borderRadius: '4px', marginBottom: '12px' }}></div>
-                            <div style={{ width: '60%', height: '8px', background: '#e5e7eb', borderRadius: '4px', marginBottom: '12px' }}></div>
-                            <div style={{ width: '70%', height: '8px', background: '#e5e7eb', borderRadius: '4px' }}></div>
+                            <img src={premiumImg} alt="Premium Reading" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </motion.div>
                     </div>
                 </section>
