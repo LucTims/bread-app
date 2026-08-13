@@ -161,6 +161,11 @@ export default function Reader() {
             const offlineMeta = await getBookMeta(bookId);
 
             if (offlinePdfBlob) {
+                if (!offlineMeta.format) {
+                    const isEpub = offlinePdfBlob.type === 'application/epub+zip' || 
+                                  (offlinePdfBlob.name && offlinePdfBlob.name.toLowerCase().endsWith('.epub'));
+                    offlineMeta.format = isEpub ? 'epub' : 'pdf';
+                }
                 setBlobAsPdf(offlinePdfBlob);
                 setBookMeta(offlineMeta);
             } else {
