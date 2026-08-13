@@ -4,10 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { askGlobalGemini, GLOBAL_QUICK_ACTIONS } from '../lib/gemini';
 import { getOfflineBooksSync, getProgressMapSync } from '../lib/offlineStore';
 import { supabase, getFreeBooks } from '../lib/supabase';
+import useOnlineStatus from '../lib/useOnlineStatus';
+import { checkRealConnectivity } from '../lib/connectivity';
 
 export default function AIChat() {
     const { user, profile } = useAuth();
     const navigate = useNavigate();
+    const { isOnline } = useOnlineStatus();
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -22,7 +25,7 @@ export default function AIChat() {
 
     // Fetch complete library from online
     useEffect(() => {
-        if (!user || !navigator.onLine) return;
+        if (!user || !isOnline) return;
         async function fetchOnlineBooks() {
             try {
                 let bookList = [];
@@ -62,7 +65,7 @@ export default function AIChat() {
             }
         }
         fetchOnlineBooks();
-    }, [user]);
+    }, [user, isOnline]);
 
     // Initial greeting if empty
     useEffect(() => {
@@ -113,7 +116,8 @@ ${bookDetails || 'Aucun livre pour le moment'}
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         
-        if (!navigator.onLine) {
+        const isOnline = await checkRealConnectivity();
+        if (!isOnline) {
             setMessages(prev => [...prev, { 
                 role: 'assistant', 
                 text: "💤 L'assistant IA se repose car vous n'avez pas de connexion Internet. Revenez me parler quand vous serez en ligne !",

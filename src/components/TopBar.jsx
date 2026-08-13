@@ -3,23 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
 import { InstallMenuItem } from './InstallPrompt';
+import useOnlineStatus from '../lib/useOnlineStatus';
 
 export default function TopBar() {
     const navigate = useNavigate();
     const { user, profile } = useAuth();
+    const { isOnline } = useOnlineStatus();
     const [menuOpen, setMenuOpen] = useState(false);
     const [streak, setStreak] = useState(0);
     const [unreadCount, setUnreadCount] = useState(0);
     const menuRef = useRef(null);
 
     useEffect(() => {
-        if (user && navigator.onLine) {
+        if (user && isOnline) {
             supabase.from('profiles').select('current_streak').eq('id', user.id).single()
                 .then(({ data }) => {
                     if (data && data.current_streak) setStreak(data.current_streak);
                 }).catch(() => {});
         }
-    }, [user]);
+    }, [user, isOnline]);
 
     useEffect(() => {
         if (!user) return;

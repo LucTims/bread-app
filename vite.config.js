@@ -39,7 +39,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,woff,woff2,webmanifest}'],
+        globPatterns: ['**/*.{js,mjs,css,html,ico,png,jpg,jpeg,svg,woff,woff2,webmanifest}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/],
         importScripts: ['sw-push.js'],
@@ -94,7 +94,7 @@ export default defineConfig({
             options: {
               cacheName: 'supabase-api-cache',
               expiration: { maxEntries: 30, maxAgeSeconds: 24 * 60 * 60 },
-              networkTimeoutSeconds: 5
+              networkTimeoutSeconds: 3
             }
           },
           // ── Google Material Symbols (icon font) ──

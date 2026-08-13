@@ -8,6 +8,7 @@ import {
     getAllOfflineBooks, preloadCoverUrls,
     getOfflineBooksSync, getProgressMapSync, getStorageUsageSync
 } from '../lib/offlineStore';
+import useOnlineStatus from '../lib/useOnlineStatus';
 
 function getBookGradient(id) {
     if (!id) return 'linear-gradient(135deg, #667eea, #764ba2)';
@@ -24,9 +25,9 @@ function getBookGradient(id) {
 export default function Home() {
     const { user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
+    const { isOffline: isOfflineNow } = useOnlineStatus();
 
     // ── INSTANT first render from localStorage (synchronous, <5ms) ──
-    const isOfflineNow = !navigator.onLine;
     const syncBooks = isOfflineNow ? getOfflineBooksSync() : [];
     const syncProgress = isOfflineNow ? getProgressMapSync() : {};
     const syncStorage = isOfflineNow ? getStorageUsageSync() : { totalBytes: 0, bookCount: 0 };
@@ -42,19 +43,12 @@ export default function Home() {
     const [downloadProgress, setDownloadProgress] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
     const [coverUrls, setCoverUrls] = useState({});
-    const isOfflineMode = useRef(!navigator.onLine);
+    const isOfflineMode = useRef(isOfflineNow);
 
     // Track online/offline changes
     useEffect(() => {
-        const goOnline = () => { isOfflineMode.current = false; };
-        const goOffline = () => { isOfflineMode.current = true; };
-        window.addEventListener('online', goOnline);
-        window.addEventListener('offline', goOffline);
-        return () => {
-            window.removeEventListener('online', goOnline);
-            window.removeEventListener('offline', goOffline);
-        };
-    }, []);
+        isOfflineMode.current = isOfflineNow;
+    }, [isOfflineNow]);
 
     const refreshOfflineStatus = useCallback(async (bookList) => {
         const statuses = {};
@@ -73,11 +67,17 @@ export default function Home() {
 
     useEffect(() => {
         // ── Offline mode: covers are the only async part ──
-        if (!navigator.onLine) {
-            // Books are already displayed from syncBooks — just load covers in background
+        if (isOfflineNow) {
+            // Books are already displayed from syncBooks — update state and load covers in background
+            const currentSyncBooks = getOfflineBooksSync();
+            setBooks(currentSyncBooks);
+            setOfflineStatus(Object.fromEntries(currentSyncBooks.map(b => [b.id, true])));
+            setProgressMap(getProgressMapSync());
+            setStorage(getStorageUsageSync());
+            setLoading(false);
             (async () => {
                 try {
-                    const bookIds = syncBooks.map(b => b.id);
+                    const bookIds = currentSyncBooks.map(b => b.id);
                     const urls = await preloadCoverUrls(bookIds);
                     setCoverUrls(urls);
                 } catch (err) { console.error(err); }
@@ -123,7 +123,7 @@ export default function Home() {
             } catch (err) { console.error(err); }
             finally { setLoading(false); }
         })();
-    }, [user, authLoading, navigate, refreshOfflineStatus]);
+    }, [user, authLoading, navigate, refreshOfflineStatus, isOfflineNow]);
 
     const handleDownload = async (book) => {
         setDownloading(book.id);

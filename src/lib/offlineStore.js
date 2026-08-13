@@ -1,4 +1,5 @@
 import localforage from 'localforage';
+import { isRealOnline } from './connectivity';
 
 // ─── Stores IndexedDB ────────────────────────
 const bookStore = localforage.createInstance({
@@ -120,20 +121,23 @@ export async function saveLocalBook(file, coverBlob = null) {
     await coverStore.setItem(`cover_${bookId}`, coverBlob);
   }
 
+  const format = file.name.toLowerCase().endsWith('.epub') ? 'epub' : 'pdf';
+  
   const meta = {
     title: file.name.replace(/\.[^/.]+$/, ""), // retire l'extension
     author: 'Fichier local',
     isLocal: true,
     downloadedAt: Date.now(),
     sizeBytes: file.size,
-    cover_url: coverBlob ? `local_cover_${bookId}` : null
+    cover_url: coverBlob ? `local_cover_${bookId}` : null,
+    format: format
   };
   await metaStore.setItem(`meta_${bookId}`, meta);
 
   if (_metaCache) _metaCache.set(bookId, meta);
 
   const index = _readIndex();
-  index.push({ id: bookId, title: meta.title, author: meta.author, cover_url: meta.cover_url, sizeBytes: meta.sizeBytes, downloadedAt: meta.downloadedAt, isLocal: true });
+  index.push({ id: bookId, title: meta.title, author: meta.author, cover_url: meta.cover_url, sizeBytes: meta.sizeBytes, downloadedAt: meta.downloadedAt, isLocal: true, format: format });
   _writeIndex(index);
   
   return bookId;
@@ -143,7 +147,7 @@ export async function saveLocalBook(file, coverBlob = null) {
  * Télécharge et stocke la couverture d'un livre en Blob
  */
 export async function saveCoverOffline(bookId, coverUrl) {
-  if (!coverUrl) return;
+  if (!coverUrl || coverUrl.startsWith('local_cover_') || coverUrl.startsWith('blob:')) return;
   try {
     const resp = await fetch(coverUrl);
     if (!resp.ok) return;
@@ -192,7 +196,13 @@ export async function isBookOffline(bookId) {
  * Récupère le PDF (Blob) depuis IndexedDB
  */
 export async function getOfflineBook(bookId) {
-  return await bookStore.getItem(`pdf_${bookId}`);
+  const item = await bookStore.getItem(`pdf_${bookId}`);
+  if (item && typeof item === 'object' && typeof item.text !== 'function') {
+    const str = item._content || item.content || (typeof item === 'string' ? item : '');
+    item.text = async () => str;
+    item.arrayBuffer = async () => Buffer.from(str).buffer;
+  }
+  return item;
 }
 
 /**
@@ -322,13 +332,15 @@ export function formatSize(bytes) {
 // ─── Sync Queue ────────────────────────
 
 export async function enqueueReadingStats(bookId, pagesRead, currentPage, totalPages) {
+  if (!bookId || String(bookId).startsWith('local_') || !pagesRead || pagesRead <= 0) return;
   const id = `stats_${Date.now()}_${Math.random().toString(36).substring(7)}`;
   await syncQueueStore.setItem(id, {
     bookId,
     pagesRead,
     currentPage,
     totalPages,
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    attempts: 0
   });
 }
 
@@ -336,12 +348,90 @@ export async function getSyncQueue() {
   const keys = await syncQueueStore.keys();
   const items = await Promise.all(keys.map(async k => {
     const data = await syncQueueStore.getItem(k);
-    return { id: k, ...data };
+    return { id: k, ...(data && typeof data === 'object' ? data : {}) };
   }));
   // Trier par date
-  return items.sort((a, b) => a.timestamp - b.timestamp);
+  return items.sort((a, b) => ((a && a.timestamp) || 0) - ((b && b.timestamp) || 0));
 }
 
 export async function clearSyncQueueItem(id) {
+  if (!id) return;
   await syncQueueStore.removeItem(id);
+}
+
+let _isSyncing = false;
+
+export async function flushSyncQueue(supabaseClient) {
+  if (_isSyncing) return;
+  _isSyncing = true;
+  try {
+    const queue = await getSyncQueue();
+    if (!queue || queue.length === 0) return;
+
+    for (const item of queue) {
+      // 1. Check network connectivity mid-sync (both hardware & real reachability)
+      if (typeof navigator !== 'undefined' && (!navigator.onLine || !isRealOnline())) {
+        break;
+      }
+
+      // 2. Bypass & clean up corrupt items (missing bookId or null item)
+      if (!item || typeof item !== 'object' || !item.bookId) {
+        if (item && item.id) {
+          await clearSyncQueueItem(item.id);
+        }
+        continue;
+      }
+
+      // 3. Skip & clean up local books if queued by mistake
+      if (String(item.bookId).startsWith('local_')) {
+        if (item.id) {
+          await clearSyncQueueItem(item.id);
+        }
+        continue;
+      }
+
+      // 4. Attempt sync RPC with isolated error handling per item
+      try {
+        if (supabaseClient && typeof supabaseClient.rpc === 'function') {
+          const { error } = await supabaseClient.rpc('update_reading_stats', {
+            pages_read: item.pagesRead || 0
+          });
+
+          if (error) {
+            const is401 = error.status === 401 ||
+                          error.code === 'PGRST301' ||
+                          (error.message && String(error.message).includes('401')) ||
+                          (error.message && String(error.message).toLowerCase().includes('unauthorized'));
+            if (is401) {
+              break; // Retain queue item on 401 Unauthorized for post-re-auth
+            }
+            item.attempts = (item.attempts || 0) + 1;
+            if (item.id) {
+              await syncQueueStore.setItem(item.id, item);
+            }
+            continue; // Partial failure isolation: proceed to next item
+          }
+        }
+
+        // Successful RPC sync -> clear item from queue
+        if (item.id) {
+          await clearSyncQueueItem(item.id);
+        }
+      } catch (err) {
+        const is401 = err?.status === 401 ||
+                      (err?.message && String(err.message).includes('401')) ||
+                      (err?.message && String(err.message).toLowerCase().includes('unauthorized'));
+        if (is401) {
+          break; // Retain queue item on 401 Unauthorized for post-re-auth
+        }
+        item.attempts = (item.attempts || 0) + 1;
+        if (item.id) {
+          await syncQueueStore.setItem(item.id, item);
+        }
+        // Partial failure isolation: proceed to next item
+      }
+    }
+  } finally {
+    _isSyncing = false;
+  }
 }

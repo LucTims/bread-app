@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node tests/e2e/runner.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
@@ -16,6 +17,7 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-pdf": "^10.4.1",
+    "react-reader": "^2.0.15",
     "react-router-dom": "^7.15.0"
   },
   "devDependencies": {

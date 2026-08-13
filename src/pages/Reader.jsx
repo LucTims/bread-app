@@ -3,7 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { getOfflineBook, getBookMeta, saveReadingProgress, getReadingProgress, saveBookOffline, saveCoverOffline, enqueueReadingStats } from '../lib/offlineStore';
 import { supabase, getFreeBooks } from '../lib/supabase';
+import { checkRealConnectivity } from '../lib/connectivity';
 import { Document, Page, pdfjs } from 'react-pdf';
+import { ReactReader, ReactReaderStyle } from 'react-reader';
 import BookChat from '../components/BookChat';
 import { fetchElevenLabsVoices, generateElevenLabsSpeech, getElevenLabsCredits } from '../lib/elevenLabs';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -46,6 +48,8 @@ export default function Reader() {
     const [scrollMode, setScrollMode] = useState('paginated');
     const [theme, setTheme] = useState('dark');
     const [showToolbar, setShowToolbar] = useState(true);
+    const [epubLocation, setEpubLocation] = useState(null);
+    const renditionRef = useRef(null);
     
     // Panels
     const [showThemePanel, setShowThemePanel] = useState(false);
@@ -87,7 +91,8 @@ export default function Reader() {
             const pagesToSync = localPagesReadRef.current;
             localPagesReadRef.current = 0;
             if (bookId.startsWith('local_')) return;
-            if (!navigator.onLine) {
+            const isOnline = await checkRealConnectivity();
+            if (!isOnline) {
                 await enqueueReadingStats(bookId, pagesToSync, pageNumber, numPages || 1).catch(() => {});
                 return;
             }
@@ -104,6 +109,10 @@ export default function Reader() {
     useEffect(() => {
         return () => {
             if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+            if (elevenAudioRef.current) {
+                elevenAudioRef.current.pause();
+                elevenAudioRef.current = null;
+            }
             window.speechSynthesis?.cancel();
             sendReadingStats(); // Flush any unsent pages
         };
@@ -158,7 +167,8 @@ export default function Reader() {
                 if (bookId.startsWith('local_')) {
                     throw new Error("Ce fichier local est introuvable ou a été supprimé de l'appareil.");
                 }
-                if (!navigator.onLine) {
+                const isOnline = await checkRealConnectivity();
+                if (!isOnline) {
                     throw new Error("Ce livre n'est pas téléchargé et vous n'avez pas de connexion Internet.");
                 }
 
@@ -209,7 +219,13 @@ export default function Reader() {
             }
 
             const progress = await getReadingProgress(bookId);
-            if (progress?.currentPage) setPageNumber(progress.currentPage);
+            if (progress?.currentPage) {
+                if (typeof progress.currentPage === 'string' && progress.currentPage.startsWith('epubcfi')) {
+                    setEpubLocation(progress.currentPage);
+                } else {
+                    setPageNumber(Number(progress.currentPage));
+                }
+            }
         } catch (err) {
             console.error(err);
             setError(err.message || "Erreur de chargement.");
@@ -220,6 +236,11 @@ export default function Reader() {
 
     // Define changePage with useCallback before it is used
     const changePage = useCallback(async (offset) => {
+        if (bookMeta?.format === 'epub' && renditionRef.current) {
+            if (offset > 0) renditionRef.current.next();
+            else if (offset < 0) renditionRef.current.prev();
+            return;
+        }
         const newPage = Math.min(Math.max(1, pageNumber + offset), numPages || 1);
         if (newPage !== pageNumber) {
             localPagesReadRef.current += 1;
@@ -237,7 +258,8 @@ export default function Reader() {
         let active = true;
         const init = async () => {
             if (!active) return;
-            if (!navigator.onLine) {
+            const isOnline = await checkRealConnectivity();
+            if (!isOnline) {
                 setLoading(true);
                 try {
                     const blob = await getOfflineBook(bookId);
@@ -247,7 +269,13 @@ export default function Reader() {
                         setBlobAsPdf(blob);
                         setBookMeta(meta);
                         const p = await getReadingProgress(bookId);
-                        if (p?.currentPage && active) setPageNumber(p.currentPage);
+                        if (p?.currentPage && active) {
+                            if (typeof p.currentPage === 'string' && p.currentPage.startsWith('epubcfi')) {
+                                setEpubLocation(p.currentPage);
+                            } else {
+                                setPageNumber(Number(p.currentPage));
+                            }
+                        }
                     } else {
                         setError("Ce livre n'est pas téléchargé. Connectez-vous à Internet.");
                     }
@@ -270,6 +298,16 @@ export default function Reader() {
             clearTimeout(timer);
         };
     }, [user, authLoading, navigate, loadBook, bookId]);
+
+    // ─── EPUB HANDLERS ────────────────────────
+    const onLocationChanged = (epubcif) => {
+        setEpubLocation(epubcif);
+        saveReadingProgress(bookId, epubcif, 1);
+        localPagesReadRef.current += 1;
+        if (localPagesReadRef.current >= 5) {
+            sendReadingStats();
+        }
+    };
 
     // ─── PINCH TO ZOOM (smooth with CSS transform) ────────────────────────
     const getDistance = (t1, t2) => Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
@@ -373,6 +411,17 @@ export default function Reader() {
     };
 
     const extractPageText = async (pgNum) => {
+        if (bookMeta?.format === 'epub' && renditionRef.current) {
+            try {
+                const loc = renditionRef.current.currentLocation();
+                if (loc && loc.start) {
+                    const epub = renditionRef.current.book;
+                    const spineItem = epub.spine.get(loc.start.cfi);
+                    await spineItem.load(epub.load.bind(epub));
+                    return spineItem.document.body.textContent.replace(/\s+/g, ' ').trim();
+                }
+            } catch { return ''; }
+        }
         if (!pdfDocRef.current) return '';
         try {
             const page = await pdfDocRef.current.getPage(pgNum);
@@ -410,9 +459,17 @@ export default function Reader() {
         setTtsPlaying(true); setTtsPaused(false);
         
         if (useElevenLabs && elevenVoiceId) {
-            setTtsLoading(true);
-            const audioUrl = await generateElevenLabsSpeech(sentences[idx], elevenVoiceId);
-            setTtsLoading(false);
+            let audioUrl = null;
+            const isOnline = await checkRealConnectivity();
+            if (isOnline) {
+                setTtsLoading(true);
+                try {
+                    audioUrl = await generateElevenLabsSpeech(sentences[idx], elevenVoiceId);
+                } catch (err) {
+                    audioUrl = null;
+                }
+                setTtsLoading(false);
+            }
             if (!ttsActiveRef.current) return;
             if (audioUrl) {
                 const audio = new Audio(audioUrl);
@@ -423,16 +480,20 @@ export default function Reader() {
                 audio.play().catch(() => ttsStop());
                 // update credits periodically
                 if (idx % 2 === 0) getElevenLabsCredits().then(setElevenCredits);
-            } else {
-                ttsStop();
+                return;
             }
-        } else {
+            // Fall back seamlessly to native browser SpeechSynthesis if offline or ElevenLabs generation fails
+        }
+        
+        if (window.speechSynthesis) {
             const utter = new SpeechSynthesisUtterance(sentences[idx]);
             if (ttsVoices[ttsVoiceIdx]) utter.voice = ttsVoices[ttsVoiceIdx];
             utter.rate = ttsRate;
             utter.onend = () => speakSentence(sentences, idx + 1);
             utter.onerror = () => ttsStop();
             window.speechSynthesis.speak(utter);
+        } else {
+            ttsStop();
         }
     };
 
@@ -499,6 +560,17 @@ export default function Reader() {
         </div>
     );
 
+    useEffect(() => {
+        if (bookMeta?.format === 'epub' && renditionRef.current) {
+            renditionRef.current.themes.register('custom', {
+                body: { background: 'transparent !important', color: currentTheme.text + ' !important' },
+                '*': { color: currentTheme.text + ' !important' }
+            });
+            renditionRef.current.themes.select('custom');
+            renditionRef.current.themes.fontSize((scale * 100) + '%');
+        }
+    }, [theme, currentTheme, scale, bookMeta?.format]);
+
     // ─── RENDER ────────────────────────
     return (
         <div className={`reader-container theme-${theme}`} style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: currentTheme.bg, transition: 'background 0.4s ease' }}>
@@ -554,7 +626,30 @@ export default function Reader() {
                     flexDirection: scrollMode === 'horizontal' ? 'row' : 'column',
                     alignItems: 'center',
                 }}>
-                {pdfFile && (
+                {bookMeta?.format === 'epub' && pdfFile ? (
+                    <div style={{ width: '100vw', height: '100%', position: 'relative' }}>
+                        <ReactReader
+                            url={pdfFile}
+                            location={epubLocation}
+                            locationChanged={onLocationChanged}
+                            epubInitOptions={{ openAs: 'epub' }}
+                            getRendition={(rendition) => {
+                                renditionRef.current = rendition;
+                                rendition.themes.register('custom', {
+                                    body: {
+                                        background: 'transparent !important',
+                                        color: currentTheme.text + ' !important',
+                                    },
+                                    p: {
+                                        color: currentTheme.text + ' !important',
+                                        'font-size': (scale * 100) + '% !important',
+                                    }
+                                });
+                                rendition.themes.select('custom');
+                            }}
+                        />
+                    </div>
+                ) : pdfFile && (
                     <Document
                         file={pdfFile}
                         onLoadSuccess={onDocumentLoadSuccess}

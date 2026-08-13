@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
-import { getSyncQueue, clearSyncQueueItem } from './lib/offlineStore';
+import { flushSyncQueue } from './lib/offlineStore';
+import { useBackgroundSync } from './lib/useBackgroundSync';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import Login from './pages/Login';
 import Home from './pages/Home';
@@ -21,38 +22,15 @@ import BottomNav from './components/BottomNav';
 import { ChatProvider } from './lib/ChatContext';
 import ChatIndex from './pages/ChatIndex';
 import AIChat from './pages/AIChat';
+import useOnlineStatus from './lib/useOnlineStatus';
 
 // Composant pour protéger les routes utilisateurs connectés
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
-
-  useEffect(() => {
-    const handleOnline = async () => {
-      setIsOffline(false);
-      // Process offline reading stats queue
-      try {
-        const queue = await getSyncQueue();
-        for (const item of queue) {
-          await supabase.rpc('update_reading_stats', { pages_read: item.pagesRead });
-          await clearSyncQueueItem(item.id);
-        }
-      } catch (err) {
-        console.error("Error syncing offline stats:", err);
-      }
-    };
-    const handleOffline = () => setIsOffline(true);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
+  const { isOffline, isOnline } = useOnlineStatus();
   
-  // When offline, let pages through — they handle their own offline data from IndexedDB
-  if (isOffline) {
+  // When offline (or phantom offline), let pages through — they handle their own offline data from IndexedDB
+  if (isOffline || !isOnline) {
     return children;
   }
 
@@ -107,6 +85,9 @@ function MainLayout({ children }) {
 // Contenu de l'application nécessitant l'accès au contexte d'authentification
 function AppContent() {
   const { user } = useAuth();
+  
+  // Top-level intelligent background sync manager
+  useBackgroundSync();
 
   // 1. Écouter les installations physiques même hors connexion (ex: avant login)
   useEffect(() => {

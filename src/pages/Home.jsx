@@ -5,11 +5,12 @@ import { supabase, getFreeBooks } from '../lib/supabase';
 import { getAllOfflineBooks, getReadingProgress, preloadCoverUrls, getOfflineBooksSync, getProgressMapSync } from '../lib/offlineStore';
 import { InstallButton } from '../components/InstallPrompt';
 import { getDailyFallbackQuote } from '../lib/quotes';
+import useOnlineStatus from '../lib/useOnlineStatus';
 
 export default function Home() {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const isOffline = !navigator.onLine;
+    const { isOffline } = useOnlineStatus();
 
     // ── INSTANT first render from localStorage when offline (<5ms) ──
     const syncBooks = isOffline ? getOfflineBooksSync() : [];
@@ -55,7 +56,7 @@ export default function Home() {
             let bookList = [];
 
             // ── Offline: covers are the only async part ──
-            if (!navigator.onLine) {
+            if (isOffline) {
                 // Books already displayed from syncBooks, just load covers
                 const urls = await preloadCoverUrls(syncBooks.map(b => b.id));
                 setCoverUrls(urls);
@@ -146,14 +147,19 @@ export default function Home() {
         } finally {
             setLoading(false);
         }
-    }, [user]);
+    }, [user, isOffline]);
 
     useEffect(() => {
-        // In offline mode, sync data is already displayed — only load covers async
+        // In offline mode, sync data is already displayed — update state and load covers async
         if (isOffline) {
             (async () => {
                 try {
-                    const urls = await preloadCoverUrls(syncBooks.map(b => b.id));
+                    const booksToLoad = getOfflineBooksSync();
+                    setOfflineBooks(booksToLoad);
+                    const progMap = getProgressMapSync();
+                    setLastRead(computeLastRead(booksToLoad, progMap));
+                    setLoading(false);
+                    const urls = await preloadCoverUrls(booksToLoad.map(b => b.id));
                     setCoverUrls(urls);
                 } catch { /* ignore */ }
             })();
@@ -161,7 +167,7 @@ export default function Home() {
         }
         const timer = setTimeout(() => { loadData(); }, 0);
         return () => clearTimeout(timer);
-    }, [loadData]);
+    }, [loadData, isOffline]);
 
     function getBookGradient(id) {
         if (!id) return 'linear-gradient(135deg, #667eea, #764ba2)';

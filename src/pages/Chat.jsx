@@ -2,11 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
+import useOnlineStatus from '../lib/useOnlineStatus';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '👏', '😮'];
 
 export default function Chat() {
     const { user, profile } = useAuth();
+    const { isOnline } = useOnlineStatus();
     const navigate = useNavigate();
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
@@ -91,7 +93,10 @@ export default function Chat() {
     }, [messages]);
 
     useEffect(() => {
-        if (!user) return;
+        if (!user || !isOnline) {
+            setLoading(false);
+            return;
+        }
 
         // Setup Presence for Typing Indicator
         const presenceChannel = supabase.channel('chat_presence', {
@@ -240,7 +245,7 @@ export default function Chat() {
 
     const handleSendMessage = async (e) => {
         if (e) e.preventDefault();
-        if (!newMessage.trim() || !user || !chatOpen) return;
+        if (!newMessage.trim() || !user || !chatOpen || !isOnline) return;
 
         const content = newMessage.trim();
         const replyId = replyingTo?.id || null;

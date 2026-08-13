@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from './supabase';
+import { checkRealConnectivity } from './connectivity';
 
 const AuthContext = createContext({});
 
@@ -74,7 +75,8 @@ export function AuthProvider({ children }) {
         async function init() {
             try {
                 // ── Offline-first: use cached session immediately ──
-                if (!navigator.onLine) {
+                const isOnline = await checkRealConnectivity();
+                if (!isOnline) {
                     const cachedUser = getCachedUser();
                     const cachedProfile = getCachedProfile();
                     if (cachedUser) {
@@ -83,9 +85,9 @@ export function AuthProvider({ children }) {
                             setProfile(cachedProfile);
                             setLoading(false);
                         }
-                        return; // Don't try network calls when offline
+                        return; // Don't try network calls when offline or phantom
                     }
-                    // No cached session and offline → loading done, no user
+                    // No cached session and offline/phantom → loading done, no user
                     if (mounted) setLoading(false);
                     return;
                 }
