@@ -113,6 +113,23 @@ export default function Home() {
                     if (!seen.has(fb.id)) { seen.add(fb.id); bookList.push({...fb, is_free_offer: true}); }
                 });
 
+                // Fetch subscription catalog if active
+                const { data: profile } = await supabase.from('profiles').select('subscription_plan, subscription_end_date').eq('id', user.id).single();
+                if (profile?.subscription_plan && new Date(profile.subscription_end_date) > new Date()) {
+                    const plan = profile.subscription_plan.toLowerCase();
+                    if (plan.includes('batisseur') || plan.includes('discipline')) {
+                        const { data: allBooks } = await supabase.from('books').select('id, title, author, cover_url, file_url, is_free');
+                        if (allBooks) {
+                            allBooks.forEach(b => {
+                                if (!seen.has(b.id)) { 
+                                    seen.add(b.id); 
+                                    bookList.push({ ...b, is_subscription: true }); 
+                                }
+                            });
+                        }
+                    }
+                }
+
                 setBooks(bookList);
                 await refreshOfflineStatus(bookList);
 
@@ -150,7 +167,12 @@ export default function Home() {
             if (!blob) throw new Error('PDF non disponible');
 
             setDownloadProgress(70);
-            await saveBookOffline(book.id, blob, { title: book.title, author: book.author, cover_url: book.cover_url });
+            await saveBookOffline(book.id, blob, { 
+                title: book.title, 
+                author: book.author, 
+                cover_url: book.cover_url, 
+                is_subscription: book.is_subscription 
+            });
 
             setDownloadProgress(85);
             if (book.cover_url) {

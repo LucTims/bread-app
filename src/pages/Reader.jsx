@@ -166,6 +166,13 @@ export default function Reader() {
                                   (offlinePdfBlob.name && offlinePdfBlob.name.toLowerCase().endsWith('.epub'));
                     offlineMeta.format = isEpub ? 'epub' : 'pdf';
                 }
+
+                if (offlineMeta.is_subscription) {
+                    if (!profile || !profile.subscription_end_date || new Date(profile.subscription_end_date) < new Date()) {
+                        throw new Error("Votre abonnement a expiré. Connectez-vous à Internet et renouvelez-le sur BoomBooks pour continuer à lire ce livre.");
+                    }
+                }
+
                 setBlobAsPdf(offlinePdfBlob);
                 setBookMeta(offlineMeta);
             } else {
@@ -182,6 +189,8 @@ export default function Reader() {
                     .eq('user_id', user.id).eq('book_id', bookId).single();
 
                 let hasAccess = !!access;
+                let hasAccessViaSubscription = false;
+
                 if (!hasAccess) {
                     const { data: orders } = await supabase.from('orders')
                         .select('id, order_items(book_id)')
@@ -192,6 +201,22 @@ export default function Reader() {
                     const freeBooks = await getFreeBooks();
                     hasAccess = freeBooks.some(fb => fb.id === bookId);
                 }
+
+                if (!hasAccess && profile?.subscription_plan) {
+                    const isSubActive = new Date(profile.subscription_end_date) > new Date();
+                    const plan = profile.subscription_plan.toLowerCase();
+                    const isOfflinePlan = plan.includes('batisseur') || plan.includes('discipline');
+                    
+                    if (isSubActive && isOfflinePlan) {
+                        hasAccess = true;
+                        hasAccessViaSubscription = true;
+                    } else if (isSubActive && !isOfflinePlan) {
+                        throw new Error("Votre abonnement Lecteur ne permet pas le téléchargement hors-ligne sur Bread. Passez au forfait Bâtisseur.");
+                    } else if (!isSubActive) {
+                        throw new Error("Votre abonnement a expiré. Veuillez le renouveler sur BoomBooks pour télécharger ce livre.");
+                    }
+                }
+
                 if (!hasAccess) throw new Error("Accès non autorisé. Vous n'avez pas acheté ce livre.");
 
                 const { data: book } = await supabase.from('books').select('*').eq('id', bookId).single();
@@ -215,7 +240,12 @@ export default function Reader() {
                 
                 if (!blob) throw new Error("Le fichier PDF n'est pas disponible.");
 
-                await saveBookOffline(bookId, blob, { title: book.title, author: book.author, cover_url: book.cover_url });
+                await saveBookOffline(bookId, blob, { 
+                    title: book.title, 
+                    author: book.author, 
+                    cover_url: book.cover_url,
+                    is_subscription: hasAccessViaSubscription
+                });
                 // Also cache the cover for offline display
                 if (book.cover_url) {
                     saveCoverOffline(bookId, book.cover_url).catch(() => {});

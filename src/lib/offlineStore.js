@@ -104,7 +104,7 @@ export async function saveBookOffline(bookId, pdfBlob, metadata) {
   // Update localStorage index (add or replace)
   const index = _readIndex();
   const existing = index.findIndex(b => b.id === bookId);
-  const entry = { id: bookId, title: metadata.title, author: metadata.author, cover_url: metadata.cover_url, sizeBytes: pdfBlob.size, downloadedAt: meta.downloadedAt };
+  const entry = { id: bookId, title: metadata.title, author: metadata.author, cover_url: metadata.cover_url, sizeBytes: pdfBlob.size, downloadedAt: meta.downloadedAt, is_subscription: metadata.is_subscription };
   if (existing >= 0) index[existing] = entry;
   else index.push(entry);
   _writeIndex(index);
