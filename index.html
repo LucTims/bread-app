@@ -117,6 +117,16 @@
         console.log('✅ PWA installed');
       });
     </script>
+    <script>
+      // Failsafe: Guarantee splash screen is dismissed even if JS module loading stalls
+      setTimeout(function() {
+        var splash = document.getElementById('splash-screen');
+        if (splash && !splash.classList.contains('hide')) {
+          splash.classList.add('hide');
+          setTimeout(function() { splash.remove(); }, 500);
+        }
+      }, 3500);
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
