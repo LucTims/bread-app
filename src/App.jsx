@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import { flushSyncQueue } from './lib/offlineStore';
 import { useBackgroundSync } from './lib/useBackgroundSync';
@@ -8,7 +8,6 @@ import Login from './pages/Login';
 import Home from './pages/Home';
 import Landing from './pages/Landing';
 import Library from './pages/Library';
-import LocalLibrary from './pages/LocalLibrary';
 import Search from './pages/Search';
 import Chat from './pages/Chat';
 import Notifications from './pages/Notifications';
@@ -21,8 +20,10 @@ import TopBar from './components/TopBar';
 import BottomNav from './components/BottomNav';
 import { ChatProvider } from './lib/ChatContext';
 import ChatIndex from './pages/ChatIndex';
-import AIChat from './pages/AIChat';
 import useOnlineStatus from './lib/useOnlineStatus';
+import { initDeviceFileHandler } from './lib/deviceFileHandler';
+import AIChat from './pages/AIChat';
+import { AnimatePresence, motion } from 'framer-motion';
 
 // Composant pour protéger les routes utilisateurs connectés
 function ProtectedRoute({ children }) {
@@ -69,13 +70,38 @@ function AdminRoute({ children }) {
   return children;
 }
 
+// Transition fluide entre pages — comportement d'application native
+const pageVariants = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.2, ease: [0.25, 0.1, 0.25, 1] } },
+  exit: { opacity: 0, y: -8, transition: { duration: 0.15, ease: [0.25, 0.1, 0.25, 1] } },
+};
+
+function PageTransition({ children }) {
+  const location = useLocation();
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={location.pathname}
+        variants={pageVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        style={{ flex: 1, minHeight: 0 }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 // Layout principal avec Header et BottomNav
 function MainLayout({ children }) {
   return (
     <div className="page">
       <TopBar />
       <main className="container">
-        {children}
+        <PageTransition>{children}</PageTransition>
       </main>
       <BottomNav />
     </div>
@@ -146,38 +172,36 @@ function AppContent() {
     };
   }, [user]);
 
+  // 6. Écouter les ouvertures directes de fichiers du téléphone (Intent Android & Drag-Drop)
+  useEffect(() => {
+    initDeviceFileHandler((bookId) => {
+      window.location.href = `/read/${bookId}`;
+    });
+  }, []);
+
   return (
     <BrowserRouter>
       <ChatProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
         
-        <Route path="/" element={<Landing />} />
+        {/* L'app démarre directement — pas de page marketing */}
+        <Route path="/" element={<Navigate to="/home" replace />} />
         
+        {/* Routes ouvertes en Mode Hybride (locaux disponibles pour tous, cloud synchronisé si connecté) */}
         <Route path="/home" element={
-          <ProtectedRoute>
-            <MainLayout><Home /></MainLayout>
-          </ProtectedRoute>
+          <MainLayout><Home /></MainLayout>
         } />
         
         <Route path="/library" element={
-          <ProtectedRoute>
-            <MainLayout><Library /></MainLayout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/local-books" element={
-          <ProtectedRoute>
-            <MainLayout><LocalLibrary /></MainLayout>
-          </ProtectedRoute>
+          <MainLayout><Library /></MainLayout>
         } />
         
         <Route path="/search" element={
-          <ProtectedRoute>
-            <MainLayout><Search /></MainLayout>
-          </ProtectedRoute>
+          <MainLayout><Search /></MainLayout>
         } />
 
+        {/* Routes nécessitant un compte BoomBooks */}
         <Route path="/chat" element={
           <ProtectedRoute>
             <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--color-bg)', overflow: 'hidden' }}>
@@ -222,9 +246,7 @@ function AppContent() {
         } />
 
         <Route path="/offline" element={
-          <ProtectedRoute>
-            <OfflineStatus />
-          </ProtectedRoute>
+          <OfflineStatus />
         } />
 
         <Route path="/admin" element={
@@ -233,18 +255,9 @@ function AppContent() {
           </AdminRoute>
         } />
 
-        <Route path="/reader/:bookId" element={
-          <ProtectedRoute>
-            <Reader />
-          </ProtectedRoute>
-        } />
-
-        {/* Nouvelle route demandée par BoomBooks pour la redirection automatique */}
-        <Route path="/read/:bookId" element={
-          <ProtectedRoute>
-            <Reader />
-          </ProtectedRoute>
-        } />
+        {/* Lecture directe : accessible à tous pour les fichiers locaux, protégée par droits pour les livres BoomBooks */}
+        <Route path="/reader/:bookId" element={<Reader />} />
+        <Route path="/read/:bookId" element={<Reader />} />
       </Routes>
       </ChatProvider>
     </BrowserRouter>

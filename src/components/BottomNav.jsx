@@ -7,12 +7,7 @@ import { useChat } from '../lib/ChatContext';
 export default function BottomNav() {
     const { user } = useAuth();
     const { unreadCount: unreadChatCount } = useChat();
-    const [unreadCount, setUnreadCount] = useState(0);
 
-    useEffect(() => {
-        if (!user) return;
-        // La logique des notifications a été déplacée dans TopBar
-    }, [user]);
     return (
         <nav className="bottom-nav">
             <NavLink to="/home" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} end>
@@ -38,10 +33,6 @@ export default function BottomNav() {
                     }} />
                 )}
                 Chat
-            </NavLink>
-            <NavLink to="/local-books" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                <span className="material-symbols-outlined">folder</span>
-                Local
             </NavLink>
             <NavLink to="/profile" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <span className="material-symbols-outlined">person</span>
