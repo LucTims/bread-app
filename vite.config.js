@@ -43,6 +43,7 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/],
         importScripts: ['sw-push.js'],
+        cleanupOutdatedCaches: true,
         // Increase precache size limits for larger bundles
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
         runtimeCaching: [
@@ -111,6 +112,12 @@ export default defineConfig({
       }
     })
   ],
+  server: {
+    host: true,
+    watch: {
+      ignored: ['**/android/**', '**/ios/**']
+    }
+  }
 })
 
 

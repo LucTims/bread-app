@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft2, SearchNormal1, CloseCircle, SearchStatus, Book1, Trash, DocumentDownload, DocumentUpload, Edit2, More, ShoppingBag, ArrowRight, InfoCircle, Teacher } from 'iconsax-react';
 import { supabase, getFreeBooks } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import {
     isBookOffline, getReadingProgress, getStorageUsage, formatSize,
-    saveBookOffline, saveCoverOffline, removeOfflineBook,
+    saveBookOffline, saveCoverOffline, removeOfflineBook, renameLocalBook,
     getAllOfflineBooks, preloadCoverUrls,
     getOfflineBooksSync, getProgressMapSync, getStorageUsageSync
 } from '../lib/offlineStore';
 import useOnlineStatus from '../lib/useOnlineStatus';
+import { importFilesList } from '../lib/deviceFileHandler';
 
 function getBookGradient(id) {
     if (!id) return 'linear-gradient(135deg, #667eea, #764ba2)';
@@ -17,33 +19,46 @@ function getBookGradient(id) {
         ['#43e97b','#38f9d7'], ['#fa709a','#fee140'], ['#a18cd1','#fbc2eb'],
         ['#fccb90','#d57eeb'], ['#e0c3fc','#8ec5fc'], ['#f5576c','#ff9a9e']
     ];
-    const hash = id.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+    const hash = (id || '').split('').reduce((a, b) => a + b.charCodeAt(0), 0);
     const [a, b] = palettes[hash % palettes.length];
     return `linear-gradient(135deg, ${a}, ${b})`;
 }
 
-export default function Home() {
+export default function Library() {
     const { user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const { isOffline: isOfflineNow } = useOnlineStatus();
+    const fileInputRef = useRef(null);
+    const [importing, setImporting] = useState(false);
 
     // ── INSTANT first render from localStorage (synchronous, <5ms) ──
-    const syncBooks = isOfflineNow ? getOfflineBooksSync() : [];
-    const syncProgress = isOfflineNow ? getProgressMapSync() : {};
-    const syncStorage = isOfflineNow ? getStorageUsageSync() : { totalBytes: 0, bookCount: 0 };
-    const syncStatuses = isOfflineNow ? Object.fromEntries(syncBooks.map(b => [b.id, true])) : {};
+    // Always seed from the local index, online or not — shows something real
+    // immediately instead of a blank spinner, then loadLibraryData refines it.
+    const syncBooks = getOfflineBooksSync();
+    const syncProgress = getProgressMapSync();
+    const syncStorage = getStorageUsageSync();
+    const syncStatuses = Object.fromEntries(syncBooks.map(b => [b.id, true]));
 
-    const [books, setBooks] = useState(isOfflineNow ? syncBooks : []);
-    const [loading, setLoading] = useState(!isOfflineNow); // Already loaded if offline + sync data
+    const [books, setBooks] = useState(syncBooks);
+    const [loading, setLoading] = useState(false);
     const [offlineStatus, setOfflineStatus] = useState(syncStatuses);
     const [progressMap, setProgressMap] = useState(syncProgress);
-    const [tab, setTab] = useState('all');
     const [storage, setStorage] = useState(syncStorage);
     const [downloading, setDownloading] = useState(null);
     const [downloadProgress, setDownloadProgress] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
     const [coverUrls, setCoverUrls] = useState({});
     const isOfflineMode = useRef(isOfflineNow);
+    const [openMenuId, setOpenMenuId] = useState(null);
+    const menuRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(e) {
+            if (menuRef.current && !menuRef.current.contains(e.target)) setOpenMenuId(null);
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     // Track online/offline changes
     useEffect(() => {
@@ -65,55 +80,63 @@ export default function Home() {
         setStorage(await getStorageUsage());
     }, []);
 
-    useEffect(() => {
-        // ── Offline mode: covers are the only async part ──
+    const loadLibraryData = useCallback(async () => {
+        // ── Offline mode ──
         if (isOfflineNow) {
-            // Books are already displayed from syncBooks — update state and load covers in background
             const currentSyncBooks = getOfflineBooksSync();
             setBooks(currentSyncBooks);
             setOfflineStatus(Object.fromEntries(currentSyncBooks.map(b => [b.id, true])));
             setProgressMap(getProgressMapSync());
             setStorage(getStorageUsageSync());
             setLoading(false);
-            (async () => {
-                try {
-                    const bookIds = currentSyncBooks.map(b => b.id);
-                    const urls = await preloadCoverUrls(bookIds);
-                    setCoverUrls(urls);
-                } catch (err) { console.error(err); }
-            })();
+            try {
+                const bookIds = currentSyncBooks.map(b => b.id);
+                const urls = await preloadCoverUrls(bookIds);
+                setCoverUrls(urls);
+            } catch (err) { console.error(err); }
             return;
         }
 
-        // ── Online mode ──
+        // ── Online mode (Hybrid: Guest + Auth) ──
+        // No setLoading(true) here — we already show the locally-cached list
+        // instantly; this just refines it in the background once it resolves.
         if (authLoading) return;
-        if (!user) { navigate('/login'); return; }
-        (async () => {
-            try {
+        try {
+            let bookList = [];
+            const seen = new Set();
+
+            if (user) {
                 const { data: accessRows } = await supabase
                     .from('user_book_access')
                     .select('book_id, granted_at, books:book_id(id, title, author, cover_url, file_url)')
                     .eq('user_id', user.id).order('granted_at', { ascending: false });
 
-                let bookList = [];
                 if (accessRows?.length) {
-                    bookList = accessRows.filter(r => r.books).map(r => ({ ...r.books, granted_at: r.granted_at }));
+                    accessRows.filter(r => r.books).forEach(r => {
+                        seen.add(r.books.id);
+                        bookList.push({ ...r.books, granted_at: r.granted_at, isBoomBooks: true });
+                    });
                 }
                 
                 const { data: orders } = await supabase.from('orders')
                     .select('id, order_items(book_id, books(id, title, author, cover_url, file_url))')
                     .eq('user_id', user.id).eq('status', 'paid');
-                const seen = new Set(bookList.map(b => b.id));
                 (orders || []).forEach(o => o.order_items?.forEach(oi => {
-                    if (oi.books && !seen.has(oi.books.id)) { seen.add(oi.books.id); bookList.push(oi.books); }
+                    if (oi.books && !seen.has(oi.books.id)) {
+                        seen.add(oi.books.id);
+                        bookList.push({ ...oi.books, isBoomBooks: true });
+                    }
                 }));
 
                 const freeBooks = await getFreeBooks();
                 freeBooks.forEach(fb => {
-                    if (!seen.has(fb.id)) { seen.add(fb.id); bookList.push({...fb, is_free_offer: true}); }
+                    if (!seen.has(fb.id)) {
+                        seen.add(fb.id);
+                        bookList.push({ ...fb, is_free_offer: true, isBoomBooks: true });
+                    }
                 });
 
-                // Fetch subscription catalog if active
+                // Subscription catalog
                 const { data: profile } = await supabase.from('profiles').select('subscription_plan, subscription_end_date').eq('id', user.id).single();
                 if (profile?.subscription_plan && new Date(profile.subscription_end_date) > new Date()) {
                     const plan = profile.subscription_plan.toLowerCase();
@@ -123,24 +146,43 @@ export default function Home() {
                             allBooks.forEach(b => {
                                 if (!seen.has(b.id)) { 
                                     seen.add(b.id); 
-                                    bookList.push({ ...b, is_subscription: true }); 
+                                    bookList.push({ ...b, is_subscription: true, isBoomBooks: true }); 
                                 }
                             });
                         }
                     }
                 }
+            }
 
-                setBooks(bookList);
-                await refreshOfflineStatus(bookList);
+            // Toujours fusionner les livres locaux / offline
+            const offBooks = await getAllOfflineBooks();
+            offBooks.forEach(ob => {
+                if (!seen.has(ob.id)) {
+                    seen.add(ob.id);
+                    bookList.push({ 
+                        ...ob, 
+                        isLocal: Boolean(ob.isLocal || String(ob.id).startsWith('local_')),
+                        isBoomBooks: !Boolean(ob.isLocal || String(ob.id).startsWith('local_'))
+                    });
+                }
+            });
 
-                // Pre-load cached cover URLs
-                const offlineIds = bookList.map(b => b.id);
-                const urls = await preloadCoverUrls(offlineIds);
-                setCoverUrls(urls);
-            } catch (err) { console.error(err); }
-            finally { setLoading(false); }
-        })();
-    }, [user, authLoading, navigate, refreshOfflineStatus, isOfflineNow]);
+            setBooks(bookList);
+            await refreshOfflineStatus(bookList);
+
+            const offlineIds = bookList.map(b => b.id);
+            const urls = await preloadCoverUrls(offlineIds);
+            setCoverUrls(urls);
+        } catch (err) {
+            console.error('Library load error:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, [user, authLoading, isOfflineNow, refreshOfflineStatus]);
+
+    useEffect(() => {
+        loadLibraryData();
+    }, [loadLibraryData]);
 
     const handleDownload = async (book) => {
         setDownloading(book.id);
@@ -202,6 +244,26 @@ export default function Home() {
         setStorage(getStorageUsageSync());
     };
 
+    const handleSyncBook = () => fileInputRef.current?.click();
+
+    const handleRename = async (book) => {
+        const newTitle = prompt('Renommer ce livre :', book.title);
+        if (!newTitle || !newTitle.trim() || newTitle.trim() === book.title) return;
+        await renameLocalBook(book.id, newTitle.trim());
+        setBooks(prev => prev.map(b => b.id === book.id ? { ...b, title: newTitle.trim() } : b));
+    };
+
+    const handleDetails = (book, isLocalBook) => {
+        const lines = [
+            `Titre : ${book.title}`,
+            `Auteur : ${book.author || 'Auteur inconnu'}`,
+            `Source : ${isLocalBook ? 'Appareil' : 'BoomBooks'}`,
+        ];
+        if (isLocalBook && book.sizeBytes) lines.push(`Taille : ${formatSize(book.sizeBytes)}`);
+        if (book.format) lines.push(`Format : ${book.format.toUpperCase()}`);
+        alert(lines.join('\n'));
+    };
+
     // Resolve cover image
     const getCoverSrc = (book) => {
         if (coverUrls[book.id]) return coverUrls[book.id];
@@ -209,167 +271,304 @@ export default function Home() {
     };
 
     const filteredBooks = books.filter(b => {
-        const matchesTab = tab === 'all' || (tab === 'offline' && offlineStatus[b.id]);
-        const matchesSearch = searchQuery.trim() === '' || 
-            b.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        const matchesSearch = searchQuery.trim() === '' ||
+            b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (b.author || '').toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesTab && matchesSearch;
+        return matchesSearch;
     });
 
     if (authLoading || loading) return (
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}><div className="spinner" /></div>
     );
 
-    const storageQuota = 100 * 1024 * 1024;
-    const storagePct = Math.min(Math.round((storage.totalBytes / storageQuota) * 100), 100);
-
     return (
         <div style={{ paddingBottom: 40 }}>
-            {/* Hero Dashboard */}
-            <div className="library-hero" style={{ padding: '24px 0 20px', borderRadius: 16, margin: '12px var(--space-4) 0', background: 'linear-gradient(135deg, #0f172a, #1e293b)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div className="container">
-                    <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, background: 'linear-gradient(90deg, #FFD700, #FFA000)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Ma Bibliothèque</h1>
-                    <p style={{ color: 'var(--color-text-muted)', fontSize: 12, margin: '4px 0 0' }}>Votre espace de lecture personnel et hors-ligne</p>
-                    
-                    <div className="library-stats-container">
-                        <div className="library-stat-card">
-                            <span className="library-stat-card-label" style={{ color: 'rgba(255,255,255,0.6)' }}>TOTAL LIVRES</span>
-                            <span className="library-stat-card-value" style={{ color: '#fff' }}>{books.length}</span>
-                        </div>
-                        <div className="library-stat-card">
-                            <span className="library-stat-card-label" style={{ color: 'rgba(255,255,255,0.6)' }}>HORS-LIGNE</span>
-                            <span className="library-stat-card-value" style={{ color: '#fff' }}>{Object.values(offlineStatus).filter(Boolean).length}</span>
-                        </div>
-                        <div className="library-stat-card" style={{ gridColumn: 'span 2' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span className="library-stat-card-label" style={{ color: 'rgba(255,255,255,0.6)' }}>STOCKAGE DISQUE</span>
-                                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-primary)' }}>{storagePct}%</span>
-                            </div>
-                            <span className="library-stat-card-value" style={{ fontSize: 13, marginTop: 2, color: '#fff' }}>
-                                {formatSize(storage.totalBytes)} <span style={{ fontSize: 10, fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}>/ 100 Mo</span>
-                            </span>
-                            <div className="library-storage-track">
-                                <div className="library-storage-bar" style={{ width: `${storagePct}%` }} />
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            {/* Input file caché pour import instantané style Phoenix */}
+            <input 
+                type="file" 
+                ref={fileInputRef} 
+                style={{ display: 'none' }} 
+                accept="application/pdf,application/epub+zip,.pdf,.epub" 
+                multiple
+                onChange={async (e) => {
+                    const files = e.target.files;
+                    if (!files || files.length === 0) return;
+                    setImporting(true);
+                    try {
+                        const newIds = await importFilesList(files);
+                        if (newIds && newIds.length > 0) {
+                            await loadLibraryData();
+                        }
+                    } catch (err) {
+                        console.error('Erreur importation:', err);
+                    } finally {
+                        setImporting(false);
+                        e.target.value = '';
+                    }
+                }}
+            />
+
+            {/* En-tête compact — flèche retour + titre */}
+            <div className="container" style={{ marginTop: 2, padding: '0 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                    onClick={() => navigate(-1)}
+                    aria-label="Retour"
+                    style={{
+                        width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'var(--color-bg-dark)', border: 'none', cursor: 'pointer'
+                    }}
+                >
+                    <ArrowLeft2 size={16} color="var(--color-text)" variant="Linear" />
+                </button>
+                <h1 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'var(--color-text)' }}>Livres</h1>
             </div>
 
-            {/* Controls: Tabs & Search */}
-            <div className="container" style={{ marginTop: 16 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div className="library-tabs" style={{ padding: '4px 0', marginBottom: 0 }}>
-                        <button className={`library-tab ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')} style={{ fontSize: 12 }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 15, marginRight: 4, verticalAlign: 'middle' }}>library_books</span>
-                            Tous ({books.length})
-                        </button>
-                        <button className={`library-tab ${tab === 'offline' ? 'active' : ''}`} onClick={() => setTab('offline')} style={{ fontSize: 12 }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 15, marginRight: 4, verticalAlign: 'middle' }}>download_done</span>
-                            Hors-ligne ({Object.values(offlineStatus).filter(Boolean).length})
-                        </button>
-                    </div>
-
-                    <div className="library-search-wrap">
-                        <span className="material-symbols-outlined">search</span>
-                        <input 
-                            type="text" 
-                            placeholder="Rechercher par titre ou auteur..." 
+            {/* Barre de recherche — en haut, cohérente avec Home */}
+            <div className="container" style={{ marginTop: 8, padding: '0 4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{
+                        flex: 1, display: 'flex', alignItems: 'center', gap: 8,
+                        border: '1px solid var(--color-border)', borderRadius: 8, padding: '8px 14px'
+                    }}>
+                        <input
+                            type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Rechercher par titre ou auteur..."
+                            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 14, color: 'var(--color-text)' }}
                         />
                         {searchQuery && (
-                            <span 
-                                className="material-symbols-outlined" 
-                                style={{ cursor: 'pointer', fontSize: 16 }}
-                                onClick={() => setSearchQuery('')}
-                            >
-                                close
+                            <span style={{ cursor: 'pointer', display: 'flex', color: 'var(--color-text-muted)' }} onClick={() => setSearchQuery('')}>
+                                <CloseCircle size={16} color="currentColor" variant="Linear" />
                             </span>
                         )}
                     </div>
+                    <div style={{
+                        width: 38, height: 38, borderRadius: 8, background: 'var(--color-primary)', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                        <SearchNormal1 size={18} color="#000" variant="Linear" />
+                    </div>
                 </div>
             </div>
 
-            {/* Grid */}
-            <div className="container" style={{ marginTop: 12 }}>
+            {/* Passerelle BoomBooks si non connecté — bandeau fin, cohérent avec Home */}
+            {!user && (
+                <div className="container" style={{ marginTop: 8, padding: '0 4px' }}>
+                    <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                        padding: '8px 4px', borderBottom: '1px solid var(--color-border)'
+                    }}>
+                        <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0 }}>
+                            Connectez-vous pour synchroniser vos achats BoomBooks
+                        </p>
+                        <button
+                            onClick={() => navigate('/login')}
+                            style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary-text)', whiteSpace: 'nowrap', flexShrink: 0 }}
+                        >
+                            Connexion
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Cadre promotionnel BoomBooks.shop */}
+            <div className="container" style={{ marginTop: 8, padding: '0 4px' }}>
+                <div
+                    onClick={() => window.open('https://boombooks.shop', '_blank')}
+                    style={{
+                        position: 'relative', overflow: 'hidden', cursor: 'pointer',
+                        borderRadius: 'var(--radius-xl)', padding: 'var(--space-5) var(--space-4)',
+                        background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-hover))',
+                        minHeight: 108, display: 'flex', flexDirection: 'column', justifyContent: 'space-between'
+                    }}
+                >
+                    <ShoppingBag size={64} color="rgba(0,0,0,0.12)" variant="Bold" style={{ position: 'absolute', right: -8, bottom: -12 }} />
+                    <div style={{ position: 'relative', maxWidth: '75%' }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 800, color: '#000', margin: 0, lineHeight: 1.3 }}>
+                            Encore plus de livres vous attendent
+                        </h3>
+                        <p style={{ fontSize: 12, color: 'rgba(0,0,0,0.65)', margin: '4px 0 0', lineHeight: 1.4 }}>
+                            Découvrez tout le catalogue sur BoomBooks.shop et trouvez votre prochaine lecture.
+                        </p>
+                    </div>
+                    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: '#000' }}>
+                        Visiter BoomBooks.shop
+                        <ArrowRight size={16} color="#000" variant="Linear" />
+                    </span>
+                </div>
+            </div>
+
+            {/* Synchroniser un livre du téléphone */}
+            <div className="container" style={{ marginTop: 8, padding: '0 4px' }}>
+                <button
+                    onClick={handleSyncBook}
+                    disabled={importing}
+                    style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+                        borderRadius: 14, border: '1px solid var(--color-border)', background: 'var(--color-surface)',
+                        cursor: 'pointer', textAlign: 'left'
+                    }}
+                >
+                    {importing
+                        ? <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2, margin: 0, flexShrink: 0 }} />
+                        : <DocumentUpload size={20} color="var(--color-primary-text)" variant="Linear" style={{ flexShrink: 0 }} />
+                    }
+                    <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>
+                        {importing ? 'Importation en cours...' : 'Synchroniser un livre du téléphone'}
+                    </h4>
+                </button>
+            </div>
+
+            {/* Liste des livres — marges latérales réduites pour coller aux bords de l'écran */}
+            <div className="container" style={{ marginTop: 10, padding: '0 4px' }}>
                 {filteredBooks.length === 0 ? (
                     <div className="empty-state" style={{ padding: '40px 0', textAlign: 'center' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 44, color: 'var(--color-text-muted)', opacity: 0.3 }}>
-                            {searchQuery ? 'search_off' : tab === 'offline' ? 'cloud_off' : 'library_books'}
-                        </span>
+                        <div style={{ display: 'flex', justifyContent: 'center', opacity: 0.3, marginBottom: 8 }}>
+                            {searchQuery
+                                ? <SearchStatus size={44} color="var(--color-text-muted)" variant="Linear" />
+                                : <Book1 size={44} color="var(--color-text-muted)" variant="Linear" />
+                            }
+                        </div>
                         <h3 style={{ fontWeight: 700, marginTop: 12, fontSize: 14, margin: '8px 0 4px' }}>
-                            {searchQuery ? 'Aucun résultat' : tab === 'offline' ? 'Aucun livre hors-ligne' : 'Bibliothèque vide'}
+                            {searchQuery ? 'Aucun résultat' : 'Bibliothèque vide'}
                         </h3>
                         <p style={{ color: 'var(--color-text-muted)', fontSize: 12, margin: 0 }}>
-                            {searchQuery ? 'Essayez avec un autre mot-clé.' : tab === 'offline' ? 'Téléchargez des livres pour les lire sans connexion.' : 'Achetez des livres sur BoomBooks.'}
+                            {searchQuery ? 'Essayez avec un autre mot-clé.' : 'Achetez des livres sur BoomBooks.'}
                         </p>
                     </div>
                 ) : (
-                    <div className="book-grid">
+                    <div>
                         {filteredBooks.map(b => {
                             const isOffline = offlineStatus[b.id];
                             const progress = progressMap[b.id];
                             const pct = progress ? Math.round((progress.currentPage / progress.totalPages) * 100) : 0;
                             const isDownloading = downloading === b.id;
                             const coverSrc = getCoverSrc(b);
+                            const isLocalBook = Boolean(b.isLocal || String(b.id).startsWith('local_'));
 
                             return (
-                                <div key={b.id} className="book-card" onClick={() => navigate(`/read/${b.id}`)}>
-                                    <div className="book-cover-wrap" style={{ background: getBookGradient(b.id) }}>
-                                        {coverSrc && <img src={coverSrc} alt={b.title} loading="lazy" onError={(e) => e.target.style.display='none'} />}
-                                        
-                                        {!isDownloading && (
-                                            <div className="book-action-overlay">
-                                                {isOffline ? (
-                                                    <>
-                                                        <span className="book-badge-icon" style={{ background: 'rgba(22,163,74,0.95)', borderColor: '#22c55e' }} title="Disponible hors-ligne">
-                                                            <span className="material-symbols-outlined" style={{ fontSize: 11, fontWeight: 'bold' }}>done</span>
-                                                        </span>
-                                                        <button 
-                                                            onClick={(e) => { e.stopPropagation(); handleRemove(b.id); }}
-                                                            className="book-badge-icon delete-badge" 
-                                                            title="Supprimer du stockage"
-                                                            style={{ border: 'none', cursor: 'pointer' }}
-                                                        >
-                                                            <span className="material-symbols-outlined" style={{ fontSize: 11 }}>delete</span>
-                                                        </button>
-                                                    </>
-                                                ) : (
-                                                    <button 
-                                                        onClick={(e) => { e.stopPropagation(); handleDownload(b); }}
-                                                        className="book-badge-icon" 
-                                                        title="Télécharger pour lire hors-ligne"
-                                                        style={{ border: 'none', cursor: 'pointer' }}
-                                                    >
-                                                        <span className="material-symbols-outlined" style={{ fontSize: 11 }}>download</span>
-                                                    </button>
-                                                )}
-                                            </div>
-                                        )}
+                                <div
+                                    key={b.id}
+                                    onClick={() => navigate(`/read/${b.id}`)}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    <div style={{ position: 'relative', width: 52, height: 72, borderRadius: 0, overflow: 'hidden', flexShrink: 0, background: getBookGradient(b.id) }}>
+                                        {coverSrc && <img src={coverSrc} alt={b.title} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => e.target.style.display = 'none'} />}
 
                                         {isDownloading && (
-                                            <div className="book-downloading-ring">
-                                                <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2, margin: 0 }} />
-                                                <span>{downloadProgress}%</span>
+                                            <div style={{
+                                                position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)',
+                                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, color: '#fff'
+                                            }}>
+                                                <div className="spinner" style={{ width: 14, height: 14, borderWidth: 2, margin: 0 }} />
+                                                <span style={{ fontSize: 9, fontWeight: 700 }}>{downloadProgress}%</span>
                                             </div>
                                         )}
 
-                                        {progress && pct > 0 && (
-                                            <div className="book-progress-bar">
-                                                <div className="book-progress-fill" style={{ width: `${pct}%` }} />
+                                        {!isDownloading && progress && pct > 0 && (
+                                            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: 'rgba(0,0,0,0.35)' }}>
+                                                <div style={{ height: '100%', width: `${pct}%`, background: 'var(--color-primary)' }} />
                                             </div>
                                         )}
                                     </div>
-                                    
-                                    <h4 className="book-title line-clamp-2" title={b.title}>{b.title}</h4>
-                                    <p className="book-author line-clamp-1">{b.author || 'Auteur inconnu'}</p>
+
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <h4 className="line-clamp-1" title={b.title} style={{ fontSize: 14, fontWeight: 700, margin: '0 0 3px' }}>{b.title}</h4>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                            <span style={{
+                                                fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 6,
+                                                textTransform: 'uppercase', letterSpacing: 0.3, flexShrink: 0,
+                                                background: isLocalBook ? 'var(--color-bg-dark)' : 'var(--color-primary-light)',
+                                                color: isLocalBook ? 'var(--color-text-muted)' : 'var(--color-primary-text)'
+                                            }}>
+                                                {isLocalBook ? 'Appareil' : 'BoomBooks'}
+                                            </span>
+                                            <span className="line-clamp-1" style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+                                                {b.author || 'Auteur inconnu'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {!isDownloading && (
+                                        <div style={{ position: 'relative', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                                            <button
+                                                onClick={() => setOpenMenuId(openMenuId === b.id ? null : b.id)}
+                                                aria-label="Plus d'options"
+                                                style={{
+                                                    width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    background: 'transparent', border: 'none', cursor: 'pointer'
+                                                }}
+                                            >
+                                                <More size={18} color="#000" variant="Outline" style={{ transform: 'rotate(90deg)' }} />
+                                            </button>
+
+                                            {openMenuId === b.id && (
+                                                <div ref={menuRef} style={{
+                                                    position: 'absolute', top: '110%', right: 0, zIndex: 20, minWidth: 210,
+                                                    background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                                                    borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)', overflow: 'hidden'
+                                                }}>
+                                                    {(isLocalBook ? [
+                                                        { icon: Edit2, label: 'Renommer', action: () => handleRename(b) },
+                                                        { icon: InfoCircle, label: 'Détails', action: () => handleDetails(b, true) },
+                                                        { icon: Trash, label: 'Supprimer', danger: true, action: () => handleRemove(b.id) },
+                                                    ] : isOffline ? [
+                                                        { icon: Trash, label: 'Supprimer le fichier hors-ligne', danger: true, action: () => handleRemove(b.id) },
+                                                        { icon: InfoCircle, label: 'Détails', action: () => handleDetails(b, false) },
+                                                    ] : [
+                                                        { icon: DocumentDownload, label: 'Télécharger pour lire hors-ligne', action: () => handleDownload(b) },
+                                                        { icon: InfoCircle, label: 'Détails', action: () => handleDetails(b, false) },
+                                                    ]).map((item, i) => {
+                                                        const ItemIcon = item.icon;
+                                                        return (
+                                                            <div
+                                                                key={i}
+                                                                onClick={() => { setOpenMenuId(null); item.action(); }}
+                                                                style={{
+                                                                    padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                                                                    borderBottom: '1px solid var(--color-border)', whiteSpace: 'nowrap'
+                                                                }}
+                                                            >
+                                                                <ItemIcon size={16} color={item.danger ? 'var(--color-danger)' : 'var(--color-text-muted)'} variant="Linear" />
+                                                                <span style={{ fontSize: 13, fontWeight: 600, color: item.danger ? 'var(--color-danger)' : 'var(--color-text)' }}>{item.label}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
                     </div>
                 )}
             </div>
+
+            {/* Formations — découverte secondaire, ligne compacte (déplacée depuis Home) */}
+            {!isOfflineNow && (
+                <div className="container" style={{ marginTop: 'var(--space-4)', padding: '0 4px' }}>
+                    <div
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+                            border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', cursor: 'pointer'
+                        }}
+                        onClick={() => window.open('https://boombooks.shop/formations', '_blank')}
+                    >
+                        <Teacher size={22} color="var(--color-text-muted)" variant="Linear" />
+                        <div style={{ flex: 1 }}>
+                            <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>Formations Sélectionnées</h4>
+                            <p style={{ fontSize: 11.5, color: 'var(--color-text-muted)', margin: '2px 0 0' }}>Catalogue des meilleures formations francophones, avec BoomBooks</p>
+                        </div>
+                        <ArrowRight size={18} color="var(--color-text-muted)" variant="Linear" />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

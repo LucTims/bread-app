@@ -1,5 +1,5 @@
 import localforage from 'localforage';
-import { isRealOnline } from './connectivity';
+import { isRealOnline } from './connectivity.js';
 
 // ─── Stores IndexedDB ────────────────────────
 const bookStore = localforage.createInstance({
@@ -24,6 +24,12 @@ const syncQueueStore = localforage.createInstance({
   name: 'bread-app',
   storeName: 'sync_queue',
   description: 'File d\'attente pour la synchronisation des statistiques de lecture'
+});
+
+const notesStore = localforage.createInstance({
+  name: 'bread-app',
+  storeName: 'book_notes',
+  description: 'Signets et notes de lecture par page'
 });
 
 // ─── localStorage fast index ────────────────────────
@@ -214,6 +220,20 @@ export async function getBookMeta(bookId) {
 }
 
 /**
+ * Renomme un livre stocké localement (titre affiché uniquement)
+ */
+export async function renameLocalBook(bookId, newTitle) {
+  const meta = await metaStore.getItem(`meta_${bookId}`);
+  if (!meta) return;
+  meta.title = newTitle;
+  await metaStore.setItem(`meta_${bookId}`, meta);
+  if (_metaCache) _metaCache.set(bookId, meta);
+
+  const index = _readIndex().map(b => b.id === bookId ? { ...b, title: newTitle } : b);
+  _writeIndex(index);
+}
+
+/**
  * Supprime un livre du stockage hors-ligne
  */
 export async function removeOfflineBook(bookId) {
@@ -262,6 +282,27 @@ export async function saveReadingProgress(bookId, page, totalPages) {
  */
 export async function getReadingProgress(bookId) {
   return await metaStore.getItem(`progress_${bookId}`);
+}
+
+/**
+ * Signets & notes de lecture — une liste par livre, triée par page
+ */
+export async function getBookNotes(bookId) {
+  const notes = await notesStore.getItem(`notes_${bookId}`);
+  return (notes || []).sort((a, b) => a.page - b.page);
+}
+
+export async function saveBookNote(bookId, { page, text, isBookmark }) {
+  const notes = await getBookNotes(bookId);
+  const note = { id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, page, text: text || '', isBookmark: !!isBookmark, createdAt: Date.now() };
+  notes.push(note);
+  await notesStore.setItem(`notes_${bookId}`, notes);
+  return note;
+}
+
+export async function deleteBookNote(bookId, noteId) {
+  const notes = await getBookNotes(bookId);
+  await notesStore.setItem(`notes_${bookId}`, notes.filter(n => n.id !== noteId));
 }
 
 /**

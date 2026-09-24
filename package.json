@@ -11,8 +11,11 @@
     "test": "node tests/e2e/runner.js"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "@supabase/supabase-js": "^2.105.4",
     "framer-motion": "^12.40.0",
+    "iconsax-react": "^0.0.8",
     "localforage": "^1.10.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
@@ -21,6 +24,8 @@
     "react-router-dom": "^7.15.0"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.0",
     "@eslint/js": "^10.0.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

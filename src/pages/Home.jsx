@@ -1,16 +1,25 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { SearchNormal1 } from 'iconsax-react';
 import { useAuth } from '../lib/AuthContext';
 import { supabase, getFreeBooks } from '../lib/supabase';
 import { getAllOfflineBooks, getReadingProgress, preloadCoverUrls, getOfflineBooksSync, getProgressMapSync } from '../lib/offlineStore';
-import { InstallButton } from '../components/InstallPrompt';
 import { getDailyFallbackQuote } from '../lib/quotes';
 import useOnlineStatus from '../lib/useOnlineStatus';
+
+function timeGreeting() {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 12) return 'Bonjour';
+    if (h >= 12 && h < 18) return 'Bon après-midi';
+    if (h >= 18 && h < 22) return 'Bonsoir';
+    return 'Bonne nuit';
+}
 
 export default function Home() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { isOffline } = useOnlineStatus();
+    const [query, setQuery] = useState('');
 
     // ── INSTANT first render from localStorage when offline (<5ms) ──
     const syncBooks = isOffline ? getOfflineBooksSync() : [];
@@ -50,7 +59,6 @@ export default function Home() {
 
     // Load data
     const loadData = useCallback(async () => {
-        if (!user) return;
         setLoading(true);
         try {
             let bookList = [];
@@ -71,30 +79,32 @@ export default function Home() {
             }
 
             // ── Online mode ──
-            const { data: accessRows } = await supabase
-                .from('user_book_access')
-                .select('book_id, granted_at, books:book_id(id, title, author, cover_url, file_url)')
-                .eq('user_id', user.id)
-                .order('granted_at', { ascending: false });
+            if (user) {
+                const { data: accessRows } = await supabase
+                    .from('user_book_access')
+                    .select('book_id, granted_at, books:book_id(id, title, author, cover_url, file_url)')
+                    .eq('user_id', user.id)
+                    .order('granted_at', { ascending: false });
 
-            if (accessRows?.length) {
-                bookList = accessRows.filter(r => r.books).map(r => ({ ...r.books, granted_at: r.granted_at }));
+                if (accessRows?.length) {
+                    bookList = accessRows.filter(r => r.books).map(r => ({ ...r.books, granted_at: r.granted_at }));
+                }
+
+                const { data: orders } = await supabase.from('orders')
+                    .select('id, order_items(book_id, books(id, title, author, cover_url, file_url))')
+                    .eq('user_id', user.id).eq('status', 'paid');
+                const seen = new Set(bookList.map(b => b.id));
+                (orders || []).forEach(o => o.order_items?.forEach(oi => {
+                    if (oi.books && !seen.has(oi.books.id)) { seen.add(oi.books.id); bookList.push(oi.books); }
+                }));
+
+                const freeBooks = await getFreeBooks();
+                freeBooks.forEach(fb => {
+                    if (!seen.has(fb.id)) { seen.add(fb.id); bookList.push({...fb, is_free_offer: true}); }
+                });
+
+                setMyBooks(bookList);
             }
-            
-            const { data: orders } = await supabase.from('orders')
-                .select('id, order_items(book_id, books(id, title, author, cover_url, file_url))')
-                .eq('user_id', user.id).eq('status', 'paid');
-            const seen = new Set(bookList.map(b => b.id));
-            (orders || []).forEach(o => o.order_items?.forEach(oi => {
-                if (oi.books && !seen.has(oi.books.id)) { seen.add(oi.books.id); bookList.push(oi.books); }
-            }));
-
-            const freeBooks = await getFreeBooks();
-            freeBooks.forEach(fb => {
-                if (!seen.has(fb.id)) { seen.add(fb.id); bookList.push({...fb, is_free_offer: true}); }
-            });
-
-            setMyBooks(bookList);
 
             const offBooks = await getAllOfflineBooks();
             setOfflineBooks(offBooks);
@@ -187,231 +197,105 @@ export default function Home() {
         return book.cover_url;
     };
 
+    const firstName = (user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || '').split(' ')[0];
+
+    // Message d'activité — dépend de ce que fait vraiment le lecteur en ce moment
+    const totalBooks = myBooks.length + offlineBooks.length;
+    const activityMessage = lastRead
+        ? `Reprenez "${lastRead.title}" · page ${lastRead.currentPage}/${lastRead.totalPages}`
+        : totalBooks > 0
+            ? `${totalBooks} livre${totalBooks > 1 ? 's' : ''} dans votre bibliothèque`
+            : 'Importez votre premier livre pour commencer';
+
+    // Recherche — sur tous les livres synchronisés (achetés + hors-ligne)
+    const allBooks = useMemo(() => {
+        const map = new Map();
+        [...myBooks, ...offlineBooks].forEach(b => { if (!map.has(b.id)) map.set(b.id, b); });
+        return [...map.values()];
+    }, [myBooks, offlineBooks]);
+
+    const searchResults = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!q) return [];
+        return allBooks.filter(b =>
+            b.title?.toLowerCase().includes(q) || b.author?.toLowerCase().includes(q)
+        ).slice(0, 20);
+    }, [query, allBooks]);
+
     return (
-        <div>
-
-            {/* Offline Banner */}
-            {isOffline && (
-                <div style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '10px 16px', marginBottom: 'var(--space-4)',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'rgba(255, 152, 0, 0.1)',
-                    border: '1px solid rgba(255, 152, 0, 0.25)',
-                    fontSize: 'var(--text-sm)', color: '#FFA726'
-                }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>wifi_off</span>
-                    <span>Mode hors-ligne — Vos livres téléchargés sont disponibles</span>
-                </div>
-            )}
-
-            {/* Install App card */}
-            {!isOffline && <InstallButton style={{ marginBottom: 'var(--space-6)' }} />}
-
-            {/* Citation du Jour */}
-            <div className="card" style={{ padding: 'var(--space-6)', marginBottom: 'var(--space-6)', background: 'linear-gradient(135deg, rgba(30,58,138,0.1), rgba(124,58,237,0.1))', border: '1px solid rgba(124,58,237,0.2)', position: 'relative', overflow: 'hidden' }}>
-                <span className="material-symbols-outlined" style={{ position: 'absolute', top: -10, left: -10, fontSize: 100, color: 'var(--color-primary)', opacity: 0.05, transform: 'rotate(180deg)' }}>format_quote</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)', fontSize: 20 }}>auto_awesome</span>
-                    <h2 style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--color-primary)', margin: 0 }}>Citation du Jour</h2>
-                </div>
-                <p style={{ fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.5, marginBottom: 12, position: 'relative', zIndex: 1, fontStyle: 'italic' }}>
-                    "{quoteOfDay.text}"
-                </p>
-                <p style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text-muted)', textAlign: 'right', position: 'relative', zIndex: 1, margin: 0 }}>
-                    — {quoteOfDay.author}
-                </p>
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100dvh - var(--bottom-nav-height) - var(--space-8))' }}>
+            {/* En-tête — salutation dynamique (heure + activité) */}
+            <div style={{ marginTop: 'var(--space-8)' }}>
+                <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>
+                    <span style={{ fontWeight: 400, color: 'var(--color-text-muted)' }}>{timeGreeting()}, </span>
+                    {firstName || 'Lecteur'}
+                </h1>
+                <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '4px 0 0' }}>{activityMessage}</p>
             </div>
 
-            {/* Continue Reading */}
-            {lastRead && (
-                <>
-                    <div className="section-header">
-                        <h2 className="section-title">Continuer la lecture</h2>
+            {/* Recherche + citation — centrées dans l'espace restant de l'écran */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 'var(--space-5)' }}>
+                {/* Barre de recherche — sur tous les livres synchronisés */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{
+                        flex: 1, display: 'flex', alignItems: 'center',
+                        border: '1px solid var(--color-border)', borderRadius: 8, padding: '10px 16px'
+                    }}>
+                        <input
+                            type="text"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            placeholder="Rechercher un livre, un auteur..."
+                            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 14, color: 'var(--color-text)' }}
+                        />
                     </div>
-                    <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 'var(--space-8)', cursor: 'pointer' }} onClick={() => navigate(`/read/${lastRead.id}`)}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'var(--space-6) 0', background: 'var(--color-bg-dark)' }}>
-                            <div style={{ width: 120, height: 180, borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)', overflow: 'hidden', background: getBookGradient(lastRead.id) }}>
-                                {getCoverSrc(lastRead) && <img src={getCoverSrc(lastRead)} alt={lastRead.title} onError={(e) => e.target.style.display='none'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-                            </div>
-                        </div>
-                        <div style={{ padding: 'var(--space-4)' }}>
-                            <p style={{ color: 'var(--color-primary)', fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>
-                                Page {lastRead.currentPage} / {lastRead.totalPages}
-                            </p>
-                            <h3 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, marginBottom: 4 }} className="line-clamp-2">{lastRead.title}</h3>
-                            <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-4)' }}>{lastRead.author || 'Auteur inconnu'}</p>
-                            
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 8 }}>
-                                <span>{lastRead.pct}% terminé</span>
-                            </div>
-                            <div style={{ height: 4, background: 'var(--color-border)', borderRadius: 2, overflow: 'hidden' }}>
-                                <div style={{ width: `${lastRead.pct}%`, height: '100%', background: 'var(--color-primary)' }}></div>
-                            </div>
-                        </div>
+                    <div style={{
+                        width: 44, height: 44, borderRadius: 8, background: 'var(--color-primary)', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                        <SearchNormal1 size={20} color="#000" variant="Linear" />
                     </div>
-                </>
-            )}
+                </div>
 
-            {/* My Books (online only) */}
-            {myBooks.length > 0 && (
-                <>
-                    <div className="section-header">
-                        <h2 className="section-title">Mes Livres</h2>
-                        <button className="section-link" onClick={() => navigate('/library')}>
-                            Tout voir <span className="material-symbols-outlined" style={{ fontSize: 16 }}>chevron_right</span>
-                        </button>
-                    </div>
-                    <div className="horizontal-scroll" style={{ marginBottom: 'var(--space-8)' }}>
-                        {myBooks.slice(0, 8).map((book) => (
-                            <div key={book.id} style={{ minWidth: 140, width: 140, cursor: 'pointer' }} onClick={() => navigate(`/read/${book.id}`)}>
-                                <div style={{ width: '100%', height: 200, borderRadius: 'var(--radius-md)', marginBottom: 12, overflow: 'hidden', background: getBookGradient(book.id) }}>
-                                    {getCoverSrc(book) && <img src={getCoverSrc(book)} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-                                </div>
-                                <h4 className="line-clamp-2" style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{book.title}</h4>
-                                <p className="line-clamp-1" style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{book.author || 'Auteur inconnu'}</p>
-                            </div>
-                        ))}
-                    </div>
-                </>
-            )}
-
-            {/* Offline Books */}
-            {offlineBooks.length > 0 && (
-                <>
-                    <div className="section-header">
-                        <h2 className="section-title">📥 Disponibles hors-ligne</h2>
-                    </div>
-                    <div className="horizontal-scroll" style={{ marginBottom: 'var(--space-8)' }}>
-                        {offlineBooks.map((book) => {
-                            const coverSrc = getCoverSrc(book);
-                            return (
-                                <div key={book.id} style={{ minWidth: 140, width: 140, cursor: 'pointer' }} onClick={() => navigate(`/read/${book.id}`)}>
-                                    <div style={{ width: '100%', height: 200, borderRadius: 'var(--radius-md)', marginBottom: 12, overflow: 'hidden', background: getBookGradient(book.id), position: 'relative' }}>
-                                        {coverSrc && <img src={coverSrc} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-                                        <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(22,163,74,0.9)', color: '#fff', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>check</span>
-                                        </div>
-                                    </div>
-                                    <h4 className="line-clamp-2" style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{book.title}</h4>
-                                    <p className="line-clamp-1" style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{book.author || 'Auteur inconnu'}</p>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </>
-            )}
-            {/* Formations Promo (Online only) */}
-            {!isOffline && (
-                <div style={{ marginTop: 'var(--space-6)', marginBottom: 'var(--space-8)' }}>
-                    <div className="section-header">
-                        <h2 className="section-title">Développez vos compétences</h2>
-                    </div>
-                    <div 
-                        className="card" 
-                        style={{ padding: 0, overflow: 'hidden', cursor: 'pointer', border: '1px solid var(--color-border)', background: 'var(--color-bg)' }}
-                        onClick={() => window.open('https://boombooks.shop/formations', '_blank')}
-                    >
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ 
-                                background: '#818cf8', 
-                                padding: 'var(--space-6)', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center',
-                                position: 'relative',
-                                overflow: 'hidden'
-                            }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '120px', color: 'rgba(255,255,255,0.15)', position: 'absolute', right: '-20px', bottom: '-20px' }}>school</span>
-                                <div style={{
-                                    boxShadow: 'var(--shadow-lg)',
-                                    borderRadius: 'var(--radius-md)',
-                                    overflow: 'hidden',
-                                    width: '160px',
-                                    background: '#fff',
-                                    zIndex: 1,
-                                    aspectRatio: '16/9'
+                {/* Résultats de recherche */}
+                {query.trim() ? (
+                    <div>
+                        {searchResults.length === 0 ? (
+                            <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Aucun résultat pour "{query}".</p>
+                        ) : (
+                            searchResults.map(book => (
+                                <div key={book.id} onClick={() => navigate(`/read/${book.id}`)} style={{
+                                    display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
+                                    borderBottom: '1px solid var(--color-border)', cursor: 'pointer'
                                 }}>
-                                    <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Formations" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    <div style={{ width: 40, height: 56, borderRadius: 6, overflow: 'hidden', flexShrink: 0, background: getBookGradient(book.id) }}>
+                                        {getCoverSrc(book) && <img src={getCoverSrc(book)} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                                    </div>
+                                    <div style={{ minWidth: 0 }}>
+                                        <h4 className="line-clamp-1" style={{ fontSize: 14, fontWeight: 600 }}>{book.title}</h4>
+                                        <p className="line-clamp-1" style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{book.author || 'Auteur inconnu'}</p>
+                                    </div>
                                 </div>
-                            </div>
-                            <div style={{ padding: 'var(--space-5)' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
-                                    {[1,2,3,4,5].map(star => (
-                                        <span key={star} className="material-symbols-outlined" style={{ fontSize: 14, color: 'var(--color-text)', fontVariationSettings: '"FILL" 1' }}>star</span>
-                                    ))}
-                                    <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 4, fontWeight: 600 }}>(Premium)</span>
-                                </div>
-                                <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 800, marginBottom: 6, color: 'var(--color-text)' }}>
-                                    Formations Sélectionnées
-                                </h3>
-                                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-5)', lineHeight: 1.5 }}>
-                                    Découvrez notre catalogue des meilleures formations francophones. Apprenez avec des experts depuis BoomBooks.
-                                </p>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-text)', background: 'var(--color-bg-dark)', padding: '10px 16px', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: 'var(--text-sm)', width: 'fit-content' }}>
-                                    Voir le catalogue <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_forward</span>
-                                </div>
-                            </div>
-                        </div>
+                            ))
+                        )}
                     </div>
-                </div>
-            )}
-
-            {/* Empty state */}
-            {!loading && myBooks.length === 0 && offlineBooks.length === 0 && (
-                <div className="empty-state" style={{ paddingTop: 60 }}>
-                    <span className="material-symbols-outlined empty-state-icon" style={{ color: 'var(--color-primary)', fontSize: 56 }}>library_books</span>
-                    <h3 style={{ fontWeight: 700, marginTop: 12 }}>
-                        {isOffline ? 'Aucun livre hors-ligne' : 'Bienvenue sur BoomRead !'}
-                    </h3>
-                    <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', marginTop: 8, maxWidth: 280, lineHeight: 1.6, margin: '8px auto 0' }}>
-                        {isOffline 
-                            ? 'Connectez-vous à Internet et téléchargez des livres pour les lire hors-ligne.' 
-                            : <>Achetez des livres sur <strong>BoomBooks.shop</strong> puis revenez ici pour les lire hors-ligne.</>
-                        }
-                    </p>
-                    {!isOffline && (
-                        <button className="btn btn-primary" style={{ marginTop: 20 }} onClick={() => window.open('https://boombooks.shop', '_blank')}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 6 }}>open_in_new</span>
-                            Découvrir BoomBooks
-                        </button>
-                    )}
-                </div>
-            )}
+                ) : (
+                    <div className="card" style={{ padding: 'var(--space-5)', borderRadius: 8 }}>
+                        <p style={{ fontSize: 13.5, color: 'var(--color-text)', fontStyle: 'italic', lineHeight: 1.5, margin: 0 }}>
+                            "{quoteOfDay.text}"
+                        </p>
+                        <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '8px 0 0', textAlign: 'right' }}>
+                            — {quoteOfDay.author}
+                        </p>
+                    </div>
+                )}
+            </div>
 
             {loading && (
-                <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}>
+                <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 40 }}>
                     <div className="spinner" />
                 </div>
             )}
-
-            {/* Floating Action Button (WhatsApp Style) for AI Chat */}
-            <button 
-                onClick={() => navigate('/chat/ai')}
-                style={{
-                    position: 'fixed',
-                    bottom: 'calc(var(--bottom-nav-height) + 16px)',
-                    right: '16px',
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, var(--color-primary), #FF8C00)',
-                    boxShadow: '0 4px 12px rgba(255, 140, 0, 0.4)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: 'none',
-                    padding: 0,
-                    zIndex: 1000,
-                    cursor: 'pointer',
-                    transition: 'transform 0.2s',
-                    overflow: 'hidden'
-                }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-            >
-                <img src="/ai-logo.png" alt="AI Chat" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </button>
         </div>
     );
 }

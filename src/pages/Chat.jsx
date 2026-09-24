@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft2, Copy, Trash, ProfileCircle, InfoCircle, Unlock, Lock, EmojiHappy, Paperclip, Camera, Send, CloseCircle, TickCircle, MessageCircle } from 'iconsax-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import useOnlineStatus from '../lib/useOnlineStatus';
@@ -408,18 +409,18 @@ export default function Chat() {
                 {selectedMessage ? (
                     <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: 16 }}>
                         <button onClick={() => setSelectedMessage(null)} className="btn-ghost" style={{ padding: 4 }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 24 }}>arrow_back</span>
+                            <ArrowLeft2 size={24} color="currentColor" variant="Linear" />
                         </button>
                         <div style={{ flex: 1, fontSize: 18, fontWeight: 600 }}>1</div>
                         <button onClick={() => { setReplyingTo(selectedMessage); setSelectedMessage(null); }} className="btn-ghost" style={{ padding: 4 }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>reply</span>
+                            <ArrowLeft2 size={22} color="currentColor" variant="Linear" />
                         </button>
                         <button onClick={() => { navigator.clipboard.writeText(selectedMessage.content); setSelectedMessage(null); }} className="btn-ghost" style={{ padding: 4 }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>content_copy</span>
+                            <Copy size={22} color="currentColor" variant="Linear" />
                         </button>
                         {(isAdmin || selectedMessage.user_id === user.id) && (
                             <button onClick={() => { handleDeleteMessage(selectedMessage.id); setSelectedMessage(null); }} className="btn-ghost" style={{ padding: 4 }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: 22 }}>delete</span>
+                                <Trash size={22} color="currentColor" variant="Linear" />
                             </button>
                         )}
                     </div>
@@ -427,10 +428,10 @@ export default function Chat() {
                     <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <button onClick={() => navigate('/chat')} className="btn-ghost" style={{ padding: 4, marginRight: 4 }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: 24 }}>arrow_back</span>
+                                <ArrowLeft2 size={24} color="currentColor" variant="Linear" />
                             </button>
-                            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary), #FF8C00)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                                <img src="/ai-logo.png" alt="BoomRead" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <MessageCircle size={22} color="#000" variant="Bold" />
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
                                 <h1 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Communauté BoomRead</h1>
@@ -441,15 +442,18 @@ export default function Chat() {
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             {isAdmin && (
-                                <button onClick={toggleChatStatus} className="btn-ghost" style={{ padding: 4, color: chatOpen ? 'inherit' : '#ef4444' }}>
-                                    <span className="material-symbols-outlined" style={{ fontSize: 22 }}>{chatOpen ? 'lock_open' : 'lock'}</span>
+                                <button onClick={toggleChatStatus} className="btn-ghost" style={{ padding: 4, color: chatOpen ? 'inherit' : 'var(--color-danger)' }}>
+                                    {chatOpen
+                                        ? <Unlock size={22} color="currentColor" variant="Linear" />
+                                        : <Lock size={22} color="currentColor" variant="Linear" />
+                                    }
                                 </button>
                             )}
                             <button onClick={() => navigate('/profile')} className="btn-ghost" style={{ padding: 4 }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: 24 }}>account_circle</span>
+                                <ProfileCircle size={24} color="currentColor" variant="Linear" />
                             </button>
                             <button onClick={() => setShowInfoModal(true)} className="btn-ghost" style={{ padding: 4 }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: 22 }}>info</span>
+                                <InfoCircle size={22} color="currentColor" variant="Linear" />
                             </button>
                         </div>
                     </div>
@@ -469,7 +473,9 @@ export default function Chat() {
             }}>
                 {messages.length === 0 ? (
                     <div className="empty-state" style={{ margin: 'auto' }}>
-                        <span className="material-symbols-outlined empty-state-icon" style={{ color: 'var(--color-primary)', fontSize: 48 }}>forum</span>
+                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+                            <MessageCircle size={48} color="var(--color-primary)" variant="Linear" />
+                        </div>
                         <h3 style={{ fontWeight: 600, marginTop: 12 }}>Aucun message</h3>
                         <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', marginTop: 8 }}>Soyez le premier à démarrer la discussion !</p>
                     </div>
@@ -537,7 +543,7 @@ export default function Chat() {
                                                 {displayName}
                                             </span>
                                             {msg.profiles?.role === 'admin' && (
-                                                <span style={{ background: 'rgba(255, 214, 10, 0.2)', color: '#FFD60A', padding: '1px 4px', borderRadius: 6, fontSize: 8, fontWeight: 700 }}>
+                                                <span style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary-text)', padding: '1px 4px', borderRadius: 6, fontSize: 8, fontWeight: 700 }}>
                                                     ADMIN
                                                 </span>
                                             )}
@@ -560,7 +566,7 @@ export default function Chat() {
                                         boxShadow: '0 1px 1px rgba(0,0,0,0.1)',
                                         minWidth: '80px',
                                         cursor: 'pointer',
-                                        ...(selectedMessage?.id === msg.id ? { outline: '2px solid rgba(255, 215, 0, 0.5)', background: isMine ? 'var(--color-primary-hover)' : 'rgba(255, 255, 255, 0.1)' } : {})
+                                        ...(selectedMessage?.id === msg.id ? { outline: '2px solid var(--color-primary)', background: isMine ? 'var(--color-primary-hover)' : 'var(--color-surface-hover)' } : {})
                                     }}>
                                         {/* Speech Bubble Tail */}
                                         <div style={{
@@ -606,7 +612,7 @@ export default function Chat() {
                                             display: 'flex', alignItems: 'center', gap: 2
                                         }}>
                                             {formatTime(msg.created_at)}
-                                            {isMine && <span className="material-symbols-outlined" style={{ fontSize: 14 }}>done_all</span>}
+                                            {isMine && <TickCircle size={14} color="currentColor" variant="Bold" />}
                                         </div>
 
                                         {/* Reactions popup if selected */}
@@ -644,13 +650,13 @@ export default function Chat() {
                                         }}>
                                             {groupedReactions.map(r => (
                                                 <button key={r.emoji} onClick={() => handleReaction(msg.id, r.emoji)} style={{
-                                                    background: r.hasReacted ? 'rgba(255, 215, 0, 0.2)' : 'var(--color-surface)',
+                                                    background: r.hasReacted ? 'var(--color-primary-light)' : 'var(--color-surface)',
                                                     border: `1px solid ${r.hasReacted ? 'var(--color-primary)' : 'var(--color-border)'}`,
                                                     borderRadius: '12px',
                                                     padding: '2px 6px',
                                                     fontSize: '12px',
                                                     display: 'flex', alignItems: 'center', gap: 4,
-                                                    color: r.hasReacted ? 'var(--color-primary)' : 'var(--color-text)'
+                                                    color: r.hasReacted ? 'var(--color-primary-text)' : 'var(--color-text)'
                                                 }}>
                                                     <span>{r.emoji}</span>
                                                     <span>{r.count}</span>
@@ -691,7 +697,7 @@ export default function Chat() {
                             setPreviewImageUrl(null);
                             setImageCaption('');
                         }} className="btn-ghost" style={{ color: '#fff' }}>
-                            <span className="material-symbols-outlined">arrow_back</span>
+                            <ArrowLeft2 size={24} color="currentColor" variant="Linear" />
                         </button>
                     </div>
                     {/* Image Preview */}
@@ -724,7 +730,7 @@ export default function Chat() {
                             {isUploading ? (
                                 <div style={{ width: 20, height: 20, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: '#000', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
                             ) : (
-                                <span className="material-symbols-outlined" style={{ color: '#000', transform: 'translateX(2px)' }}>send</span>
+                                <Send size={20} color="#000" variant="Bold" style={{ transform: 'translateX(2px)' }} />
                             )}
                         </button>
                     </div>
@@ -754,7 +760,7 @@ export default function Chat() {
                             </div>
                         </div>
                         <button onClick={() => setReplyingTo(null)} className="btn-ghost" style={{ padding: 4 }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
+                            <CloseCircle size={18} color="currentColor" variant="Linear" />
                         </button>
                     </div>
                 )}
@@ -822,7 +828,7 @@ export default function Chat() {
                         minWidth: 0
                     }}>
                         <button type="button" onClick={() => setShowEmojis(!showEmojis)} className="btn-ghost" style={{ padding: 4, color: showEmojis ? 'var(--color-primary)' : 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 24 }}>sentiment_satisfied</span>
+                            <EmojiHappy size={24} color="currentColor" variant="Linear" />
                         </button>
                         <input 
                             type="text" 
@@ -842,16 +848,16 @@ export default function Chat() {
                             }}
                         />
                         <button type="button" onClick={() => fileInputRef.current?.click()} className="btn-ghost" style={{ padding: 4, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>attach_file</span>
+                            <Paperclip size={22} color="currentColor" variant="Linear" />
                         </button>
                         <button type="button" onClick={() => cameraInputRef.current?.click()} className="btn-ghost" style={{ padding: 4, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>photo_camera</span>
+                            <Camera size={22} color="currentColor" variant="Linear" />
                         </button>
                     </div>
-                    <button 
-                        type="submit" 
+                    <button
+                        type="submit"
                         disabled={!newMessage.trim() || !chatOpen}
-                        style={{ 
+                        style={{
                             width: 48, height: 48, borderRadius: '50%',
                             background: 'var(--color-primary)',
                             color: '#000',
@@ -861,7 +867,7 @@ export default function Chat() {
                             flexShrink: 0
                         }}
                     >
-                        <span className="material-symbols-outlined" style={{ fontSize: 24, transform: 'translateX(2px)' }}>send</span>
+                        <Send size={24} color="#000" variant="Bold" style={{ transform: 'translateX(2px)' }} />
                     </button>
                 </form>
             </div>

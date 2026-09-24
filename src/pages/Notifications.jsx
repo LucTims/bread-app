@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft2, Trash, Book1, Refresh2, DiscountShape, Notification, NotificationBing, CloseCircle } from 'iconsax-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { isPushSupported, getPushPermission, subscribeToPush, unsubscribeFromPush, isSubscribedToPush } from '../lib/pushManager';
@@ -20,18 +22,21 @@ function timeAgo(dateStr) {
 function getTypeConfig(type) {
     switch (type) {
         case 'reminder':
-            return { icon: 'menu_book', color: '#4facfe', label: 'Rappel de lecture' };
+            return { icon: Book1, color: '#4facfe', label: 'Rappel de lecture' };
         case 'update':
-            return { icon: 'system_update', color: '#43e97b', label: 'Mise à jour' };
+            return { icon: Refresh2, color: '#43e97b', label: 'Mise à jour' };
         case 'promo':
-            return { icon: 'local_offer', color: '#fa709a', label: 'Promotion' };
+            return { icon: DiscountShape, color: '#fa709a', label: 'Promotion' };
         default:
-            return { icon: 'notifications', color: 'var(--color-primary)', label: 'Notification' };
+            return { icon: Notification, color: 'var(--color-primary)', label: 'Notification' };
     }
 }
 
+const ACTIVITY_TYPES = ['reminder'];
+
 export default function Notifications() {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
     const [readIds, setReadIds] = useState(new Set());
     const [loading, setLoading] = useState(true);
@@ -39,6 +44,7 @@ export default function Notifications() {
     const [pushLoading, setPushLoading] = useState(false);
     const [pushPermission, setPushPermission] = useState(() => getPushPermission());
     const [selectedNotif, setSelectedNotif] = useState(null);
+    const [activeSection, setActiveSection] = useState('activity');
 
     const loadNotifications = useCallback(async () => {
         if (!user) return;
@@ -140,7 +146,9 @@ export default function Notifications() {
         }
     };
 
-    const unreadCount = notifications.filter(n => !readIds.has(n.id)).length;
+    const filteredNotifications = notifications.filter(n =>
+        activeSection === 'activity' ? ACTIVITY_TYPES.includes(n.type) : !ACTIVITY_TYPES.includes(n.type)
+    );
 
     if (loading) {
         return (
@@ -152,28 +160,53 @@ export default function Notifications() {
 
     return (
         <div style={{ paddingBottom: 40 }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div>
-                    <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Notifications</h2>
-                    {unreadCount > 0 && (
-                        <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '4px 0 0' }}>
-                            {unreadCount} non-lue{unreadCount > 1 ? 's' : ''}
-                        </p>
-                    )}
-                </div>
-                {unreadCount > 0 && (
+            {/* En-tête — flèche retour, titre centré, tout marquer lu */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <button
+                    onClick={() => navigate(-1)}
+                    aria-label="Retour"
+                    style={{
+                        width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'var(--color-bg-dark)', border: 'none', cursor: 'pointer'
+                    }}
+                >
+                    <ArrowLeft2 size={18} color="var(--color-text)" variant="Linear" />
+                </button>
+                <h2 style={{ fontSize: 19, fontWeight: 800, margin: 0 }}>Notifications</h2>
+                <button
+                    onClick={markAllAsRead}
+                    aria-label="Tout marquer lu"
+                    style={{
+                        width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'none', border: 'none', cursor: 'pointer'
+                    }}
+                >
+                    <Trash size={20} color="var(--color-text)" variant="Linear" />
+                </button>
+            </div>
+
+            {/* Onglets */}
+            <div style={{ display: 'flex', gap: 24, borderBottom: '1px solid var(--color-border)', marginBottom: 16 }}>
+                {[
+                    { key: 'activity', label: 'Activité' },
+                    { key: 'news', label: 'Actualités quotidiennes' }
+                ].map(tab => (
                     <button
-                        onClick={markAllAsRead}
+                        key={tab.key}
+                        onClick={() => setActiveSection(tab.key)}
                         style={{
-                            padding: '6px 14px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-                            background: 'var(--color-primary-light)', color: 'var(--color-primary-text)',
-                            border: '1px solid rgba(255,215,0,0.2)', cursor: 'pointer'
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            padding: '0 0 10px', fontSize: 14,
+                            fontWeight: activeSection === tab.key ? 800 : 600,
+                            color: activeSection === tab.key ? 'var(--color-text)' : 'var(--color-text-muted)',
+                            borderBottom: activeSection === tab.key ? '2px solid var(--color-text)' : '2px solid transparent'
                         }}
                     >
-                        Tout marquer lu
+                        {tab.label}
                     </button>
-                )}
+                ))}
             </div>
 
             {/* Push Notification Toggle Card */}
@@ -195,12 +228,10 @@ export default function Notifications() {
                             background: pushEnabled ? 'rgba(67,233,123,0.15)' : 'var(--color-bg-dark)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}>
-                            <span className="material-symbols-outlined" style={{
-                                fontSize: 20,
-                                color: pushEnabled ? '#43e97b' : 'var(--color-text-muted)'
-                            }}>
-                                {pushEnabled ? 'notifications_active' : 'notifications_off'}
-                            </span>
+                            {pushEnabled
+                                ? <NotificationBing size={20} color="#43e97b" variant="Linear" />
+                                : <Notification size={20} color="var(--color-text-muted)" variant="Linear" />
+                            }
                         </div>
                         <div>
                             <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>
@@ -237,11 +268,11 @@ export default function Notifications() {
             )}
 
             {/* Notification List */}
-            {notifications.length === 0 ? (
+            {filteredNotifications.length === 0 ? (
                 <div style={{ textAlign: 'center', paddingTop: 60 }}>
-                    <span className="material-symbols-outlined" style={{
-                        fontSize: 52, color: 'var(--color-text-muted)', opacity: 0.25
-                    }}>notifications_off</span>
+                    <div style={{ display: 'flex', justifyContent: 'center', opacity: 0.25 }}>
+                        <Notification size={52} color="var(--color-text-muted)" variant="Linear" />
+                    </div>
                     <h3 style={{ fontWeight: 700, marginTop: 14, fontSize: 15 }}>
                         Aucune notification
                     </h3>
@@ -250,10 +281,11 @@ export default function Notifications() {
                     </p>
                 </div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {notifications.map(notif => {
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    {filteredNotifications.map(notif => {
                         const isRead = readIds.has(notif.id);
                         const config = getTypeConfig(notif.type);
+                        const Icon = config.icon;
 
                         return (
                             <div
@@ -263,69 +295,43 @@ export default function Notifications() {
                                     setSelectedNotif(notif);
                                 }}
                                 style={{
-                                    display: 'flex', gap: 14, padding: '16px 18px', borderRadius: 16,
-                                    background: isRead ? 'var(--color-surface)' : 'var(--color-bg-light)',
-                                    border: isRead
-                                        ? '1px solid var(--color-border)'
-                                        : `1px solid ${config.color}33`,
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s ease',
-                                    opacity: isRead ? 0.7 : 1,
-                                    position: 'relative'
+                                    display: 'flex', gap: 14, padding: '12px 4px',
+                                    alignItems: 'center', cursor: 'pointer'
                                 }}
                             >
-                                {/* Unread dot */}
-                                {!isRead && (
-                                    <div style={{
-                                        position: 'absolute', top: 8, right: 8,
-                                        width: 8, height: 8, borderRadius: '50%',
-                                        background: config.color,
-                                        boxShadow: `0 0 8px ${config.color}60`
-                                    }} />
-                                )}
-
-                                {/* Icon */}
+                                {/* Vignette */}
                                 <div style={{
-                                    width: 42, height: 42, borderRadius: 12, flexShrink: 0,
-                                    background: `${config.color}18`,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                    position: 'relative', width: 64, height: 64, borderRadius: 12,
+                                    overflow: 'hidden', flexShrink: 0,
+                                    background: notif.image_url ? 'var(--color-bg-dark)' : `${config.color}18`
                                 }}>
-                                    <span className="material-symbols-outlined" style={{
-                                        fontSize: 20, color: config.color
-                                    }}>{config.icon}</span>
+                                    {notif.image_url ? (
+                                        <img src={notif.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Icon size={28} color={config.color} variant="Bold" />
+                                        </div>
+                                    )}
+                                    {!isRead && (
+                                        <span style={{
+                                            position: 'absolute', top: 5, left: 5,
+                                            width: 10, height: 10, borderRadius: '50%',
+                                            background: 'var(--color-danger)', border: '2px solid var(--color-bg)'
+                                        }} />
+                                    )}
                                 </div>
 
                                 {/* Content */}
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                                        <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0, lineHeight: 1.3 }}>
-                                            {notif.title}
-                                        </h4>
-                                        {notif.image_url && (
-                                            <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--color-text-muted)', flexShrink: 0 }}>image</span>
-                                        )}
-                                    </div>
-                                    <p style={{
-                                        fontSize: 12, color: 'var(--color-text-muted)',
-                                        margin: '4px 0 0', lineHeight: 1.45,
+                                    <h4 style={{
+                                        fontSize: 15, fontWeight: 700, margin: 0, lineHeight: 1.3,
                                         display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'
                                     }}>
-                                        {notif.body}
+                                        {notif.title}
+                                    </h4>
+                                    <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '4px 0 0' }}>
+                                        {timeAgo(notif.created_at)}
                                     </p>
-                                    <div style={{
-                                        display: 'flex', alignItems: 'center', gap: 8, marginTop: 8
-                                    }}>
-                                        <span style={{
-                                            fontSize: 9, fontWeight: 700, padding: '2px 8px',
-                                            borderRadius: 8, background: `${config.color}18`,
-                                            color: config.color, textTransform: 'uppercase', letterSpacing: 0.5
-                                        }}>
-                                            {config.label}
-                                        </span>
-                                        <span style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>
-                                            {timeAgo(notif.created_at)}
-                                        </span>
-                                    </div>
                                 </div>
                             </div>
                         );
@@ -362,7 +368,7 @@ export default function Notifications() {
                                         backdropFilter: 'blur(4px)'
                                     }}
                                 >
-                                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
+                                    <CloseCircle size={18} color="#fff" variant="Linear" />
                                 </button>
                             </div>
                         ) : (
@@ -375,7 +381,7 @@ export default function Notifications() {
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
                                     }}
                                 >
-                                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
+                                    <CloseCircle size={18} color="var(--color-text)" variant="Linear" />
                                 </button>
                             </div>
                         )}

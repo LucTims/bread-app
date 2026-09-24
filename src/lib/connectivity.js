@@ -61,7 +61,10 @@ function updateStatus(newStatus) {
  */
 export async function checkRealConnectivity(options = {}) {
   const timeoutMs = Math.min(options.timeoutMs ?? 2500, 3000);
-  const pingUrl = options.pingUrl ?? '/favicon.ico';
+  const defaultPingUrl = import.meta.env.VITE_SUPABASE_URL 
+    ? `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/health` 
+    : '/favicon.svg';
+  const pingUrl = options.pingUrl ?? defaultPingUrl;
 
   // If modem/hardware reports offline, set Truly Offline status immediately without network call
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -80,9 +83,12 @@ export async function checkRealConnectivity(options = {}) {
 
     const url = `${pingUrl}?_t=${Date.now()}`;
     const fetchOpts = {
-      method: 'HEAD',
+      method: 'GET',
       cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache' }
+      headers: { 
+        'Cache-Control': 'no-cache',
+        ...(import.meta.env.VITE_SUPABASE_ANON_KEY ? { 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY } : {})
+      }
     };
     if (controller) {
       fetchOpts.signal = controller.signal;
@@ -108,7 +114,7 @@ export async function checkRealConnectivity(options = {}) {
       return false;
     }
 
-    const isReachable = response.ok || (response.status >= 200 && response.status < 400);
+    const isReachable = response.ok || (response.status >= 200 && response.status < 500);
     if (isReachable) {
       updateStatus({ isOnline: true, isOffline: false, isPhantom: false });
       return true;

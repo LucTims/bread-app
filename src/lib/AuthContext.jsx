@@ -96,9 +96,11 @@ export function AuthProvider({ children }) {
                 const cachedUser = getCachedUser();
                 const cachedProfile = getCachedProfile();
                 if (cachedUser && mounted) {
-                    // Pre-fill UI immediately while Supabase verifies
+                    // Show the app immediately with cached data — Supabase verifies
+                    // silently in the background instead of blocking every page load.
                     setUser(cachedUser);
                     setProfile(cachedProfile);
+                    setLoading(false);
                 }
 
                 const { data: { session }, error } = await supabase.auth.getSession();

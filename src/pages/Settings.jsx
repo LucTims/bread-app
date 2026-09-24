@@ -1,77 +1,38 @@
-import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft2, Global, Lock, UserEdit, Logout, ArrowRight2 } from 'iconsax-react';
 import { useAuth } from '../lib/AuthContext';
 
 export default function Settings() {
     const { signOut } = useAuth();
-    // Initialize state from local storage or default to dark
-    const [darkTheme, setDarkTheme] = useState(() => {
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme) return savedTheme === 'dark';
-        return true; // default dark
-    });
-
-    const toggleTheme = () => {
-        const newTheme = !darkTheme;
-        setDarkTheme(newTheme);
-        const themeValue = newTheme ? 'dark' : 'light';
-        localStorage.setItem('theme', themeValue);
-        document.documentElement.setAttribute('data-theme', themeValue);
-    };
+    const navigate = useNavigate();
 
     return (
         <div style={{ paddingBottom: 'var(--space-8)' }}>
-            <div style={{ marginBottom: 'var(--space-8)' }}>
-                <h1 style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>Settings</h1>
-                <p style={{ color: 'var(--color-text-muted)' }}>Manage your reading experience and account preferences.</p>
+            <div style={{ marginTop: 2, marginBottom: 'var(--space-6)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                    onClick={() => navigate(-1)}
+                    aria-label="Retour"
+                    style={{
+                        width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'var(--color-bg-dark)', border: 'none', cursor: 'pointer'
+                    }}
+                >
+                    <ArrowLeft2 size={16} color="var(--color-text)" variant="Linear" />
+                </button>
+                <h1 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'var(--color-text)' }}>Paramètres</h1>
             </div>
 
             <h4 style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginBottom: 'var(--space-4)', textTransform: 'uppercase' }}>Preferences</h4>
             
             <div className="card" style={{ padding: 0, marginBottom: 'var(--space-8)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', padding: 'var(--space-5)', borderBottom: '1px solid var(--color-border)' }}>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)', marginRight: 'var(--space-4)' }}>language</span>
+                <div style={{ display: 'flex', alignItems: 'center', padding: 'var(--space-5)' }}>
+                    <Global size={20} color="var(--color-text-muted)" variant="Linear" style={{ marginRight: 'var(--space-4)' }} />
                     <div style={{ flex: 1 }}>
                         <h4 style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>Language Selection</h4>
                         <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>English (US)</p>
                     </div>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>chevron_right</span>
-                </div>
-                
-                <div style={{ display: 'flex', alignItems: 'center', padding: 'var(--space-5)' }}>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)', marginRight: 'var(--space-4)' }}>dark_mode</span>
-                    <div style={{ flex: 1 }}>
-                        <h4 style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>Dark Theme</h4>
-                        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Optimize for night reading</p>
-                    </div>
-                    <div 
-                        onClick={toggleTheme}
-                        style={{ 
-                            width: 50, 
-                            height: 26, 
-                            borderRadius: 13, 
-                            background: darkTheme ? 'var(--color-primary)' : 'var(--color-border)', 
-                            position: 'relative', 
-                            cursor: 'pointer',
-                            transition: 'all 0.3s ease'
-                        }}
-                    >
-                        <div style={{ 
-                            width: 22, 
-                            height: 22, 
-                            borderRadius: '50%', 
-                            background: darkTheme ? '#1877F2' : '#fff', 
-                            position: 'absolute', 
-                            top: 2, 
-                            left: darkTheme ? 26 : 2, 
-                            transition: 'all 0.3s ease',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                        }}>
-                            {darkTheme && <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#fff', fontWeight: 700 }}>check</span>}
-                        </div>
-                    </div>
+                    <ArrowRight2 size={20} color="var(--color-text-muted)" variant="Linear" />
                 </div>
             </div>
 
@@ -79,21 +40,21 @@ export default function Settings() {
             
             <div className="card" style={{ padding: 0, marginBottom: 'var(--space-12)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', padding: 'var(--space-5)', borderBottom: '1px solid var(--color-border)' }}>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)', marginRight: 'var(--space-4)' }}>lock</span>
+                    <Lock size={20} color="var(--color-text-muted)" variant="Linear" style={{ marginRight: 'var(--space-4)' }} />
                     <div style={{ flex: 1 }}>
                         <h4 style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>Security Settings</h4>
                         <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Password, 2FA, connected devices</p>
                     </div>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>chevron_right</span>
+                    <ArrowRight2 size={20} color="var(--color-text-muted)" variant="Linear" />
                 </div>
-                
+
                 <div style={{ display: 'flex', alignItems: 'center', padding: 'var(--space-5)' }}>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)', marginRight: 'var(--space-4)' }}>manage_accounts</span>
+                    <UserEdit size={20} color="var(--color-text-muted)" variant="Linear" style={{ marginRight: 'var(--space-4)' }} />
                     <div style={{ flex: 1 }}>
                         <h4 style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>Account Management</h4>
                         <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Personal info, subscription details</p>
                     </div>
-                    <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>chevron_right</span>
+                    <ArrowRight2 size={20} color="var(--color-text-muted)" variant="Linear" />
                 </div>
             </div>
 
@@ -109,8 +70,8 @@ export default function Settings() {
                     borderRadius: 'var(--radius-md)',
                     cursor: 'pointer'
                 }} onClick={signOut}>
-                    <span className="material-symbols-outlined" style={{ color: '#FFB4B4', marginRight: 12 }}>logout</span>
-                    <span style={{ color: '#FFB4B4', fontWeight: 600, letterSpacing: 0.5, fontSize: 16 }}>Sign Out</span>
+                    <Logout size={20} color="var(--color-danger)" variant="Linear" style={{ marginRight: 12 }} />
+                    <span style={{ color: 'var(--color-danger)', fontWeight: 600, letterSpacing: 0.5, fontSize: 16 }}>Sign Out</span>
                 </button>
             </div>
         </div>

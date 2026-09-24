@@ -38,7 +38,7 @@ export default function Landing() {
     }, [user, loading, navigate]);
 
     if (loading) {
-        return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a' }}><div className="spinner"></div></div>;
+        return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb' }}><div className="spinner"></div></div>;
     }
 
     // Couleurs pour le Hero (sombre)
@@ -187,26 +187,10 @@ export default function Landing() {
                             L'application officielle conçue exclusivement pour lire vos ouvrages achetés sur BoomBooks. Profitez d'une expérience de lecture premium, fluide et immersive.
                         </motion.p>
                         
-                        <motion.button 
+                        <motion.button
                             variants={fadeInUp}
-                            onClick={() => navigate('/login')} 
-                            style={{ 
-                                background: '#000',
-                                color: '#FFF',
-                                padding: '16px 40px', 
-                                fontSize: '18px', 
-                                borderRadius: '12px',
-                                border: 'none',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '12px',
-                                transition: 'all 0.3s ease',
-                                boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
-                            }}
-                            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; }}
-                            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+                            className="landing-cta"
+                            onClick={() => navigate('/login')}
                         >
                             Accéder à l'appli
                             <span className="material-symbols-outlined">arrow_forward</span>
@@ -279,20 +263,11 @@ export default function Landing() {
                                 </motion.div>
                             </motion.div>
                             
-                            <motion.button 
+                            <motion.button
                                 variants={fadeInUp}
-                                onClick={() => window.open('https://boombooks.shop', '_blank')} 
-                                style={{ 
-                                    background: '#000', 
-                                    color: '#FFF', 
-                                    padding: '16px 32px', 
-                                    borderRadius: '12px', 
-                                    border: 'none', 
-                                    fontWeight: 600, 
-                                    marginTop: '40px', 
-                                    cursor: 'pointer',
-                                    fontSize: '16px'
-                                }}
+                                className="landing-cta"
+                                style={{ marginTop: '40px' }}
+                                onClick={() => window.open('https://boombooks.shop', '_blank')}
                             >
                                 Visiter la boutique
                             </motion.button>
@@ -336,20 +311,11 @@ export default function Landing() {
                                 </motion.div>
                             </motion.div>
 
-                            <motion.button 
+                            <motion.button
                                 variants={fadeInUp}
-                                onClick={() => navigate('/login')} 
-                                style={{ 
-                                    background: '#000', 
-                                    color: '#FFF', 
-                                    padding: '16px 32px', 
-                                    borderRadius: '12px', 
-                                    border: 'none', 
-                                    fontWeight: 600, 
-                                    marginTop: '40px', 
-                                    cursor: 'pointer',
-                                    fontSize: '16px'
-                                }}
+                                className="landing-cta"
+                                style={{ marginTop: '40px' }}
+                                onClick={() => navigate('/login')}
                             >
                                 Commencer maintenant
                             </motion.button>
@@ -398,24 +364,7 @@ export default function Landing() {
                             Créez votre compte gratuitement et découvrez une nouvelle façon de lire et d'interagir avec vos livres.
                         </p>
                         
-                        <button 
-                            onClick={() => navigate('/login')} 
-                            style={{ 
-                                background: '#FF3B30', // Bouton d'action rouge ou noir
-                                background: '#000',
-                                color: '#FFF',
-                                padding: '18px 48px', 
-                                fontSize: '18px', 
-                                borderRadius: '12px',
-                                border: 'none',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                transition: 'all 0.3s ease',
-                                boxShadow: '0 10px 20px rgba(0,0,0,0.1)'
-                            }}
-                            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; }}
-                            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
-                        >
+                        <button className="landing-cta" onClick={() => navigate('/login')}>
                             S'inscrire gratuitement
                         </button>
                     </div>

@@ -96,11 +96,11 @@ function PageTransition({ children }) {
 }
 
 // Layout principal avec Header et BottomNav
-function MainLayout({ children }) {
+function MainLayout({ children, hideTopBar, minimalTopBar }) {
   return (
     <div className="page">
-      <TopBar />
-      <main className="container">
+      {!hideTopBar && <TopBar minimal={minimalTopBar} />}
+      <main className="container" style={hideTopBar ? { paddingTop: 'var(--space-4)' } : undefined}>
         <PageTransition>{children}</PageTransition>
       </main>
       <BottomNav />
@@ -190,15 +190,15 @@ function AppContent() {
         
         {/* Routes ouvertes en Mode Hybride (locaux disponibles pour tous, cloud synchronisé si connecté) */}
         <Route path="/home" element={
-          <MainLayout><Home /></MainLayout>
+          <MainLayout hideTopBar><Home /></MainLayout>
         } />
         
         <Route path="/library" element={
-          <MainLayout><Library /></MainLayout>
+          <MainLayout hideTopBar><Library /></MainLayout>
         } />
         
         <Route path="/search" element={
-          <MainLayout><Search /></MainLayout>
+          <MainLayout hideTopBar><Search /></MainLayout>
         } />
 
         {/* Routes nécessitant un compte BoomBooks */}
@@ -229,19 +229,19 @@ function AppContent() {
         
         <Route path="/notifications" element={
           <ProtectedRoute>
-            <MainLayout><Notifications /></MainLayout>
+            <MainLayout hideTopBar><Notifications /></MainLayout>
           </ProtectedRoute>
         } />
         
         <Route path="/profile" element={
           <ProtectedRoute>
-            <MainLayout><Profile /></MainLayout>
+            <MainLayout minimalTopBar><Profile /></MainLayout>
           </ProtectedRoute>
         } />
         
         <Route path="/settings" element={
           <ProtectedRoute>
-            <MainLayout><Settings /></MainLayout>
+            <MainLayout hideTopBar><Settings /></MainLayout>
           </ProtectedRoute>
         } />
 
@@ -266,12 +266,8 @@ function AppContent() {
 
 function App({ onReady }) {
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-      document.documentElement.setAttribute('data-theme', savedTheme);
-    } else {
-      document.documentElement.setAttribute('data-theme', 'light'); // default
-    }
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
 
     // Dismiss splash screen after first render
     if (onReady) onReady();

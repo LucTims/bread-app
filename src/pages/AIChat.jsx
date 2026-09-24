@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft2, MagicStar, Send } from 'iconsax-react';
 import { askGlobalGemini, GLOBAL_QUICK_ACTIONS } from '../lib/gemini';
 import { getOfflineBooksSync, getProgressMapSync } from '../lib/offlineStore';
 import { supabase, getFreeBooks } from '../lib/supabase';
@@ -149,14 +150,14 @@ ${bookDetails || 'Aucun livre pour le moment'}
                 zIndex: 10, position: 'relative', flexShrink: 0
             }}>
                 <button onClick={() => navigate('/chat')} className="btn-ghost" style={{ padding: 4 }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 24 }}>arrow_back</span>
+                    <ArrowLeft2 size={24} color="currentColor" variant="Linear" />
                 </button>
                 <div style={{
                     width: '40px', height: '40px', borderRadius: '50%',
-                    background: 'linear-gradient(135deg, var(--color-primary), #FF8C00)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
+                    background: 'var(--color-primary)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
                 }}>
-                    <img src="/ai-logo.png" alt="AI Assistant" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <MagicStar size={22} color="#000" variant="Bold" />
                 </div>
                 <div>
                     <h1 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--color-text)' }}>Assistant IA BoomRead</h1>
@@ -171,7 +172,7 @@ ${bookDetails || 'Aucun livre pour le moment'}
                         <div style={{
                             maxWidth: '85%', padding: '10px 14px',
                             borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                            background: msg.role === 'user' ? 'linear-gradient(135deg, var(--color-primary), #FF8C00)' : (msg.isError ? 'rgba(239,68,68,0.2)' : 'var(--color-surface)'),
+                            background: msg.role === 'user' ? 'var(--color-primary)' : (msg.isError ? 'rgba(220,38,38,0.1)' : 'var(--color-surface)'),
                             border: msg.role === 'assistant' && !msg.isError ? '1px solid var(--color-border)' : 'none',
                             color: msg.role === 'user' ? '#000' : 'var(--color-text)',
                             fontSize: '14px', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
@@ -202,7 +203,7 @@ ${bookDetails || 'Aucun livre pour le moment'}
                                 color: 'var(--color-text)', fontSize: '13px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px',
                                 boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
                             }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--color-primary)' }}>{action.icon}</span>
+                            <action.icon size={16} color="var(--color-primary)" variant="Linear" />
                             {action.label}
                         </button>
                     ))}
@@ -233,7 +234,7 @@ ${bookDetails || 'Aucun livre pour le moment'}
                         color: input.trim() ? '#000' : 'var(--color-text-muted)', transition: 'background 0.2s',
                         cursor: input.trim() && !loading ? 'pointer' : 'default'
                     }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>send</span>
+                    <Send size={20} color="currentColor" variant={input.trim() ? 'Bold' : 'Linear'} />
                 </button>
             </div>
         </div>

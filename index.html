@@ -1,24 +1,45 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/jpeg" href="/logo.jpg" />
     <link rel="apple-touch-icon" href="/logo.jpg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="description" content="BoomRead – Votre liseuse hors-ligne BoomBooks. Lisez vos livres achetés partout, sans connexion." />
-    <meta name="theme-color" content="#0B0F14" />
+    <meta name="description" content="Bread – Votre liseuse hors-ligne premium. Lisez vos livres partout, sans connexion." />
+    <meta name="theme-color" content="#0B0E14" />
+    <meta name="color-scheme" content="dark" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="BoomRead" />
-    <title>BoomRead – Liseuse BoomBooks</title>
+    <meta name="apple-mobile-web-app-title" content="Bread" />
+    <title>Bread – Liseuse</title>
+    <script>
+      // Enforce dark theme immediately before layout to avoid any white flash
+      try {
+        var savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      } catch(e) {}
+      // Clear native WebView Service Worker cache immediately if running inside Android APK
+      if (window.Capacitor || window.location.protocol === 'capacitor:' || (navigator.userAgent && navigator.userAgent.indexOf('wv') !== -1)) {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            for (var i = 0; i < regs.length; i++) { regs[i].unregister(); }
+          });
+        }
+        if ('caches' in window) {
+          caches.keys().then(function(keys) {
+            for (var i = 0; i < keys.length; i++) { caches.delete(keys[i]); }
+          });
+        }
+      }
+    </script>
     <style>
       /* ── Splash Screen — renders instantly before JS loads ── */
       #splash-screen {
         position: fixed;
         top: 0; left: 0; right: 0; bottom: 0;
         z-index: 99999;
-        background: #0B0F14;
+        background: #FFFFFF;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -34,7 +55,7 @@
         width: 88px;
         height: 88px;
         border-radius: 22px;
-        background: rgba(255, 255, 255, 0.06);
+        background: #F9FAFB;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -50,20 +71,20 @@
         font-size: 20px;
         font-weight: 300;
         letter-spacing: 0.5px;
-        color: rgba(255, 255, 255, 0.85);
+        color: #111827;
         margin: 0;
         text-align: center;
       }
       #splash-title span {
-        color: #FFD60A;
+        color: #B58900;
         font-weight: 600;
       }
       #splash-loader {
         margin-top: 40px;
         width: 32px;
         height: 32px;
-        border: 2.5px solid rgba(255, 214, 10, 0.15);
-        border-top-color: #FFD60A;
+        border: 2.5px solid #F3F4F6;
+        border-top-color: #F5C518;
         border-radius: 50%;
         animation: splash-spin 0.8s linear infinite;
       }
@@ -96,7 +117,7 @@
           </g>
         </svg>
       </div>
-      <p id="splash-title"><span>BoomRead</span> – Liseuse BoomBooks</p>
+      <p id="splash-title"><span>Bread</span> – Liseuse</p>
       <div id="splash-loader"></div>
     </div>
 

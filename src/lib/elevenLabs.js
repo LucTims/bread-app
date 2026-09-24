@@ -1,13 +1,12 @@
-const API_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY;
+// ElevenLabs TTS helper for BoomRead — calls the tts Supabase Edge Function
+// (the ElevenLabs API key lives server-side only, never shipped in the app bundle)
+
+import { supabase } from './supabase';
 
 export async function fetchElevenLabsVoices() {
-    if (!API_KEY) return [];
     try {
-        const response = await fetch('https://api.elevenlabs.io/v1/voices', {
-            headers: { 'xi-api-key': API_KEY }
-        });
-        if (!response.ok) throw new Error('Failed to fetch voices');
-        const data = await response.json();
+        const { data, error } = await supabase.functions.invoke('tts', { body: { action: 'voices' } });
+        if (error || data?.error) throw new Error(data?.error || error.message);
         return data.voices || [];
     } catch (error) {
         console.error('Error fetching ElevenLabs voices:', error);
@@ -16,13 +15,9 @@ export async function fetchElevenLabsVoices() {
 }
 
 export async function getElevenLabsCredits() {
-    if (!API_KEY) return null;
     try {
-        const response = await fetch('https://api.elevenlabs.io/v1/user/subscription', {
-            headers: { 'xi-api-key': API_KEY }
-        });
-        if (!response.ok) throw new Error('Failed to fetch subscription');
-        const data = await response.json();
+        const { data, error } = await supabase.functions.invoke('tts', { body: { action: 'credits' } });
+        if (error || data?.error) throw new Error(data?.error || error.message);
         return {
             character_count: data.character_count,
             character_limit: data.character_limit
@@ -34,23 +29,25 @@ export async function getElevenLabsCredits() {
 }
 
 export async function generateElevenLabsSpeech(text, voiceId) {
-    if (!API_KEY || !text || !voiceId) return null;
+    if (!text || !voiceId) return null;
     try {
-        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
+        const { data: { session } } = await supabase.auth.getSession();
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+        const response = await fetch(`${supabaseUrl}/functions/v1/tts`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'xi-api-key': API_KEY
+                'apikey': supabaseAnonKey,
+                'Authorization': `Bearer ${session?.access_token || supabaseAnonKey}`,
             },
-            body: JSON.stringify({
-                text: text,
-                model_id: 'eleven_multilingual_v2' // Good for French & other languages
-            })
+            body: JSON.stringify({ action: 'speech', text, voiceId })
         });
 
         if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.detail?.message || 'Error generating speech');
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error || 'Error generating speech');
         }
 
         const arrayBuffer = await response.arrayBuffer();

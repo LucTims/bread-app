@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
+import { Camera, Edit2, EyeSlash, Eye, Lock, Export, ArrowRight2, Logout, Setting2, SecurityUser, Shop, Book1, DocumentDownload } from 'iconsax-react';
 import { useAuth } from '../lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase, getFreeBooks } from '../lib/supabase';
 import { getAllOfflineBooks, getStorageUsage, formatSize } from '../lib/offlineStore';
-import { InstallButton } from '../components/InstallPrompt';
 
 export default function Profile() {
     const { user, profile, signOut } = useAuth();
@@ -152,7 +152,7 @@ export default function Profile() {
                 <div style={{ position: 'relative', marginBottom: 'var(--space-4)' }}>
                     <div style={{
                         width: 100, height: 100, borderRadius: '50%', overflow: 'hidden',
-                        border: '3px solid var(--color-primary)', boxShadow: '0 0 20px rgba(255,215,0,0.2)'
+                        border: '3px solid var(--color-primary)', boxShadow: 'var(--shadow-md)'
                     }}>
                         {avatarUrl ? (
                             <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -174,9 +174,9 @@ export default function Profile() {
                             cursor: 'pointer', boxShadow: 'var(--shadow-md)'
                         }}
                     >
-                        {uploading 
+                        {uploading
                             ? <div className="spinner" style={{ width: 14, height: 14, borderWidth: 2, borderTopColor: '#000', borderColor: 'rgba(0,0,0,0.3)' }} />
-                            : <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#000' }}>photo_camera</span>
+                            : <Camera size={16} color="#000" variant="Linear" />
                         }
                     </button>
                     <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
@@ -204,7 +204,7 @@ export default function Profile() {
                     <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, marginBottom: 4, textAlign: 'center', display: 'flex', alignItems: 'center', gap: 8 }}>
                         {displayName}
                         <button className="btn-ghost" onClick={() => setEditingName(true)} style={{ padding: 4, color: 'var(--color-text-muted)' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>edit</span>
+                            <Edit2 size={18} color="currentColor" variant="Linear" />
                         </button>
                     </h2>
                 )}
@@ -240,7 +240,7 @@ export default function Profile() {
                     }}>
                         {bio || (
                             <>
-                                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>edit</span>
+                                <Edit2 size={14} color="currentColor" variant="Linear" />
                                 Ajouter une description
                             </>
                         )}
@@ -249,25 +249,28 @@ export default function Profile() {
             </div>
 
             {/* Gamification / Sunk Cost Stats */}
-            <div className="card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-4)', background: 'linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,140,0,0.1))', border: '1px solid rgba(255,215,0,0.2)' }}>
+            <div className="card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-4)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                     <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>local_fire_department</span>
                         Mes Statistiques de Lecture
                     </h3>
-                    <button onClick={toggleHideStats} style={{ 
-                        background: 'none', border: 'none', color: 'var(--color-text-muted)', 
-                        cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 4 
+                    <button onClick={toggleHideStats} style={{
+                        background: 'none', border: 'none', color: 'var(--color-text-muted)',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 4
                     }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
-                            {hideStats ? 'visibility_off' : 'visibility'}
-                        </span>
+                        {hideStats
+                            ? <EyeSlash size={20} color="currentColor" variant="Linear" />
+                            : <Eye size={20} color="currentColor" variant="Linear" />
+                        }
                     </button>
                 </div>
-                
+
                 {hideStats ? (
                     <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--color-text-muted)' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 32, opacity: 0.5, marginBottom: 8 }}>lock</span>
+                        <div style={{ display: 'flex', justifyContent: 'center', opacity: 0.5, marginBottom: 8 }}>
+                            <Lock size={32} color="currentColor" variant="Linear" />
+                        </div>
                         <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Vos statistiques sont masquées</p>
                     </div>
                 ) : (
@@ -276,15 +279,15 @@ export default function Profile() {
                             <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--color-text)' }}>{readingStats.streak}</div>
                             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginTop: 4 }}>SÉRIE (JOURS)</div>
                         </div>
-                        <div style={{ width: 1, background: 'rgba(128,128,128,0.2)', margin: '0 10px' }} />
+                        <div style={{ width: 1, background: 'var(--color-border)', margin: '0 10px' }} />
                         <div style={{ flex: 1 }}>
                             <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--color-text)' }}>{readingStats.pages}</div>
                             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginTop: 4 }}>PAGES LUES</div>
                         </div>
-                        <div style={{ width: 1, background: 'rgba(128,128,128,0.2)', margin: '0 10px' }} />
+                        <div style={{ width: 1, background: 'var(--color-border)', margin: '0 10px' }} />
                         <div style={{ flex: 1 }}>
                             <div style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--color-primary)' }}>{readingStats.longestStreak}</div>
-                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginTop: 4 }}>RECORD (🔥)</div>
+                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginTop: 4 }}>RECORD</div>
                         </div>
                     </div>
                 )}
@@ -293,12 +296,12 @@ export default function Profile() {
             {/* Stats */}
             <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 'var(--space-8)' }}>
                 <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-6) var(--space-4)' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 28, color: 'var(--color-primary)', marginBottom: 8 }}>menu_book</span>
+                    <Book1 size={28} color="var(--color-primary)" variant="Linear" style={{ marginBottom: 8 }} />
                     <h3 style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, lineHeight: 1 }}>{stats.booksOwned}</h3>
                     <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginTop: 4 }}>LIVRES ACHETÉS</p>
                 </div>
                 <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-6) var(--space-4)' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 28, color: 'var(--color-primary)', marginBottom: 8 }}>download_done</span>
+                    <DocumentDownload size={28} color="var(--color-primary)" variant="Linear" style={{ marginBottom: 8 }} />
                     <h3 style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, lineHeight: 1 }}>{stats.booksOffline}</h3>
                     <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: 'var(--color-text-muted)', marginTop: 4 }}>HORS-LIGNE</p>
                 </div>
@@ -317,45 +320,46 @@ export default function Profile() {
                 </div>
             )}
 
-            {/* Install App */}
-            <InstallButton style={{ marginBottom: 'var(--space-4)' }} />
-
             {/* Links */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-12)' }}>
                 {(() => {
                     const profileLinks = [];
                     if (profile?.role === 'admin') {
-                        profileLinks.push({ 
-                            icon: 'admin_panel_settings', 
-                            label: "Console d'Administration", 
-                            sub: "Statistiques, installations PWA & données réelles", 
-                            action: () => navigate('/admin') 
+                        profileLinks.push({
+                            icon: SecurityUser,
+                            label: "Console d'Administration",
+                            sub: "Statistiques, installations PWA & données réelles",
+                            action: () => navigate('/admin')
                         });
                     }
                     profileLinks.push(
-                        { icon: 'manage_accounts', label: 'Paramètres du compte', action: () => navigate('/settings') },
-                        { icon: 'library_books', label: 'Ma Bibliothèque', action: () => navigate('/library') },
-                        { icon: 'storefront', label: 'Acheter des livres', sub: 'boombooks.shop', action: () => window.open('https://boombooks.shop', '_blank'), endIcon: 'open_in_new' },
+                        { icon: Setting2, label: 'Paramètres du compte', action: () => navigate('/settings') },
+                        { icon: Book1, label: 'Ma Bibliothèque', action: () => navigate('/library') },
+                        { icon: Shop, label: 'Acheter des livres', sub: 'boombooks.shop', action: () => window.open('https://boombooks.shop', '_blank'), endIcon: Export },
                     );
-                    return profileLinks.map((item, i) => (
-                        <div key={i} className="card" style={{ padding: 'var(--space-5)', display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={item.action}>
-                            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 'var(--space-4)' }}>
-                                <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>{item.icon}</span>
+                    return profileLinks.map((item, i) => {
+                        const ItemIcon = item.icon;
+                        const EndIcon = item.endIcon || ArrowRight2;
+                        return (
+                            <div key={i} className="card" style={{ padding: 'var(--space-5)', display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={item.action}>
+                                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 'var(--space-4)' }}>
+                                    <ItemIcon size={20} color="var(--color-text-muted)" variant="Linear" />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <h4 style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>{item.label}</h4>
+                                    {item.sub && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{item.sub}</p>}
+                                </div>
+                                <EndIcon size={20} color="var(--color-text-muted)" variant="Linear" />
                             </div>
-                            <div style={{ flex: 1 }}>
-                                <h4 style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>{item.label}</h4>
-                                {item.sub && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>{item.sub}</p>}
-                            </div>
-                            <span className="material-symbols-outlined" style={{ color: 'var(--color-text-muted)' }}>{item.endIcon || 'chevron_right'}</span>
-                        </div>
-                    ));
+                        );
+                    });
                 })()}
             </div>
 
             <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-8)', display: 'flex', justifyContent: 'center' }}>
                 <button className="btn btn-outline" style={{ borderColor: 'var(--color-border)', width: '80%' }} onClick={signOut}>
-                    <span className="material-symbols-outlined" style={{ color: '#E41E3F' }}>logout</span>
-                    <span style={{ color: '#E41E3F', fontWeight: 600, letterSpacing: 1, fontSize: 12 }}>SE DÉCONNECTER</span>
+                    <Logout size={18} color="var(--color-danger)" variant="Linear" />
+                    <span style={{ color: 'var(--color-danger)', fontWeight: 600, letterSpacing: 1, fontSize: 12, marginLeft: 8 }}>SE DÉCONNECTER</span>
                 </button>
             </div>
         </div>
