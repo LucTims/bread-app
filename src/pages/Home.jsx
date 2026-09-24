@@ -224,17 +224,25 @@ export default function Home() {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100dvh - var(--bottom-nav-height) - var(--space-8))' }}>
-            {/* En-tête — salutation dynamique (heure + activité) */}
-            <div style={{ marginTop: 'var(--space-8)' }}>
-                <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>
+            {/* Salutation en haut à gauche */}
+            <div style={{ marginTop: 'var(--space-6)' }}>
+                <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>
                     <span style={{ fontWeight: 400, color: 'var(--color-text-muted)' }}>{timeGreeting()}, </span>
                     {firstName || 'Lecteur'}
-                </h1>
+                </h2>
                 <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '4px 0 0' }}>{activityMessage}</p>
             </div>
 
-            {/* Recherche + citation — centrées dans l'espace restant de l'écran */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 'var(--space-5)' }}>
+            {/* Recherche + citation + logo — centrés dans l'espace restant de l'écran */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 'var(--space-5)', paddingBottom: '40px' }}>
+                
+                {/* Logo de l'application centré au-dessus de la barre de recherche */}
+                <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                    <h1 style={{ fontSize: 40, fontWeight: 800, margin: 0, color: 'var(--color-text)', letterSpacing: '-1.5px' }}>
+                        Bread
+                    </h1>
+                </div>
+
                 {/* Barre de recherche — sur tous les livres synchronisés */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{
@@ -290,12 +298,6 @@ export default function Home() {
                     </div>
                 )}
             </div>
-
-            {loading && (
-                <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 40 }}>
-                    <div className="spinner" />
-                </div>
-            )}
         </div>
     );
 }
