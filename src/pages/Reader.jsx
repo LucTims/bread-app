@@ -165,12 +165,26 @@ export default function Reader() {
         getBookNotes(bookId).then(setNotes);
     }, [bookId]);
 
-    // Convert blob to fast Object URL
-    const setBlobAsPdf = (blob) => {
+    // Convert blob to fast Object URL or ArrayBuffer depending on format
+    const setBlobAsData = async (blob, format) => {
         if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
-        const url = URL.createObjectURL(blob);
-        pdfUrlRef.current = url;
-        setPdfFile(url);
+        
+        if (format === 'epub') {
+            // react-reader (epub.js) is much more reliable with ArrayBuffers for local files
+            let buffer;
+            if (blob.arrayBuffer) {
+                buffer = await blob.arrayBuffer();
+            } else {
+                buffer = await new Response(blob).arrayBuffer();
+            }
+            pdfUrlRef.current = null;
+            setPdfFile(buffer);
+        } else {
+            // react-pdf prefers Object URLs
+            const url = URL.createObjectURL(blob);
+            pdfUrlRef.current = url;
+            setPdfFile(url);
+        }
     };
 
     // ─── DATA LOADING ────────────────────────
@@ -196,7 +210,7 @@ export default function Reader() {
                     }
                 }
 
-                setBlobAsPdf(offlinePdfBlob);
+                await setBlobAsData(offlinePdfBlob, meta.format);
                 setBookMeta(meta);
 
                 const progress = await getReadingProgress(bookId);
@@ -337,7 +351,7 @@ export default function Reader() {
                 saveCoverOffline(bookId, book.cover_url).catch(() => {});
             }
 
-            setBlobAsPdf(blob);
+            await setBlobAsData(blob, format);
             setBookMeta(bookMetaToSave);
 
             const progress = await getReadingProgress(bookId);
