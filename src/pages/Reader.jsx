@@ -617,10 +617,36 @@ export default function Reader() {
         goToPage(page);
     };
 
-    // ─── TTS FUNCTIONS (sentence-by-sentence) ────────────────────────
-    const splitSentences = (text) => {
+    // ─── TTS FUNCTIONS (fluid paragraph-by-paragraph) ────────────────────────
+    const chunkTextForTTS = (text) => {
         if (!text) return [];
-        return text.match(/[^.!?…]+[.!?…]+|[^.!?…]+$/g)?.map(s => s.trim()).filter(s => s.length > 2) || [text];
+        // Corriger l'extraction de texte PDF (mots coupés par des tirets en fin de ligne)
+        let cleaned = text.replace(/-\s+/g, '');
+        // Corriger l'espacement autour de la ponctuation pour que le TTS l'interprète bien
+        cleaned = cleaned.replace(/\s+([.,;:?!])/g, '$1');
+        
+        // Découper d'abord par phrases
+        const sentences = cleaned.match(/[^.!?…]+[.!?…]+|[^.!?…]+$/g)?.map(s => s.trim()).filter(s => s.length > 1) || [cleaned];
+        
+        // Regrouper les phrases en morceaux plus grands (ex: ~300 caractères)
+        // Cela permet à l'IA (ElevenLabs) ou au TTS natif d'avoir le contexte pour l'intonation
+        // et de lire de manière beaucoup plus fluide sans pause hachée à chaque point.
+        const chunks = [];
+        let currentChunk = '';
+        
+        for (const sentence of sentences) {
+            if (!currentChunk) {
+                currentChunk = sentence;
+            } else if (currentChunk.length + sentence.length < 350) {
+                currentChunk += ' ' + sentence;
+            } else {
+                chunks.push(currentChunk);
+                currentChunk = sentence;
+            }
+        }
+        if (currentChunk) chunks.push(currentChunk);
+        
+        return chunks;
     };
 
     const extractPageText = async (pgNum) => {
@@ -639,7 +665,7 @@ export default function Reader() {
         try {
             const page = await pdfDocRef.current.getPage(pgNum);
             const content = await page.getTextContent();
-            return content.items.map(item => item.str).join(' ').replace(/\s+/g, ' ').trim();
+            return content.items.map(item => item.str).join(' ').trim();
         } catch { return ''; }
     };
 
@@ -654,7 +680,7 @@ export default function Reader() {
                 setTimeout(async () => {
                     if (!ttsActiveRef.current) return;
                     const text = await extractPageText(nextPg);
-                    const newSentences = splitSentences(text);
+                    const newSentences = chunkTextForTTS(text);
                     if (newSentences.length) {
                         setTtsSentences(newSentences);
                         setTtsSentenceIdx(0);
@@ -725,7 +751,7 @@ export default function Reader() {
         }
         setTtsLoading(true);
         const text = await extractPageText(pageNumber);
-        const sentences = splitSentences(text);
+        const sentences = chunkTextForTTS(text);
         setTtsLoading(false);
         if (!sentences.length) { alert('Aucun texte sur cette page.'); ttsActiveRef.current = false; return; }
         setTtsSentences(sentences);
@@ -977,11 +1003,11 @@ export default function Reader() {
                 }} onClick={(e) => e.stopPropagation()}>
                     <h3 style={{ color: 'var(--color-text)', fontSize: 15, fontWeight: 700, marginBottom: 12, textAlign: 'center' }}>Lecture Audio</h3>
 
-                    {/* Current sentence display */}
+                    {/* Current chunk display */}
                     {ttsSentences.length > 0 && (
                         <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 12, background: 'var(--color-primary-light)', border: '1px solid var(--color-primary-light)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                <span style={{ fontSize: 10, color: 'var(--color-primary-text)', fontWeight: 700 }}>Phrase {ttsSentenceIdx + 1} / {ttsSentences.length}</span>
+                                <span style={{ fontSize: 10, color: 'var(--color-primary-text)', fontWeight: 700 }}>Paragraphe {ttsSentenceIdx + 1} / {ttsSentences.length}</span>
                                 <span style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>Page {pageNumber}</span>
                             </div>
                             <p style={{ fontSize: 13, color: 'var(--color-text)', lineHeight: 1.5, margin: 0, fontStyle: 'italic' }}>
@@ -1071,7 +1097,7 @@ export default function Reader() {
                     {/* Sentence list (jump to) */}
                     {ttsSentences.length > 1 && (
                         <div>
-                            <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 6, display: 'block' }}>Phrases ({ttsSentences.length})</span>
+                            <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 6, display: 'block' }}>Paragraphes ({ttsSentences.length})</span>
                             <div style={{ maxHeight: 120, overflowY: 'auto', borderRadius: 10, background: 'var(--color-bg-light)' }}>
                                 {ttsSentences.map((s, i) => (
                                     <button key={i} onClick={() => ttsJumpToSentence(i)} style={{
