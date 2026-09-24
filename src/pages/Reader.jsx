@@ -274,7 +274,7 @@ export default function Reader() {
                         hasAccess = true;
                         hasAccessViaSubscription = true;
                     } else if (isSubActive && !isOfflinePlan) {
-                        throw new Error("Votre abonnement Lecteur ne permet pas le téléchargement hors-ligne sur Bread. Passez au forfait Bâtisseur.");
+                        throw new Error("Votre abonnement Lecteur ne permet pas le téléchargement hors-ligne sur BoomRead. Passez au forfait Bâtisseur.");
                     } else if (!isSubActive) {
                         throw new Error("Votre abonnement a expiré. Veuillez le renouveler sur BoomBooks pour télécharger ce livre.");
                     }

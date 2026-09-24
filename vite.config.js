@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
-        name: 'BRead – Liseuse BoomBooks',
-        short_name: 'BRead',
+        name: 'BoomRead – Liseuse BoomBooks',
+        short_name: 'BoomRead',
         description: 'Lisez vos livres BoomBooks partout, même hors-ligne.',
         theme_color: '#FFD60A',
         background_color: '#0B0F14',

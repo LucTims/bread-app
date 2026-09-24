@@ -72,7 +72,7 @@ export default function Login() {
             {/* Right side: Form */}
             <div className="login-form-side" style={{ padding: 'var(--space-6)' }}>
                 <div className="login-form-container">
-                    <Link to="/" style={{ textDecoration: 'none', display: 'block', width: 'fit-content', margin: '0 auto' }}><h1 className="login-brand">Bread</h1></Link>
+                    <Link to="/" style={{ textDecoration: 'none', display: 'block', width: 'fit-content', margin: '0 auto' }}><h1 className="login-brand">BoomRead</h1></Link>
                     <h2 className="login-title">
                         {view === 'login' ? 'Ravis de vous revoir !' : 'Créer votre compte'}
                     </h2>

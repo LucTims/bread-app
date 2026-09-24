@@ -37,7 +37,7 @@ if (isNativeApp) {
       updateSW(true);
     },
     onOfflineReady() {
-      console.log('✅ Bread est prêt pour une utilisation hors-ligne !');
+      console.log('✅ BoomRead est prêt pour une utilisation hors-ligne !');
     },
   });
 }

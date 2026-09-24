@@ -239,7 +239,7 @@ export default function Home() {
                 {/* Logo de l'application centré au-dessus de la barre de recherche */}
                 <div style={{ textAlign: 'center', marginBottom: '8px' }}>
                     <h1 style={{ fontSize: 40, fontWeight: 800, margin: 0, color: 'var(--color-text)', letterSpacing: '-1.5px' }}>
-                        Bread
+                        BoomRead
                     </h1>
                 </div>
 

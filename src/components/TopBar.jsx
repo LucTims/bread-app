@@ -105,7 +105,7 @@ export default function TopBar({ minimal = false }) {
                 )}
 
                 {!minimal && (
-                    <h1 style={{ fontFamily: 'var(--font-logo)', fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--color-text)' }}>Bread</h1>
+                    <h1 style={{ fontFamily: 'var(--font-logo)', fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--color-text)' }}>BoomRead</h1>
                 )}
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
