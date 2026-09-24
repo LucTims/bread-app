@@ -204,7 +204,7 @@ function AppContent() {
         {/* Routes nécessitant un compte BoomBooks */}
         <Route path="/chat" element={
           <ProtectedRoute>
-            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--color-bg)', overflow: 'hidden' }}>
+            <div style={{ height: '100dvh', width: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--color-bg)', overflow: 'hidden' }}>
               <ChatIndex />
               <BottomNav />
             </div>
@@ -213,7 +213,7 @@ function AppContent() {
 
         <Route path="/chat/community" element={
           <ProtectedRoute>
-            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--color-bg)', overflow: 'hidden' }}>
+            <div style={{ height: '100dvh', width: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--color-bg)', overflow: 'hidden' }}>
               <Chat />
             </div>
           </ProtectedRoute>
@@ -221,7 +221,7 @@ function AppContent() {
 
         <Route path="/chat/ai" element={
           <ProtectedRoute>
-            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--color-bg)', overflow: 'hidden' }}>
+            <div style={{ height: '100dvh', width: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--color-bg)', overflow: 'hidden' }}>
               <AIChat />
             </div>
           </ProtectedRoute>

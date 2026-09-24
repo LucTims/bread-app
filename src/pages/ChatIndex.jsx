@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Notification, MagicStar, Profile2User } from 'iconsax-react';
+import { SearchNormal1, Profile2User, MessageTick } from 'iconsax-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 
@@ -9,23 +9,6 @@ export default function ChatIndex() {
     const { user } = useAuth();
     const [lastCommunityMsg, setLastCommunityMsg] = useState('Rejoignez la discussion...');
     const [lastCommunityTime, setLastCommunityTime] = useState('');
-    const [unreadCount, setUnreadCount] = useState(0);
-
-    useEffect(() => {
-        if (!user) return;
-        async function fetchUnread() {
-            try {
-                const { count: totalCount } = await supabase.from('notifications').select('id', { count: 'exact', head: true });
-                const { count: readCount } = await supabase.from('notification_reads').select('id', { count: 'exact', head: true }).eq('user_id', user.id);
-                setUnreadCount(Math.max(0, (totalCount || 0) - (readCount || 0)));
-            } catch (err) {
-                console.error('[ChatIndex] Unread count error:', err);
-            }
-        }
-        fetchUnread();
-        const interval = setInterval(fetchUnread, 30000);
-        return () => clearInterval(interval);
-    }, [user]);
 
     useEffect(() => {
         async function fetchLastMessage() {
@@ -63,34 +46,34 @@ export default function ChatIndex() {
     return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--color-bg)' }}>
             <header style={{
-                padding: 'var(--space-4) var(--space-6)',
-                background: 'var(--color-surface)',
+                padding: '16px 20px 16px 20px',
+                background: 'var(--color-bg)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'flex-end',
+                justifyContent: 'space-between',
                 position: 'sticky',
                 top: 0,
                 zIndex: 10
             }}>
-                <div onClick={() => navigate('/notifications')} style={{
-                    width: 36, height: 36, borderRadius: '50%', background: 'transparent',
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    position: 'relative'
-                }}>
-                    <Notification size={26} color="var(--color-text)" variant="Linear" />
-                    {unreadCount > 0 && (
-                        <span style={{
-                            position: 'absolute', top: 4, right: 2,
-                            minWidth: 16, height: 16, borderRadius: 8,
-                            background: 'var(--color-danger)', color: '#fff', fontSize: 10, fontWeight: 800,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            padding: '0 4px', boxShadow: '0 1px 4px rgba(220,38,38,0.4)', lineHeight: 1
-                        }}>
-                            {unreadCount > 9 ? '9+' : unreadCount}
-                        </span>
-                    )}
-                </div>
+                <h1 style={{ fontSize: '26px', fontWeight: 'bold', margin: 0, color: 'var(--color-text)' }}>Discussions</h1>
             </header>
+
+            <div style={{ padding: '0 20px 16px 20px' }}>
+                <div style={{ 
+                    display: 'flex', alignItems: 'center', background: 'var(--color-surface)', 
+                    borderRadius: '24px', padding: '8px 16px', gap: '12px' 
+                }}>
+                    <SearchNormal1 size={18} color="var(--color-text-muted)" />
+                    <input 
+                        type="text" 
+                        placeholder="Rechercher ou démarrer une discussion"
+                        style={{ 
+                            border: 'none', background: 'transparent', flex: 1, 
+                            color: 'var(--color-text)', fontSize: '15px', outline: 'none' 
+                        }} 
+                    />
+                </div>
+            </div>
 
             <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 'var(--bottom-nav-height)' }}>
                 {/* Chat IA */}
@@ -98,29 +81,31 @@ export default function ChatIndex() {
                     onClick={() => navigate('/chat/ai')}
                     style={{ 
                         display: 'flex', 
-                        padding: '16px', 
+                        padding: '16px 20px',
                         borderBottom: '1px solid var(--color-border)',
                         cursor: 'pointer',
                         alignItems: 'center'
                     }}
                 >
                     <div style={{
-                        width: '56px', height: '56px', borderRadius: '50%',
+                        width: '52px', height: '52px', borderRadius: '50%',
                         background: 'var(--color-primary)',
                         marginRight: '16px', flexShrink: 0,
                         display: 'flex', alignItems: 'center', justifyContent: 'center'
                     }}>
-                        <MagicStar size={28} color="#000" variant="Bold" />
+                        <img src="/ai-logo.png" alt="AI" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
+                        <span style={{ display: 'none', color: '#000', fontWeight: 'bold', fontSize: '20px' }}>IA</span>
                     </div>
                     
                     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' }}>
-                            <h2 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0, color: 'var(--color-text)' }}>Assistant IA BoomRead</h2>
-                            <span style={{ fontSize: '12px', color: 'var(--color-primary)', fontWeight: 500 }}>En ligne</span>
+                            <h2 style={{ fontSize: '16px', fontWeight: '600', margin: 0, color: 'var(--color-text)' }}>Assistant IA ebuk</h2>
+                            <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>16:36</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <MessageTick size={16} color="var(--color-text-muted)" variant="Outline" />
                             <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                ~ Comment puis-je vous aider avec vos lectures ?
+                                Comment puis-je vous aider avec vos lectures ?
                             </p>
                         </div>
                     </div>
@@ -131,31 +116,34 @@ export default function ChatIndex() {
                     onClick={() => navigate('/chat/community')}
                     style={{ 
                         display: 'flex', 
-                        padding: '16px', 
+                        padding: '16px 20px',
                         borderBottom: '1px solid var(--color-border)',
                         cursor: 'pointer',
                         alignItems: 'center'
                     }}
                 >
                     <div style={{ 
-                        width: '56px', height: '56px', borderRadius: '50%', 
+                        width: '52px', height: '52px', borderRadius: '50%', 
                         background: 'var(--color-surface)', border: '1px solid var(--color-border)',
                         marginRight: '16px', overflow: 'hidden', flexShrink: 0,
                         display: 'flex', alignItems: 'center', justifyContent: 'center'
                     }}>
                         <img src="/boombooks_logo.png" alt="Community" style={{ width: '60%', height: '60%', objectFit: 'contain' }} onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
-                        <span style={{ display: 'none' }}><Profile2User size={32} color="var(--color-text-muted)" variant="Linear" /></span>
+                        <span style={{ display: 'none' }}><Profile2User size={24} color="var(--color-text-muted)" variant="Linear" /></span>
                     </div>
                     
                     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' }}>
-                            <h2 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0, color: 'var(--color-text)' }}>BoomBooks Inner Circle</h2>
-                            <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{lastCommunityTime}</span>
+                            <h2 style={{ fontSize: '16px', fontWeight: '600', margin: 0, color: 'var(--color-text)' }}>BoomBooks Inner Circle</h2>
+                            <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{lastCommunityTime || '16:28'}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {lastCommunityMsg}
-                            </p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
+                                <MessageTick size={16} color="var(--color-primary)" variant="Bold" />
+                                <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {lastCommunityMsg}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
