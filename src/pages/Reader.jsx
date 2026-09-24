@@ -575,6 +575,15 @@ export default function Reader() {
         };
     }, [zoomFactor]);
 
+    // Update EPUB font size dynamically when zoom changes
+    useEffect(() => {
+        if (bookMeta?.format === 'epub' && renditionRef.current) {
+            try {
+                renditionRef.current.themes.fontSize(`${zoomFactor * 100}%`);
+            } catch (err) {}
+        }
+    }, [zoomFactor, bookMeta?.format]);
+
     // ─── Tap to toggle all chrome (or close an open panel first) ────────────────────────
     const toggleToolbar = () => {
         if (showAnnotatePanel || showAudioPanel) {
@@ -826,10 +835,10 @@ export default function Reader() {
                 style={{
                     flex: 1,
                     overflowY: 'auto',
-                    overflowX: 'hidden',
+                    overflowX: zoomFactor > 1 ? 'auto' : 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
-                    alignItems: 'center',
+                    alignItems: zoomFactor > 1 ? 'flex-start' : 'center',
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
                     touchAction: zoomFactor > 1 ? 'pan-x pan-y' : 'pan-y',
@@ -845,7 +854,7 @@ export default function Reader() {
                     willChange: 'transform',
                     display: 'flex',
                     flexDirection: 'column',
-                    alignItems: 'center',
+                    alignItems: zoomFactor > 1 ? 'flex-start' : 'center',
                     width: '100%',
                 }}>
                 {bookMeta?.format === 'epub' && pdfFile ? (
