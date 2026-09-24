@@ -308,117 +308,130 @@ export default function Library() {
                 }}
             />
 
-            {/* En-tête compact — flèche retour + titre */}
-            <div className="container" style={{ marginTop: 2, padding: '0 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button
-                    onClick={() => navigate(-1)}
-                    aria-label="Retour"
-                    style={{
-                        width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: 'var(--color-bg-dark)', border: 'none', cursor: 'pointer'
-                    }}
-                >
-                    <ArrowLeft2 size={16} color="var(--color-text)" variant="Linear" />
-                </button>
-                <h1 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'var(--color-text)' }}>Livres</h1>
-            </div>
-
-            {/* Barre de recherche — en haut, cohérente avec Home */}
-            <div className="container" style={{ marginTop: 8, padding: '0 4px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{
-                        flex: 1, display: 'flex', alignItems: 'center', gap: 8,
-                        border: '1px solid var(--color-border)', borderRadius: 8, padding: '8px 14px'
-                    }}>
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Rechercher par titre ou auteur..."
-                            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 14, color: 'var(--color-text)' }}
-                        />
-                        {searchQuery && (
-                            <span style={{ cursor: 'pointer', display: 'flex', color: 'var(--color-text-muted)' }} onClick={() => setSearchQuery('')}>
-                                <CloseCircle size={16} color="currentColor" variant="Linear" />
-                            </span>
-                        )}
-                    </div>
-                    <div style={{
-                        width: 38, height: 38, borderRadius: 8, background: 'var(--color-primary)', flexShrink: 0,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}>
-                        <SearchNormal1 size={18} color="#000" variant="Linear" />
-                    </div>
+            {/* Section figée en haut */}
+            <div style={{
+                position: 'sticky',
+                top: 'calc(-1 * var(--space-4))',
+                background: 'var(--color-bg)',
+                zIndex: 20,
+                paddingTop: 'var(--space-4)',
+                paddingBottom: '8px',
+                margin: 'calc(-1 * var(--space-4)) calc(-1 * var(--space-5)) 0',
+                paddingLeft: 'var(--space-5)',
+                paddingRight: 'var(--space-5)'
+            }}>
+                {/* En-tête compact — flèche retour + titre */}
+                <div className="container" style={{ marginTop: 2, padding: '0 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <button
+                        onClick={() => navigate(-1)}
+                        aria-label="Retour"
+                        style={{
+                            width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: 'var(--color-bg-dark)', border: 'none', cursor: 'pointer'
+                        }}
+                    >
+                        <ArrowLeft2 size={16} color="var(--color-text)" variant="Linear" />
+                    </button>
+                    <h1 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'var(--color-text)' }}>Livres</h1>
                 </div>
-            </div>
 
-            {/* Passerelle BoomBooks si non connecté — bandeau fin, cohérent avec Home */}
-            {!user && (
+                {/* Barre de recherche — en haut, cohérente avec Home */}
                 <div className="container" style={{ marginTop: 8, padding: '0 4px' }}>
-                    <div style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-                        padding: '8px 4px', borderBottom: '1px solid var(--color-border)'
-                    }}>
-                        <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0 }}>
-                            Connectez-vous pour synchroniser vos achats BoomBooks
-                        </p>
-                        <button
-                            onClick={() => navigate('/login')}
-                            style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary-text)', whiteSpace: 'nowrap', flexShrink: 0 }}
-                        >
-                            Connexion
-                        </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{
+                            flex: 1, display: 'flex', alignItems: 'center', gap: 8,
+                            border: '1px solid var(--color-border)', borderRadius: 8, padding: '8px 14px'
+                        }}>
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Rechercher par titre ou auteur..."
+                                style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 14, color: 'var(--color-text)' }}
+                            />
+                            {searchQuery && (
+                                <span style={{ cursor: 'pointer', display: 'flex', color: 'var(--color-text-muted)' }} onClick={() => setSearchQuery('')}>
+                                    <CloseCircle size={16} color="currentColor" variant="Linear" />
+                                </span>
+                            )}
+                        </div>
+                        <div style={{
+                            width: 38, height: 38, borderRadius: 8, background: 'var(--color-primary)', flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                            <SearchNormal1 size={18} color="#000" variant="Linear" />
+                        </div>
                     </div>
                 </div>
-            )}
 
-            {/* Cadre promotionnel BoomBooks.shop */}
-            <div className="container" style={{ marginTop: 8, padding: '0 4px' }}>
-                <div
-                    onClick={() => window.open('https://boombooks.shop', '_blank')}
-                    style={{
-                        position: 'relative', overflow: 'hidden', cursor: 'pointer',
-                        borderRadius: 'var(--radius-xl)', padding: 'var(--space-5) var(--space-4)',
-                        background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-hover))',
-                        minHeight: 108, display: 'flex', flexDirection: 'column', justifyContent: 'space-between'
-                    }}
-                >
-                    <ShoppingBag size={64} color="rgba(0,0,0,0.12)" variant="Bold" style={{ position: 'absolute', right: -8, bottom: -12 }} />
-                    <div style={{ position: 'relative', maxWidth: '75%' }}>
-                        <h3 style={{ fontSize: 16, fontWeight: 800, color: '#000', margin: 0, lineHeight: 1.3 }}>
-                            Encore plus de livres vous attendent
-                        </h3>
-                        <p style={{ fontSize: 12, color: 'rgba(0,0,0,0.65)', margin: '4px 0 0', lineHeight: 1.4 }}>
-                            Découvrez tout le catalogue sur BoomBooks.shop et trouvez votre prochaine lecture.
-                        </p>
+                {/* Passerelle BoomBooks si non connecté — bandeau fin, cohérent avec Home */}
+                {!user && (
+                    <div className="container" style={{ marginTop: 8, padding: '0 4px' }}>
+                        <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                            padding: '8px 4px', borderBottom: '1px solid var(--color-border)'
+                        }}>
+                            <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: 0 }}>
+                                Connectez-vous pour synchroniser vos achats BoomBooks
+                            </p>
+                            <button
+                                onClick={() => navigate('/login')}
+                                style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary-text)', whiteSpace: 'nowrap', flexShrink: 0 }}
+                            >
+                                Connexion
+                            </button>
+                        </div>
                     </div>
-                    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: '#000' }}>
-                        Visiter BoomBooks.shop
-                        <ArrowRight size={16} color="#000" variant="Linear" />
-                    </span>
-                </div>
-            </div>
+                )}
 
-            {/* Synchroniser un livre du téléphone */}
-            <div className="container" style={{ marginTop: 8, padding: '0 4px' }}>
-                <button
-                    onClick={handleSyncBook}
-                    disabled={importing}
-                    style={{
-                        width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
-                        borderRadius: 14, border: '1px solid var(--color-border)', background: 'var(--color-surface)',
-                        cursor: 'pointer', textAlign: 'left'
-                    }}
-                >
-                    {importing
-                        ? <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2, margin: 0, flexShrink: 0 }} />
-                        : <DocumentUpload size={20} color="var(--color-primary-text)" variant="Linear" style={{ flexShrink: 0 }} />
-                    }
-                    <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>
-                        {importing ? 'Importation en cours...' : 'Synchroniser un livre du téléphone'}
-                    </h4>
-                </button>
+                {/* Cadre promotionnel BoomBooks.shop */}
+                <div className="container" style={{ marginTop: 8, padding: '0 4px' }}>
+                    <div
+                        onClick={() => window.open('https://boombooks.shop', '_blank')}
+                        style={{
+                            position: 'relative', overflow: 'hidden', cursor: 'pointer',
+                            borderRadius: 'var(--radius-xl)', padding: 'var(--space-5) var(--space-4)',
+                            background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-hover))',
+                            minHeight: 108, display: 'flex', flexDirection: 'column', justifyContent: 'space-between'
+                        }}
+                    >
+                        <ShoppingBag size={64} color="rgba(0,0,0,0.12)" variant="Bold" style={{ position: 'absolute', right: -8, bottom: -12 }} />
+                        <div style={{ position: 'relative', maxWidth: '75%' }}>
+                            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#000', margin: 0, lineHeight: 1.3 }}>
+                                Encore plus de livres vous attendent
+                            </h3>
+                            <p style={{ fontSize: 12, color: 'rgba(0,0,0,0.65)', margin: '4px 0 0', lineHeight: 1.4 }}>
+                                Découvrez tout le catalogue sur BoomBooks.shop et trouvez votre prochaine lecture.
+                            </p>
+                        </div>
+                        <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: '#000' }}>
+                            Visiter BoomBooks.shop
+                            <ArrowRight size={16} color="#000" variant="Linear" />
+                        </span>
+                    </div>
+                </div>
+
+                {/* Synchroniser un livre du téléphone */}
+                <div className="container" style={{ marginTop: 8, padding: '0 4px' }}>
+                    <button
+                        onClick={handleSyncBook}
+                        disabled={importing}
+                        style={{
+                            width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+                            borderRadius: 14, border: '1px solid var(--color-border)', background: 'var(--color-surface)',
+                            cursor: 'pointer', textAlign: 'left'
+                        }}
+                    >
+                        {importing
+                            ? <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2, margin: 0, flexShrink: 0 }} />
+                            : <DocumentUpload size={20} color="var(--color-primary-text)" variant="Linear" style={{ flexShrink: 0 }} />
+                        }
+                        <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>
+                            {importing ? 'Importation en cours...' : 'Synchroniser un livre du téléphone'}
+                        </h4>
+                    </button>
+                </div>
             </div>
 
             {/* Liste des livres — marges latérales réduites pour coller aux bords de l'écran */}
