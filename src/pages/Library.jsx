@@ -294,58 +294,94 @@ export default function Library() {
                 alert("Le fichier de ce livre est introuvable sur votre appareil.");
                 return;
             }
-            const ext = book.format === 'epub' ? 'epub' : 'pdf';
-            const mime = book.format === 'epub' ? 'application/epub+zip' : 'application/pdf';
-            const fileName = `${book.title || 'livre'}.${ext}`;
-            const file = new File([blob], fileName, { type: mime });
+            const isEpub = (book.format || '').toLowerCase() === 'epub';
+            const ext = isEpub ? 'epub' : 'pdf';
+            const mime = isEpub ? 'application/epub+zip' : 'application/pdf';
+
+            // Nettoyage strict du nom pour éviter les rejets d'Android et de WhatsApp
+            const cleanTitle = (book.title || 'livre')
+                .replace(/\.(pdf|epub)$/i, '')
+                .replace(/[/\\?%*:|"<>]/g, ' ')
+                .trim()
+                .replace(/\s+/g, ' ');
+            const fileName = `${cleanTitle || 'document'}.${ext}`;
+
+            const fileBlob = blob instanceof Blob ? blob : new Blob([blob], { type: mime });
+            const file = new File([fileBlob], fileName, { type: mime, lastModified: Date.now() });
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({
                     files: [file],
-                    title: book.title,
+                    title: cleanTitle,
                 });
             } else if (navigator.share) {
                 await navigator.share({
-                    title: book.title,
-                    text: `Document partagé depuis BoomRead : ${book.title}`,
+                    title: cleanTitle,
+                    text: `Document partagé depuis BoomRead : ${cleanTitle}`,
                 });
             } else {
                 // Téléchargement / export direct si le partage natif n'est pas dispo
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = fileName;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setTimeout(() => URL.revokeObjectURL(url), 1500);
+                handleExportLocalBook(book);
             }
         } catch (err) {
             if (err.name !== 'AbortError') {
                 console.error('[Library] Erreur partage:', err);
-                alert("Impossible de partager ou d'exporter ce fichier.");
+                alert("Impossible de partager ce fichier.");
             }
+        }
+    };
+
+    const handleExportLocalBook = async (book) => {
+        try {
+            const blob = await getOfflineBook(book.id);
+            if (!blob) {
+                alert("Le fichier de ce livre est introuvable sur votre appareil.");
+                return;
+            }
+            const isEpub = (book.format || '').toLowerCase() === 'epub';
+            const ext = isEpub ? 'epub' : 'pdf';
+            const mime = isEpub ? 'application/epub+zip' : 'application/pdf';
+            const cleanTitle = (book.title || 'livre')
+                .replace(/\.(pdf|epub)$/i, '')
+                .replace(/[/\\?%*:|"<>]/g, ' ')
+                .trim()
+                .replace(/\s+/g, ' ');
+            const fileName = `${cleanTitle || 'document'}.${ext}`;
+
+            const fileBlob = blob instanceof Blob ? blob : new Blob([blob], { type: mime });
+            const url = URL.createObjectURL(fileBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
+        } catch (err) {
+            console.error('[Library] Erreur export:', err);
+            alert("Impossible de télécharger le fichier.");
         }
     };
 
     const handleShareBoomBooksBook = async (book) => {
         const shareUrl = 'https://boombooks.shop';
-        const shareText = `Je te recommande de lire « ${book.title} » ${book.author ? `de ${book.author}` : ''} sur BoomBooks ! Découvre-le ici : ${shareUrl}`;
+        const authorStr = book.author ? ` de ${book.author}` : '';
+        const shareMessage = `Je te recommande de lire « ${book.title} »${authorStr} sur BoomBooks ! Découvre-le ici : ${shareUrl}`;
 
         if (navigator.share) {
             try {
+                // On passe le texte avec l'URL intégrée pour éviter que WhatsApp ne la double
                 await navigator.share({
                     title: book.title,
-                    text: shareText,
-                    url: shareUrl,
+                    text: shareMessage,
                 });
             } catch (err) {
                 if (err.name !== 'AbortError') {
-                    copyShareText(shareText);
+                    copyShareText(shareMessage);
                 }
             }
         } else {
-            copyShareText(shareText);
+            copyShareText(shareMessage);
         }
     };
 
@@ -631,6 +667,7 @@ export default function Library() {
                                                     {(isLocalBook ? [
                                                         { icon: Edit2, label: 'Renommer', action: () => handleRename(b) },
                                                         { icon: Share, label: 'Partager le fichier', action: () => handleShareLocalBook(b) },
+                                                        { icon: DocumentDownload, label: 'Enregistrer le fichier', action: () => handleExportLocalBook(b) },
                                                         { icon: InfoCircle, label: 'Détails', action: () => handleDetails(b, true) },
                                                         { icon: Trash, label: "Supprimer de l'appareil", danger: true, action: () => handleRemove(b.id) },
                                                     ] : isOffline ? [
