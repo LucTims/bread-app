@@ -146,7 +146,7 @@ export default function Chat() {
                     .select(`
                         id, content, created_at, user_id, reply_to_id,
                         profiles(full_name, avatar_url, email, role),
-                        reply_to:reply_to_id(id, content, profiles(full_name, email)),
+                        reply_to:reply_to_id(id, content, user_id, profiles(full_name, email)),
                         chat_reactions(id, user_id, emoji)
                     `)
                     .order('created_at', { ascending: false })
@@ -175,7 +175,7 @@ export default function Chat() {
                     .select(`
                         id, content, created_at, user_id, reply_to_id,
                         profiles(full_name, avatar_url, email, role),
-                        reply_to:reply_to_id(id, content, profiles(full_name, email)),
+                        reply_to:reply_to_id(id, content, user_id, profiles(full_name, email)),
                         chat_reactions(id, user_id, emoji)
                     `)
                     .eq('id', newMsg.id)
@@ -393,6 +393,12 @@ export default function Chat() {
         return content;
     };
 
+    const getReplyAuthorName = (replyTo) => {
+        if (!replyTo) return 'Utilisateur';
+        if (replyTo.user_id && user && replyTo.user_id === user.id) return 'Vous';
+        return replyTo.profiles?.full_name || replyTo.profiles?.email?.split('@')[0] || 'Utilisateur';
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', background: 'var(--color-bg)', position: 'relative' }}>
             
@@ -506,6 +512,7 @@ export default function Chat() {
                         
                         return (
                             <div key={msg.id} 
+                                id={`msg-${msg.id}`}
                                 onTouchStart={handleTouchStart}
                                 onTouchMove={handleTouchMove}
                                 onTouchEnd={(e) => handleTouchEnd(e, msg)}
@@ -514,6 +521,8 @@ export default function Chat() {
                                 gap: 8, 
                                 alignSelf: isMine ? 'flex-end' : 'flex-start',
                                 maxWidth: '85%',
+                                minWidth: 0,
+                                width: 'fit-content',
                                 flexDirection: isMine ? 'row-reverse' : 'row'
                             }}>
                                 {/* Avatar (Only for others) */}
@@ -534,16 +543,23 @@ export default function Chat() {
                                 )}
 
                                 {/* Message Bubble & Actions */}
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMine ? 'flex-end' : 'flex-start', position: 'relative' }}>
+                                <div style={{ 
+                                    display: 'flex', 
+                                    flexDirection: 'column', 
+                                    alignItems: isMine ? 'flex-end' : 'flex-start', 
+                                    position: 'relative',
+                                    maxWidth: '100%',
+                                    minWidth: 0
+                                }}>
                                     
                                     {/* Sender Info (Only show for others) */}
                                     {!isMine && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, paddingLeft: 4 }}>
-                                            <span style={{ fontSize: 11, fontWeight: 600, color: `hsl(${msg.user_id.charCodeAt(0) * 15 % 360}, 70%, 40%)` }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, paddingLeft: 4, maxWidth: '100%', overflow: 'hidden' }}>
+                                            <span style={{ fontSize: 11, fontWeight: 600, color: `hsl(${msg.user_id.charCodeAt(0) * 15 % 360}, 70%, 40%)`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                 {displayName}
                                             </span>
                                             {msg.profiles?.role === 'admin' && (
-                                                <span style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary-text)', padding: '1px 4px', borderRadius: 6, fontSize: 8, fontWeight: 700 }}>
+                                                <span style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary-text)', padding: '1px 4px', borderRadius: 6, fontSize: 8, fontWeight: 700, flexShrink: 0 }}>
                                                     ADMIN
                                                 </span>
                                             )}
@@ -556,8 +572,8 @@ export default function Chat() {
                                         style={{ 
                                         position: 'relative',
                                         background: isMine ? 'var(--color-primary)' : 'var(--color-surface)',
-                                        color: isMine ? '#000' : 'var(--color-text)',
-                                        padding: '4px 6px 6px 8px',
+                                        color: isMine ? '#000000' : 'var(--color-text)',
+                                        padding: '5px 8px 6px 9px',
                                         borderRadius: '8px',
                                         borderTopLeftRadius: !isMine ? 0 : 8,
                                         borderTopRightRadius: isMine ? 0 : 8,
@@ -565,6 +581,8 @@ export default function Chat() {
                                         lineHeight: 1.4,
                                         boxShadow: '0 1px 1px rgba(0,0,0,0.1)',
                                         minWidth: '80px',
+                                        maxWidth: '100%',
+                                        boxSizing: 'border-box',
                                         cursor: 'pointer',
                                         ...(selectedMessage?.id === msg.id ? { outline: '2px solid var(--color-primary)', background: isMine ? 'var(--color-primary-hover)' : 'var(--color-surface-hover)' } : {})
                                     }}>
@@ -581,38 +599,81 @@ export default function Chat() {
 
                                         {/* Reply Preview */}
                                         {msg.reply_to && (
-                                            <div style={{
-                                                background: 'rgba(0,0,0,0.05)',
+                                            <div 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const targetEl = document.getElementById(`msg-${msg.reply_to.id}`);
+                                                    if (targetEl) {
+                                                        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                        targetEl.animate([
+                                                            { opacity: 0.5, transform: 'scale(0.97)' },
+                                                            { opacity: 1, transform: 'scale(1)' }
+                                                        ], { duration: 400 });
+                                                    }
+                                                }}
+                                                style={{
+                                                background: isMine ? 'rgba(0, 0, 0, 0.08)' : 'rgba(0, 0, 0, 0.04)',
                                                 padding: '4px 8px',
-                                                borderRadius: '4px',
-                                                borderLeft: `4px solid ${isMine ? 'var(--color-bg)' : 'var(--color-primary)'}`,
-                                                marginBottom: '4px',
+                                                borderRadius: '5px',
+                                                borderLeft: `4px solid ${isMine ? 'rgba(0, 0, 0, 0.45)' : 'var(--color-primary)'}`,
+                                                marginBottom: '6px',
                                                 fontSize: '12px',
                                                 maxWidth: '100%',
-                                                marginTop: '2px'
+                                                minWidth: 0,
+                                                overflow: 'hidden',
+                                                boxSizing: 'border-box',
+                                                marginTop: '1px',
+                                                cursor: 'pointer'
                                             }}>
-                                                <div style={{ fontWeight: 600, color: isMine ? 'var(--color-bg)' : 'var(--color-primary)', marginBottom: 2 }}>{msg.reply_to.profiles?.full_name || 'Utilisateur'}</div>
-                                                <div className="line-clamp-1" style={{ color: 'rgba(0,0,0,0.6)' }}>{renderReplyContent(msg.reply_to.content)}</div>
+                                                <div style={{ 
+                                                    fontWeight: 700, 
+                                                    fontSize: '11px',
+                                                    color: isMine ? 'rgba(0, 0, 0, 0.85)' : 'var(--color-primary-text)', 
+                                                    marginBottom: 2,
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap'
+                                                }}>
+                                                    {getReplyAuthorName(msg.reply_to)}
+                                                </div>
+                                                <div style={{ 
+                                                    color: isMine ? 'rgba(0, 0, 0, 0.65)' : 'var(--color-text-muted)',
+                                                    fontSize: '12px',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap'
+                                                }}>
+                                                    {renderReplyContent(msg.reply_to.content)}
+                                                </div>
                                             </div>
                                         )}
 
                                         {isImage ? (
-                                            <div style={{ paddingBottom: '12px' }}>
+                                            <div style={{ paddingBottom: '14px' }}>
                                                 <img src={imageUrl} alt="Image envoyée" style={{ maxWidth: '100%', borderRadius: 8, marginTop: 4, display: 'block' }} loading="lazy" />
-                                                {caption && <div style={{ marginTop: 8, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{caption}</div>}
+                                                {caption && (
+                                                    <div style={{ marginTop: 8, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                                                        {caption}
+                                                        <span style={{ display: 'inline-block', width: isMine ? 55 : 40 }} />
+                                                    </div>
+                                                )}
                                             </div>
                                         ) : (
-                                            <div style={{ paddingBottom: '12px', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+                                            <div style={{ paddingBottom: '10px', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                                                {msg.content}
+                                                <span style={{ display: 'inline-block', width: isMine ? 52 : 38 }} />
+                                            </div>
                                         )}
                                         
                                         {/* Timestamp overlay */}
                                         <div style={{ 
-                                            position: 'absolute', bottom: '4px', right: '6px',
-                                            fontSize: '10px', color: 'rgba(0,0,0,0.45)',
-                                            display: 'flex', alignItems: 'center', gap: 2
+                                            position: 'absolute', bottom: '3px', right: '6px',
+                                            fontSize: '10px', color: isMine ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.45)',
+                                            display: 'flex', alignItems: 'center', gap: 2,
+                                            pointerEvents: 'none'
                                         }}>
                                             {formatTime(msg.created_at)}
-                                            {isMine && <TickCircle size={14} color="currentColor" variant="Bold" />}
+                                            {isMine && <TickCircle size={13} color="currentColor" variant="Bold" />}
                                         </div>
 
                                         {/* Reactions popup if selected */}
@@ -743,24 +804,26 @@ export default function Chat() {
                 {replyingTo && (
                     <div style={{
                         background: 'var(--color-surface)',
-                        border: '1px solid var(--color-primary)',
+                        border: '1px solid var(--color-border)',
                         borderLeft: '4px solid var(--color-primary)',
                         borderRadius: 'var(--radius-md)',
                         padding: '8px 12px',
                         display: 'flex',
                         justifyContent: 'space-between',
-                        alignItems: 'center'
+                        alignItems: 'center',
+                        gap: 8,
+                        minWidth: 0
                     }}>
-                        <div style={{ overflow: 'hidden' }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-primary)', marginBottom: 2 }}>
-                                Réponse à {replyingTo.profiles?.full_name || 'Utilisateur'}
+                        <div style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-primary-text)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                Réponse à {getReplyAuthorName(replyingTo)}
                             </div>
-                            <div className="line-clamp-1" style={{ fontSize: 13, color: 'var(--color-text)' }}>
+                            <div style={{ fontSize: 13, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {renderReplyContent(replyingTo.content)}
                             </div>
                         </div>
-                        <button onClick={() => setReplyingTo(null)} className="btn-ghost" style={{ padding: 4 }}>
-                            <CloseCircle size={18} color="currentColor" variant="Linear" />
+                        <button onClick={() => setReplyingTo(null)} className="btn-ghost" style={{ padding: 4, flexShrink: 0 }}>
+                            <CloseCircle size={20} color="var(--color-text-muted)" variant="Linear" />
                         </button>
                     </div>
                 )}
