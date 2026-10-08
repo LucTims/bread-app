@@ -1,4 +1,4 @@
-package com.boomread.app;
+package com.boomread.shop;
 
 import com.getcapacitor.BridgeActivity;
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import {
@@ -28,6 +28,106 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 // Fixed reading text color — literal value (not a CSS var: epub content renders
 // inside an iframe where the parent's custom properties don't resolve).
 const READER_TEXT = '#111827';
+
+// Custom clean book layout styles for ReactReader (matches PDF look & feel)
+const customReaderStyles = {
+    container: {
+        overflow: 'hidden',
+        position: 'relative',
+        height: '100%',
+        width: '100%',
+        background: '#FFFFFF',
+    },
+    readerArea: {
+        position: 'relative',
+        zIndex: 1,
+        height: '100%',
+        width: '100%',
+        backgroundColor: '#FFFFFF',
+    },
+    containerExpanded: {},
+    titleArea: {
+        display: 'none',
+    },
+    reader: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        bottom: 0,
+        right: 0,
+    },
+    swipeWrapper: {
+        display: 'none',
+    },
+    prev: {
+        left: 12,
+    },
+    next: {
+        right: 12,
+    },
+    arrow: {
+        outline: 'none',
+        border: 'none',
+        background: 'rgba(255, 255, 255, 0.92)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        position: 'absolute',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        width: 44,
+        height: 44,
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 24,
+        color: '#334155',
+        cursor: 'pointer',
+        userSelect: 'none',
+        zIndex: 120,
+        boxShadow: '0 4px 14px rgba(0, 0, 0, 0.12)',
+        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        lineHeight: 1,
+        padding: 0,
+    },
+    arrowHover: {
+        background: '#FFFFFF',
+        color: '#0F172A',
+        boxShadow: '0 6px 18px rgba(0, 0, 0, 0.16)',
+        transform: 'translateY(-50%) scale(1.08)',
+    },
+    tocBackground: { display: 'none' },
+    toc: { display: 'none' },
+    tocArea: { display: 'none' },
+    tocAreaButton: { display: 'none' },
+    tocButton: { display: 'none' },
+    tocButtonExpanded: { display: 'none' },
+    tocButtonBar: { display: 'none' },
+    tocButtonBarTop: { display: 'none' },
+    tocButtonBottom: { display: 'none' },
+    loadingView: {
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 12,
+        color: '#64748B',
+        fontSize: 14,
+    },
+    errorView: {
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        textAlign: 'center',
+        color: '#EF4444',
+        fontSize: 14,
+        padding: 20,
+    },
+};
 
 export default function Reader() {
     const { bookId } = useParams();
@@ -170,12 +270,16 @@ export default function Reader() {
         if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
         
         if (format === 'epub') {
-            // react-reader (epub.js) is much more reliable with ArrayBuffers for local files
+            // react-reader (epub.js) is much more reliable with ArrayBuffers for local & downloaded files
             let buffer;
-            if (blob.arrayBuffer) {
+            if (blob instanceof ArrayBuffer) {
+                buffer = blob;
+            } else if (blob && typeof blob.arrayBuffer === 'function') {
                 buffer = await blob.arrayBuffer();
-            } else {
+            } else if (blob instanceof Blob) {
                 buffer = await new Response(blob).arrayBuffer();
+            } else {
+                buffer = blob;
             }
             pdfUrlRef.current = null;
             setPdfFile(buffer);
@@ -199,8 +303,16 @@ export default function Reader() {
             if (offlinePdfBlob) {
                 const meta = offlineMeta || {};
                 if (!meta.format) {
-                    const isEpub = offlinePdfBlob.type === 'application/epub+zip' ||
+                    let isEpub = offlinePdfBlob.type === 'application/epub+zip' ||
                                   (offlinePdfBlob.name && offlinePdfBlob.name.toLowerCase().endsWith('.epub'));
+                    if (!isEpub && offlinePdfBlob.slice) {
+                        try {
+                            const header = await offlinePdfBlob.slice(0, 4).arrayBuffer();
+                            const u8 = new Uint8Array(header);
+                            // Zip/EPUB magic bytes: 0x50, 0x4B (PK)
+                            if (u8[0] === 0x50 && u8[1] === 0x4B) isEpub = true;
+                        } catch { /* ignore */ }
+                    }
                     meta.format = isEpub ? 'epub' : 'pdf';
                 }
 
@@ -335,9 +447,14 @@ export default function Reader() {
                 console.error('[Reader] Download exception:', dlException);
             }
 
-            if (!blob) throw new Error("Le fichier du livre n'a pas pu être téléchargé. Vérifiez votre connexion Internet.");
-
-            const format = (book.format || (cleanPath.toLowerCase().endsWith('.epub') ? 'epub' : 'pdf')).toLowerCase();
+            let format = (book.format || (cleanPath.toLowerCase().endsWith('.epub') ? 'epub' : 'pdf')).toLowerCase();
+            if (format !== 'epub' && blob && blob.slice) {
+                try {
+                    const header = await blob.slice(0, 4).arrayBuffer();
+                    const u8 = new Uint8Array(header);
+                    if (u8[0] === 0x50 && u8[1] === 0x4B) format = 'epub';
+                } catch { /* ignore */ }
+            }
             const bookMetaToSave = {
                 title: book.title,
                 author: book.author,
@@ -383,6 +500,13 @@ export default function Reader() {
     const goToPage = useCallback((pg) => {
         if (!numPages) return;
         const clamped = Math.min(Math.max(1, pg), numPages);
+        if (bookMeta?.format === 'epub') {
+            if (renditionRef.current?.book?.locations) {
+                const cfi = renditionRef.current.book.locations.cfiFromLocation(clamped);
+                if (cfi) renditionRef.current.display(cfi);
+            }
+            return;
+        }
         setRenderedPages(prev => {
             const next = new Set(prev);
             [clamped - 1, clamped, clamped + 1].forEach(p => { if (p >= 1 && p <= numPages) next.add(p); });
@@ -391,7 +515,7 @@ export default function Reader() {
         requestAnimationFrame(() => {
             pageNodeRefs.current[clamped]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
-    }, [numPages]);
+    }, [numPages, bookMeta?.format]);
 
     const skipToNextPage = () => {
         ttsStop();
@@ -399,10 +523,29 @@ export default function Reader() {
         else goToPage(pageNumberRef.current + 1);
     };
 
+    const skipToPrevPage = () => {
+        ttsStop();
+        if (bookMeta?.format === 'epub' && renditionRef.current) renditionRef.current.prev();
+        else goToPage(pageNumberRef.current - 1);
+    };
+
     // ─── EPUB HANDLERS ────────────────────────
     const onLocationChanged = (epubcif) => {
         setEpubLocation(epubcif);
-        saveReadingProgress(bookId, epubcif, 1);
+        if (renditionRef.current?.book?.locations?.total) {
+            const cur = renditionRef.current.book.locations.locationFromCfi(epubcif);
+            if (cur && cur > 0) {
+                setPageNumber(cur);
+            }
+            const total = renditionRef.current.book.locations.total;
+            saveReadingProgress(bookId, epubcif, total);
+        } else {
+            saveReadingProgress(bookId, epubcif, 1);
+        }
+        setShowPageIndicator(true);
+        if (pageIndicatorTimer.current) clearTimeout(pageIndicatorTimer.current);
+        pageIndicatorTimer.current = setTimeout(() => setShowPageIndicator(false), 1200);
+
         localPagesReadRef.current += 1;
         if (localPagesReadRef.current >= 5) {
             sendReadingStats();
@@ -742,6 +885,220 @@ export default function Reader() {
         setShowToolbar(p => !p);
     };
 
+    // ─── Active EPUB Reader Styles ───
+    const activeReaderStyles = useMemo(() => ({
+        ...customReaderStyles,
+        arrow: {
+            ...customReaderStyles.arrow,
+            opacity: showToolbar ? 0.95 : 0.25,
+        }
+    }), [showToolbar]);
+
+    // ─── Configure EPUB Rendition with Book Styles & Gestures ───
+    const handleGetEpubRendition = useCallback((rendition) => {
+        renditionRef.current = rendition;
+
+        // Register beautiful book stylesheet matching PDF reader aesthetics
+        rendition.themes.register('book-theme', {
+            'html': {
+                'height': '100% !important',
+            },
+            'body': {
+                'padding': '24px 28px 40px 28px !important',
+                'margin': '0 auto !important',
+                'color': '#1E293B !important',
+                'font-family': "'Georgia', 'Cambria', 'Baskerville', 'Times New Roman', serif !important",
+                'font-size': '17px !important',
+                'line-height': '1.8 !important',
+                'letter-spacing': '0.01em !important',
+                'text-rendering': 'optimizeLegibility !important',
+                '-webkit-font-smoothing': 'antialiased !important',
+                'background': '#FFFFFF !important',
+                'box-sizing': 'border-box !important',
+            },
+            'p': {
+                'margin': '0 0 1.3em 0 !important',
+                'line-height': '1.8 !important',
+                'text-align': 'justify !important',
+                'hyphens': 'auto !important',
+                '-webkit-hyphens': 'auto !important',
+                'word-break': 'normal !important',
+                'color': '#1E293B !important',
+            },
+            'h1, h2, h3, h4, h5, h6': {
+                'font-family': "'Georgia', 'Cambria', serif !important",
+                'color': '#0F172A !important',
+                'line-height': '1.3 !important',
+                'font-weight': '700 !important',
+            },
+            'h1': {
+                'font-size': '1.65em !important',
+                'margin': '1.5em 0 0.8em 0 !important',
+                'text-align': 'center !important',
+            },
+            'h2': {
+                'font-size': '1.35em !important',
+                'margin': '1.4em 0 0.6em 0 !important',
+            },
+            'h3': {
+                'font-size': '1.15em !important',
+                'margin': '1.2em 0 0.5em 0 !important',
+            },
+            'img': {
+                'max-width': '100% !important',
+                'height': 'auto !important',
+                'display': 'block !important',
+                'margin': '1.5em auto !important',
+                'border-radius': '6px !important',
+            },
+            'blockquote': {
+                'margin': '1.4em 0 !important',
+                'padding': '0.5em 1em 0.5em 1.25em !important',
+                'border-left': '3px solid #CBD5E1 !important',
+                'font-style': 'italic !important',
+                'color': '#475569 !important',
+            },
+            'ul, ol': {
+                'padding-left': '1.5em !important',
+                'margin': '1em 0 !important',
+                'line-height': '1.7 !important',
+            },
+            'li': {
+                'margin-bottom': '0.4em !important',
+            },
+            'a': {
+                'color': '#D97706 !important',
+                'text-decoration': 'none !important',
+            },
+            'code, pre': {
+                'font-family': "monospace !important",
+                'background': '#F1F5F9 !important',
+                'padding': '2px 5px !important',
+                'border-radius': '4px !important',
+                'font-size': '0.9em !important',
+            },
+            'table': {
+                'width': '100% !important',
+                'border-collapse': 'collapse !important',
+                'margin': '1.5em 0 !important',
+            },
+            'th, td': {
+                'padding': '8px 12px !important',
+                'border': '1px solid #E2E8F0 !important',
+            }
+        });
+        rendition.themes.select('book-theme');
+        rendition.themes.fontSize(`${Math.round(zoomRef.current * 100)}%`);
+
+        // Generate virtual page locations
+        rendition.book.ready.then(async () => {
+            try {
+                await rendition.book.locations.generate(1200);
+                const total = rendition.book.locations.total || 1;
+                setNumPages(total);
+                if (epubLocation) {
+                    const cur = rendition.book.locations.locationFromCfi(epubLocation);
+                    if (cur && cur > 0) setPageNumber(cur);
+                }
+            } catch (e) {
+                console.warn('[Reader] locations.generate warning:', e);
+            }
+        });
+
+        // Touch & gesture handling inside iframe
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchStartTime = 0;
+        let isTwoFingerTouch = false;
+
+        rendition.on('touchstart', (e) => {
+            if (e.touches && e.touches.length === 2) {
+                isTwoFingerTouch = true;
+                return;
+            }
+            if (e.touches && e.touches.length === 1) {
+                isTwoFingerTouch = false;
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                touchStartTime = Date.now();
+            }
+        });
+
+        rendition.on('touchend', (e) => {
+            if (isTwoFingerTouch) {
+                if (!e.touches || e.touches.length === 0) {
+                    isTwoFingerTouch = false;
+                }
+                return;
+            }
+
+            if (e.changedTouches && e.changedTouches.length === 1) {
+                const dx = e.changedTouches[0].clientX - touchStartX;
+                const dy = e.changedTouches[0].clientY - touchStartY;
+                const dt = Date.now() - touchStartTime;
+                const absDx = Math.abs(dx);
+                const absDy = Math.abs(dy);
+
+                // Horizontal swipe (page turn)
+                if (absDx > 40 && absDx > absDy * 1.5 && dt < 600) {
+                    if (dx < 0) {
+                        rendition.next();
+                    } else {
+                        rendition.prev();
+                    }
+                    return;
+                }
+
+                // Tap navigation
+                if (absDx < 12 && absDy < 12 && dt < 350) {
+                    const width = window.innerWidth;
+                    const tapX = e.changedTouches[0].clientX;
+                    if (tapX < width * 0.22) {
+                        rendition.prev();
+                    } else if (tapX > width * 0.78) {
+                        rendition.next();
+                    } else {
+                        toggleToolbar();
+                    }
+                }
+            }
+        });
+
+        // Desktop mouse click inside iframe
+        rendition.on('click', (e) => {
+            const width = window.innerWidth;
+            const clientX = e.clientX;
+            if (clientX && clientX < width * 0.15) {
+                rendition.prev();
+            } else if (clientX && clientX > width * 0.85) {
+                rendition.next();
+            } else {
+                toggleToolbar();
+            }
+        });
+
+        // Keyboard arrow navigation
+        rendition.on('keyup', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+                rendition.next();
+            } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                rendition.prev();
+            }
+        });
+
+        // Ctrl + wheel font zoom
+        rendition.on('wheel', (e) => {
+            if (e.ctrlKey) {
+                e.preventDefault();
+                const from = zoomRef.current;
+                const to = clamp(from * (e.deltaY < 0 ? 1.1 : 0.9), EPUB_ZOOM_MIN, EPUB_ZOOM_MAX);
+                if (to !== from) setZoomFactor(to);
+            }
+        });
+
+        attachEpubPinch(rendition);
+    }, [epubLocation, showToolbar, toggleToolbar, attachEpubPinch]);
+
     // ─── Notes & bookmarks ────────────────────────
     const isBookmarked = notes.some(n => n.page === pageNumber && n.isBookmark);
 
@@ -770,7 +1127,6 @@ export default function Reader() {
 
     const jumpToNote = (page) => {
         setShowAnnotatePanel(false);
-        if (bookMeta?.format === 'epub') return;
         goToPage(page);
     };
 
@@ -977,106 +1333,143 @@ export default function Reader() {
             )}
 
             {/* ── Reading Area ── */}
-            <div
-                ref={canvasRef}
-                className="reader-canvas-area hide-scrollbar"
-                style={{
-                    flex: 1,
-                    overflowY: 'auto',
-                    overflowX: zoomFactor > 1 && bookMeta?.format !== 'epub' ? 'auto' : 'hidden',
-                    display: 'block',
-                    userSelect: 'none',
-                    WebkitUserSelect: 'none',
-                    // We handle pinch ourselves: let the browser only scroll (no native zoom)
-                    touchAction: 'pan-x pan-y',
-                    overscrollBehavior: 'contain',
-                }}
-                onContextMenu={(e) => e.preventDefault()}
-                onClick={toggleToolbar}
-            >
-                {/* Visual scale wrapper — transform is driven directly by the pinch handler (no re-render) */}
-                <div ref={scaleWrapperRef} style={{
-                    willChange: 'transform',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    // Grows with the zoomed pages so the scroll area covers them entirely
-                    width: bookMeta?.format === 'epub' ? '100%' : 'max-content',
-                    minWidth: '100%',
-                    height: bookMeta?.format === 'epub' ? '100%' : undefined,
-                }}>
-                {bookMeta?.format === 'epub' && pdfFile ? (
-                    <div style={{ width: '100vw', height: '100%', position: 'relative' }}>
-                        <ReactReader
-                            url={pdfFile}
-                            location={epubLocation}
-                            locationChanged={onLocationChanged}
-                            epubInitOptions={{ openAs: 'epub' }}
-                            getRendition={(rendition) => {
-                                renditionRef.current = rendition;
-                                rendition.flow('scrolled-doc');
-                                rendition.themes.register('custom', {
-                                    body: { background: 'transparent !important', color: READER_TEXT + ' !important' },
-                                    p: { color: READER_TEXT + ' !important', 'font-size': '100% !important' }
-                                });
-                                rendition.themes.select('custom');
-                                rendition.themes.fontSize(`${Math.round(zoomRef.current * 100)}%`);
-                                attachEpubPinch(rendition);
-                            }}
-                        />
-                    </div>
-                ) : pdfFile && (
-                    <Document
-                        file={pdfFile}
-                        onLoadSuccess={onDocumentLoadSuccess}
-                        loading={<div className="spinner" style={{ margin: 'auto' }} />}
-                        error={<p style={{ color: 'var(--color-text)' }}>Erreur PDF.</p>}
+            {bookMeta?.format === 'epub' ? (
+                <div
+                    className="reader-epub-wrapper"
+                    style={{
+                        flex: 1,
+                        position: 'relative',
+                        width: '100%',
+                        height: '100%',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'stretch',
+                        background: '#F8FAFC',
+                    }}
+                >
+                    <div
+                        className="reader-epub-page"
+                        style={{
+                            position: 'relative',
+                            width: '100%',
+                            maxWidth: 780,
+                            height: '100%',
+                            background: '#FFFFFF',
+                            boxShadow: '0 0 25px rgba(0,0,0,0.06)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                        }}
                     >
-                        {Array.from(new Array(numPages || 0), (_, index) => {
-                            const pNum = index + 1;
-                            const shouldRender = renderedPages.has(pNum);
-                            const placeholderHeight = pageWidth * pageAspect;
-                            return (
-                                <div
-                                    key={`page_${pNum}`}
-                                    ref={registerPageNode(pNum)}
-                                    data-page={pNum}
-                                    style={{
-                                        flexShrink: 0,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        minHeight: placeholderHeight,
-                                        background: '#FFFFFF',
-                                    }}
-                                >
-                                    {shouldRender ? (
-                                        <Page
-                                            pageNumber={pNum}
-                                            width={pageWidth}
-                                            renderAnnotationLayer={false}
-                                            renderTextLayer={false}
-                                        />
-                                    ) : (
-                                        <div style={{ width: pageWidth, height: placeholderHeight, background: '#FFFFFF' }} />
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </Document>
-                )}
-                </div>{/* end visual scale wrapper */}
-            </div>
+                        {pdfFile && (
+                            <ReactReader
+                                url={pdfFile}
+                                location={epubLocation}
+                                locationChanged={onLocationChanged}
+                                epubInitOptions={{ openAs: 'binary' }}
+                                epubOptions={{
+                                    flow: 'paginated',
+                                    manager: 'default',
+                                }}
+                                showToc={false}
+                                swipeable={false}
+                                readerStyles={activeReaderStyles}
+                                loadingView={
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
+                                        <div className="spinner" />
+                                        <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Chargement du livre...</span>
+                                    </div>
+                                }
+                                errorView={
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, padding: 24, textAlign: 'center' }}>
+                                        <Danger size={32} color="var(--color-danger)" />
+                                        <span style={{ fontSize: 14, color: 'var(--color-text)' }}>Impossible de charger ce fichier EPUB.</span>
+                                    </div>
+                                }
+                                getRendition={handleGetEpubRendition}
+                            />
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <div
+                    ref={canvasRef}
+                    className="reader-canvas-area hide-scrollbar"
+                    style={{
+                        flex: 1,
+                        overflowY: 'auto',
+                        overflowX: zoomFactor > 1 ? 'auto' : 'hidden',
+                        display: 'block',
+                        userSelect: 'none',
+                        WebkitUserSelect: 'none',
+                        touchAction: 'pan-x pan-y',
+                        overscrollBehavior: 'contain',
+                    }}
+                    onContextMenu={(e) => e.preventDefault()}
+                    onClick={toggleToolbar}
+                >
+                    {/* Visual scale wrapper — transform is driven directly by the pinch handler (no re-render) */}
+                    <div ref={scaleWrapperRef} style={{
+                        willChange: 'transform',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        width: 'max-content',
+                        minWidth: '100%',
+                    }}>
+                        {pdfFile && (
+                            <Document
+                                file={pdfFile}
+                                onLoadSuccess={onDocumentLoadSuccess}
+                                loading={<div className="spinner" style={{ margin: 'auto' }} />}
+                                error={<p style={{ color: 'var(--color-text)' }}>Erreur PDF.</p>}
+                            >
+                                {Array.from(new Array(numPages || 0), (_, index) => {
+                                    const pNum = index + 1;
+                                    const shouldRender = renderedPages.has(pNum);
+                                    const placeholderHeight = pageWidth * pageAspect;
+                                    return (
+                                        <div
+                                            key={`page_${pNum}`}
+                                            ref={registerPageNode(pNum)}
+                                            data-page={pNum}
+                                            style={{
+                                                flexShrink: 0,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                minHeight: placeholderHeight,
+                                                background: '#FFFFFF',
+                                            }}
+                                        >
+                                            {shouldRender ? (
+                                                <Page
+                                                    pageNumber={pNum}
+                                                    width={pageWidth}
+                                                    renderAnnotationLayer={false}
+                                                    renderTextLayer={false}
+                                                />
+                                            ) : (
+                                                <div style={{ width: pageWidth, height: placeholderHeight, background: '#FFFFFF' }} />
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </Document>
+                        )}
+                    </div>
+                </div>
+            )}
 
-            {/* ── Floating page indicator — shown briefly while scrolling ── */}
-            {showToolbar && numPages && bookMeta?.format !== 'epub' && (
+            {/* ── Floating page indicator — shown briefly while turning pages / scrolling ── */}
+            {numPages && (
                 <div style={{
                     position: 'absolute', top: showToolbar ? 56 : 16, left: '50%', transform: 'translateX(-50%)',
                     zIndex: 150, background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '5px 14px',
                     borderRadius: 20, fontSize: 12, fontWeight: 700, pointerEvents: 'none',
                     transition: 'opacity 0.25s ease', opacity: showPageIndicator ? 1 : 0
                 }}>
-                    {pageNumber} / {numPages}
+                    Page {pageNumber} / {numPages}
                 </div>
             )}
 

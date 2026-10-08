@@ -206,7 +206,15 @@ export async function getOfflineBook(bookId) {
   if (item && typeof item === 'object' && typeof item.text !== 'function') {
     const str = item._content || item.content || (typeof item === 'string' ? item : '');
     item.text = async () => str;
-    item.arrayBuffer = async () => Buffer.from(str).buffer;
+    item.arrayBuffer = async () => {
+      if (typeof TextEncoder !== 'undefined') {
+        return new TextEncoder().encode(str).buffer;
+      }
+      const buf = new ArrayBuffer(str.length);
+      const bufView = new Uint8Array(buf);
+      for (let i = 0; i < str.length; i++) bufView[i] = str.charCodeAt(i);
+      return buf;
+    };
   }
   return item;
 }
