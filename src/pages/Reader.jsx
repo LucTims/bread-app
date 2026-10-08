@@ -518,83 +518,217 @@ export default function Reader() {
         return () => clearTimeout(progressSaveTimer.current);
     }, [pageNumber, numPages, bookId]);
 
-    // Fit-to-width sizing — the page always fills the screen; pinch multiplies from there
+    // Fit-to-width sizing — the page always fills the screen; pinch multiplies from there.
+    // NB: depends on `loading` because the reading area (canvasRef) only exists once the
+    // loading screen is gone — with [] deps this ran while canvasRef was still null.
     useLayoutEffect(() => {
         const el = canvasRef.current;
         if (!el) return;
-        // Measure synchronously before paint so the very first render already
-        // uses the real width — avoids a flash (or a stuck small render on
-        // fast-loading files) while ResizeObserver's first callback catches up.
         if (el.clientWidth > 0) setContainerWidth(el.clientWidth);
         if (typeof ResizeObserver === 'undefined') return;
         const ro = new ResizeObserver((entries) => {
-            for (const entry of entries) setContainerWidth(entry.contentRect.width);
+            for (const entry of entries) {
+                // Ignore width changes caused by the horizontal scrollbar while zoomed
+                if (zoomRef.current === 1) setContainerWidth(entry.contentRect.width);
+            }
         });
         ro.observe(el);
         return () => ro.disconnect();
-    }, []);
+    }, [loading, authLoading, error]);
 
     const pageWidth = Math.max(200, containerWidth) * zoomFactor;
 
-    // ─── PINCH TO ZOOM (smooth with CSS transform, commits to real width on release) ────────────────────────
+    // ─── PINCH TO ZOOM ────────────────────────
+    // While the fingers move we only apply a GPU CSS transform (no React re-render),
+    // anchored on the point between the fingers. On release, the real zoom is committed
+    // (pages re-render sharp at the new width) and the scroll is adjusted so the same
+    // spot stays under the fingers. Double-tap resets to 100% (or zooms to 200%).
+    const ZOOM_MIN = 1;
+    const ZOOM_MAX = 4;
+    const EPUB_ZOOM_MIN = 0.7;
+    const EPUB_ZOOM_MAX = 2.5;
+    const zoomRef = useRef(1);
+    useEffect(() => { zoomRef.current = zoomFactor; }, [zoomFactor]);
+    const scaleWrapperRef = useRef(null);
+    const pendingScrollRef = useRef(null);
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
     const getDistance = (t1, t2) => Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-    const [visualScale, setVisualScale] = useState(1);
+
+    // After a committed zoom, restore the scroll so the pinch focal point doesn't jump
+    useLayoutEffect(() => {
+        const p = pendingScrollRef.current;
+        const el = canvasRef.current;
+        if (!p || !el) return;
+        pendingScrollRef.current = null;
+        el.scrollLeft = Math.max(0, p.left);
+        el.scrollTop = Math.max(0, p.top);
+    }, [zoomFactor]);
+
+    // Commit a new zoom level, keeping content point (contentX, contentY) under screen point (fx, fy)
+    const commitZoom = useCallback((newZoom, fromZoom, contentX, contentY, fx, fy) => {
+        const k = newZoom / fromZoom;
+        pendingScrollRef.current = { left: contentX * k - fx, top: contentY * k - fy };
+        setZoomFactor(newZoom);
+    }, []);
 
     useEffect(() => {
         const el = canvasRef.current;
-        if (!el) return;
+        if (!el || bookMeta?.format === 'epub') return;
 
+        const pinch = { active: false, startDist: 0, startZoom: 1, scale: 1, cx: 0, cy: 0, fx: 0, fy: 0 };
+        const tap = { lastTime: 0, startX: 0, startY: 0, startTime: 0, moved: false };
         let rafId = null;
-        let pendingScale = 1;
+
+        const setTransform = (scale, originX, originY) => {
+            const w = scaleWrapperRef.current;
+            if (!w) return;
+            w.style.transformOrigin = `${originX}px ${originY}px`;
+            w.style.transform = scale === 1 ? 'none' : `scale(${scale})`;
+        };
 
         const onTouchStart = (e) => {
             if (e.touches.length === 2) {
                 e.preventDefault();
-                isPinching.current = true;
-                pinchRef.current.startDist = getDistance(e.touches[0], e.touches[1]);
-                pinchRef.current.startScale = zoomFactor;
-                setVisualScale(1);
+                const [a, b] = e.touches;
+                const rect = el.getBoundingClientRect();
+                pinch.active = true;
+                pinch.startDist = getDistance(a, b) || 1;
+                pinch.startZoom = zoomRef.current;
+                pinch.scale = 1;
+                pinch.fx = (a.clientX + b.clientX) / 2 - rect.left;
+                pinch.fy = (a.clientY + b.clientY) / 2 - rect.top;
+                pinch.cx = el.scrollLeft + pinch.fx;
+                pinch.cy = el.scrollTop + pinch.fy;
+                tap.moved = true; // a pinch is never a tap
+            } else if (e.touches.length === 1) {
+                tap.startX = e.touches[0].clientX;
+                tap.startY = e.touches[0].clientY;
+                tap.startTime = Date.now();
+                tap.moved = false;
             }
         };
 
         const onTouchMove = (e) => {
-            if (e.touches.length === 2 && isPinching.current) {
+            if (pinch.active && e.touches.length === 2) {
                 e.preventDefault();
-                const dist = getDistance(e.touches[0], e.touches[1]);
-                const ratio = dist / pinchRef.current.startDist;
-                pendingScale = Math.min(3.0, Math.max(0.5, ratio));
+                const ratio = getDistance(e.touches[0], e.touches[1]) / pinch.startDist;
+                // Allow slight rubber-band below min / above max while pinching
+                const target = clamp(pinch.startZoom * ratio, ZOOM_MIN * 0.75, ZOOM_MAX * 1.15);
+                pinch.scale = target / pinch.startZoom;
                 if (rafId) cancelAnimationFrame(rafId);
-                rafId = requestAnimationFrame(() => setVisualScale(pendingScale));
+                rafId = requestAnimationFrame(() => setTransform(pinch.scale, pinch.cx, pinch.cy));
+            } else if (e.touches.length === 1 && !tap.moved) {
+                const dx = e.touches[0].clientX - tap.startX;
+                const dy = e.touches[0].clientY - tap.startY;
+                if (Math.hypot(dx, dy) > 10) tap.moved = true;
             }
         };
 
-        const onTouchEnd = () => {
-            if (isPinching.current) {
-                isPinching.current = false;
+        const onTouchEnd = (e) => {
+            if (pinch.active) {
+                // Wait until both fingers are lifted
+                if (e.touches.length > 0) return;
+                pinch.active = false;
                 if (rafId) cancelAnimationFrame(rafId);
-                const finalScale = Math.min(4.0, Math.max(1, pinchRef.current.startScale * pendingScale));
-                setZoomFactor(finalScale);
-                setVisualScale(1);
-                pendingScale = 1;
+                const newZoom = clamp(pinch.startZoom * pinch.scale, ZOOM_MIN, ZOOM_MAX);
+                setTransform(1, 0, 0);
+                if (Math.abs(newZoom - pinch.startZoom) > 0.01) {
+                    commitZoom(newZoom, pinch.startZoom, pinch.cx, pinch.cy, pinch.fx, pinch.fy);
+                }
+                return;
+            }
+            // Double-tap detection (single finger, no movement, quick)
+            if (tap.moved || Date.now() - tap.startTime > 300) return;
+            const now = Date.now();
+            if (now - tap.lastTime < 300) {
+                tap.lastTime = 0;
+                e.preventDefault();
+                const rect = el.getBoundingClientRect();
+                const fx = tap.startX - rect.left;
+                const fy = tap.startY - rect.top;
+                const from = zoomRef.current;
+                const to = from > 1.05 ? 1 : 2;
+                commitZoom(to, from, el.scrollLeft + fx, el.scrollTop + fy, fx, fy);
+            } else {
+                tap.lastTime = now;
             }
         };
 
         el.addEventListener('touchstart', onTouchStart, { passive: false });
         el.addEventListener('touchmove', onTouchMove, { passive: false });
-        el.addEventListener('touchend', onTouchEnd, { passive: true });
+        el.addEventListener('touchend', onTouchEnd, { passive: false });
+        el.addEventListener('touchcancel', onTouchEnd, { passive: false });
+        // iOS Safari ignores user-scalable=no — stop its native page zoom so ours takes over
+        const onGesture = (e) => e.preventDefault();
+        el.addEventListener('gesturestart', onGesture);
+        el.addEventListener('gesturechange', onGesture);
         return () => {
+            if (rafId) cancelAnimationFrame(rafId);
+            el.removeEventListener('gesturestart', onGesture);
+            el.removeEventListener('gesturechange', onGesture);
             el.removeEventListener('touchstart', onTouchStart);
             el.removeEventListener('touchmove', onTouchMove);
             el.removeEventListener('touchend', onTouchEnd);
+            el.removeEventListener('touchcancel', onTouchEnd);
         };
-    }, [zoomFactor]);
+    }, [loading, authLoading, error, bookMeta?.format, commitZoom]);
+
+    // Desktop: Ctrl + molette (ou pincement sur trackpad) pour zoomer
+    useEffect(() => {
+        const el = canvasRef.current;
+        if (!el) return;
+        const onWheel = (e) => {
+            if (!e.ctrlKey) return;
+            e.preventDefault();
+            const isEpub = bookMeta?.format === 'epub';
+            const from = zoomRef.current;
+            const to = isEpub
+                ? clamp(from * (e.deltaY < 0 ? 1.1 : 0.9), EPUB_ZOOM_MIN, EPUB_ZOOM_MAX)
+                : clamp(from * (e.deltaY < 0 ? 1.1 : 0.9), ZOOM_MIN, ZOOM_MAX);
+            if (to === from) return;
+            if (isEpub) { setZoomFactor(to); return; }
+            const rect = el.getBoundingClientRect();
+            const fx = e.clientX - rect.left;
+            const fy = e.clientY - rect.top;
+            commitZoom(to, from, el.scrollLeft + fx, el.scrollTop + fy, fx, fy);
+        };
+        el.addEventListener('wheel', onWheel, { passive: false });
+        return () => el.removeEventListener('wheel', onWheel);
+    }, [loading, authLoading, error, bookMeta?.format, commitZoom]);
+
+    // EPUB: the text lives inside an iframe, so touches never reach our container.
+    // We listen through epub.js rendition events and turn the pinch into a font-size change.
+    const attachEpubPinch = useCallback((rendition) => {
+        const st = { active: false, startDist: 0, startZoom: 1 };
+        rendition.on('touchstart', (e) => {
+            if (e.touches?.length === 2) {
+                st.active = true;
+                st.startDist = getDistance(e.touches[0], e.touches[1]) || 1;
+                st.startZoom = zoomRef.current;
+            }
+        });
+        rendition.on('touchmove', (e) => {
+            if (!st.active || e.touches?.length !== 2) return;
+            const ratio = getDistance(e.touches[0], e.touches[1]) / st.startDist;
+            const next = clamp(st.startZoom * ratio, EPUB_ZOOM_MIN, EPUB_ZOOM_MAX);
+            // Live preview of the font size
+            try { rendition.themes.fontSize(`${Math.round(next * 100)}%`); } catch { /* noop */ }
+            st.last = next;
+        });
+        rendition.on('touchend', (e) => {
+            if (!st.active || (e.touches && e.touches.length > 0)) return;
+            st.active = false;
+            if (st.last) setZoomFactor(Math.round(st.last * 20) / 20);
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Update EPUB font size dynamically when zoom changes
     useEffect(() => {
         if (bookMeta?.format === 'epub' && renditionRef.current) {
             try {
-                renditionRef.current.themes.fontSize(`${zoomFactor * 100}%`);
-            } catch (err) {}
+                renditionRef.current.themes.fontSize(`${Math.round(zoomFactor * 100)}%`);
+            } catch { /* noop */ }
         }
     }, [zoomFactor, bookMeta?.format]);
 
@@ -849,27 +983,27 @@ export default function Reader() {
                 style={{
                     flex: 1,
                     overflowY: 'auto',
-                    overflowX: zoomFactor > 1 ? 'auto' : 'hidden',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: zoomFactor > 1 ? 'flex-start' : 'center',
+                    overflowX: zoomFactor > 1 && bookMeta?.format !== 'epub' ? 'auto' : 'hidden',
+                    display: 'block',
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
-                    touchAction: zoomFactor > 1 ? 'pan-x pan-y' : 'pan-y',
+                    // We handle pinch ourselves: let the browser only scroll (no native zoom)
+                    touchAction: 'pan-x pan-y',
+                    overscrollBehavior: 'contain',
                 }}
                 onContextMenu={(e) => e.preventDefault()}
                 onClick={toggleToolbar}
             >
-                {/* Visual scale wrapper — GPU-accelerated CSS transform during pinch */}
-                <div style={{
-                    transform: `scale(${visualScale})`,
-                    transformOrigin: 'center top',
-                    transition: visualScale === 1 ? 'transform 0.15s ease-out' : 'none',
+                {/* Visual scale wrapper — transform is driven directly by the pinch handler (no re-render) */}
+                <div ref={scaleWrapperRef} style={{
                     willChange: 'transform',
                     display: 'flex',
                     flexDirection: 'column',
-                    alignItems: zoomFactor > 1 ? 'flex-start' : 'center',
-                    width: '100%',
+                    alignItems: 'center',
+                    // Grows with the zoomed pages so the scroll area covers them entirely
+                    width: bookMeta?.format === 'epub' ? '100%' : 'max-content',
+                    minWidth: '100%',
+                    height: bookMeta?.format === 'epub' ? '100%' : undefined,
                 }}>
                 {bookMeta?.format === 'epub' && pdfFile ? (
                     <div style={{ width: '100vw', height: '100%', position: 'relative' }}>
@@ -883,9 +1017,11 @@ export default function Reader() {
                                 rendition.flow('scrolled-doc');
                                 rendition.themes.register('custom', {
                                     body: { background: 'transparent !important', color: READER_TEXT + ' !important' },
-                                    p: { color: READER_TEXT + ' !important', 'font-size': (zoomFactor * 100) + '% !important' }
+                                    p: { color: READER_TEXT + ' !important', 'font-size': '100% !important' }
                                 });
                                 rendition.themes.select('custom');
+                                rendition.themes.fontSize(`${Math.round(zoomRef.current * 100)}%`);
+                                attachEpubPinch(rendition);
                             }}
                         />
                     </div>
