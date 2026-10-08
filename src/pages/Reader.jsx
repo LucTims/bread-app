@@ -13,7 +13,7 @@ import {
     Headphones, VolumeHigh, Stop, Previous, Next, Play, Pause, Forward, Danger
 } from 'iconsax-react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { ReactReader } from 'react-reader';
+import { EpubView } from 'react-reader';
 import BookChat from '../components/BookChat';
 import { fetchElevenLabsVoices, generateElevenLabsSpeech, getElevenLabsCredits } from '../lib/elevenLabs';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -29,104 +29,10 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 // inside an iframe where the parent's custom properties don't resolve).
 const READER_TEXT = '#111827';
 
-// Custom clean book layout styles for ReactReader (matches PDF look & feel)
-const customReaderStyles = {
-    container: {
-        overflow: 'hidden',
-        position: 'relative',
-        height: '100%',
-        width: '100%',
-        background: '#FFFFFF',
-    },
-    readerArea: {
-        position: 'relative',
-        zIndex: 1,
-        height: '100%',
-        width: '100%',
-        backgroundColor: '#FFFFFF',
-    },
-    containerExpanded: {},
-    titleArea: {
-        display: 'none',
-    },
-    reader: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        bottom: 0,
-        right: 0,
-    },
-    swipeWrapper: {
-        display: 'none',
-    },
-    prev: {
-        left: 12,
-    },
-    next: {
-        right: 12,
-    },
-    arrow: {
-        outline: 'none',
-        border: 'none',
-        background: 'rgba(255, 255, 255, 0.92)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-        position: 'absolute',
-        top: '50%',
-        transform: 'translateY(-50%)',
-        width: 44,
-        height: 44,
-        borderRadius: '50%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 24,
-        color: '#334155',
-        cursor: 'pointer',
-        userSelect: 'none',
-        zIndex: 120,
-        boxShadow: '0 4px 14px rgba(0, 0, 0, 0.12)',
-        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-        lineHeight: 1,
-        padding: 0,
-    },
-    arrowHover: {
-        background: '#FFFFFF',
-        color: '#0F172A',
-        boxShadow: '0 6px 18px rgba(0, 0, 0, 0.16)',
-        transform: 'translateY(-50%) scale(1.08)',
-    },
-    tocBackground: { display: 'none' },
-    toc: { display: 'none' },
-    tocArea: { display: 'none' },
-    tocAreaButton: { display: 'none' },
-    tocButton: { display: 'none' },
-    tocButtonExpanded: { display: 'none' },
-    tocButtonBar: { display: 'none' },
-    tocButtonBarTop: { display: 'none' },
-    tocButtonBottom: { display: 'none' },
-    loadingView: {
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 12,
-        color: '#64748B',
-        fontSize: 14,
-    },
-    errorView: {
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        textAlign: 'center',
-        color: '#EF4444',
-        fontSize: 14,
-        padding: 20,
-    },
+// Clean styles for EpubView
+const epubViewStyles = {
+    viewHolder: { position: 'relative', height: '100%', width: '100%', overflow: 'hidden' },
+    view: { height: '100%', width: '100%' },
 };
 
 export default function Reader() {
@@ -147,6 +53,9 @@ export default function Reader() {
     const [containerWidth, setContainerWidth] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 360));
     const [showToolbar, setShowToolbar] = useState(true);
     const [epubLocation, setEpubLocation] = useState(null);
+    const [showZoomIndicator, setShowZoomIndicator] = useState(false);
+    const zoomIndicatorTimer = useRef(null);
+    const loadedContentsRef = useRef(new Set());
     const renditionRef = useRef(null);
     const pageNumberRef = useRef(1);
     useEffect(() => { pageNumberRef.current = pageNumber; }, [pageNumber]);
@@ -712,6 +621,9 @@ export default function Reader() {
         const k = newZoom / fromZoom;
         pendingScrollRef.current = { left: contentX * k - fx, top: contentY * k - fy };
         setZoomFactor(newZoom);
+        setShowZoomIndicator(true);
+        if (zoomIndicatorTimer.current) clearTimeout(zoomIndicatorTimer.current);
+        zoomIndicatorTimer.current = setTimeout(() => setShowZoomIndicator(false), 1200);
     }, []);
 
     useEffect(() => {
@@ -839,60 +751,62 @@ export default function Reader() {
         return () => el.removeEventListener('wheel', onWheel);
     }, [loading, authLoading, error, bookMeta?.format, commitZoom]);
 
-    // EPUB: the text lives inside an iframe, so touches never reach our container.
-    // We listen through epub.js rendition events and turn the pinch into a font-size change.
-    const attachEpubPinch = useCallback((rendition) => {
-        const st = { active: false, startDist: 0, startZoom: 1 };
-        rendition.on('touchstart', (e) => {
-            if (e.touches?.length === 2) {
-                st.active = true;
-                st.startDist = getDistance(e.touches[0], e.touches[1]) || 1;
-                st.startZoom = zoomRef.current;
+    // ─── EPUB ZOOM & GESTURES ────────────────────────
+    const applyEpubZoom = useCallback((newZoom) => {
+        const clamped = Math.min(2.5, Math.max(0.7, Math.round(newZoom * 20) / 20));
+        setZoomFactor(clamped);
+        zoomRef.current = clamped;
+        const fontStr = `${Math.round(clamped * 100)}%`;
+        if (renditionRef.current) {
+            try {
+                renditionRef.current.themes.override('font-size', fontStr, true);
+            } catch (e) {
+                console.warn('[Reader] themes.override failed:', e);
             }
+        }
+        loadedContentsRef.current.forEach((c) => {
+            try {
+                c.css('font-size', fontStr, true);
+                if (c.document?.documentElement) {
+                    c.document.documentElement.style.setProperty('font-size', fontStr, 'important');
+                }
+                if (c.document?.body) {
+                    c.document.body.style.setProperty('font-size', fontStr, 'important');
+                }
+            } catch { /* noop */ }
         });
-        rendition.on('touchmove', (e) => {
-            if (!st.active || e.touches?.length !== 2) return;
-            const ratio = getDistance(e.touches[0], e.touches[1]) / st.startDist;
-            const next = clamp(st.startZoom * ratio, EPUB_ZOOM_MIN, EPUB_ZOOM_MAX);
-            // Live preview of the font size
-            try { rendition.themes.fontSize(`${Math.round(next * 100)}%`); } catch { /* noop */ }
-            st.last = next;
-        });
-        rendition.on('touchend', (e) => {
-            if (!st.active || (e.touches && e.touches.length > 0)) return;
-            st.active = false;
-            if (st.last) setZoomFactor(Math.round(st.last * 20) / 20);
-        });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        setShowZoomIndicator(true);
+        if (zoomIndicatorTimer.current) clearTimeout(zoomIndicatorTimer.current);
+        zoomIndicatorTimer.current = setTimeout(() => setShowZoomIndicator(false), 1200);
     }, []);
 
     // Update EPUB font size dynamically when zoom changes
     useEffect(() => {
         if (bookMeta?.format === 'epub' && renditionRef.current) {
+            const fontStr = `${Math.round(zoomFactor * 100)}%`;
             try {
-                renditionRef.current.themes.fontSize(`${Math.round(zoomFactor * 100)}%`);
+                renditionRef.current.themes.override('font-size', fontStr, true);
             } catch { /* noop */ }
+            loadedContentsRef.current.forEach((c) => {
+                try {
+                    c.css('font-size', fontStr, true);
+                    if (c.document?.documentElement) {
+                        c.document.documentElement.style.setProperty('font-size', fontStr, 'important');
+                    }
+                    if (c.document?.body) {
+                        c.document.body.style.setProperty('font-size', fontStr, 'important');
+                    }
+                } catch { /* noop */ }
+            });
         }
     }, [zoomFactor, bookMeta?.format]);
 
     // ─── Tap to toggle all chrome (or close an open panel first) ────────────────────────
-    const toggleToolbar = () => {
-        if (showAnnotatePanel || showAudioPanel) {
-            setShowAnnotatePanel(false);
-            setShowAudioPanel(false);
-            return;
-        }
+    const toggleToolbar = useCallback(() => {
+        setShowAnnotatePanel(false);
+        setShowAudioPanel(false);
         setShowToolbar(p => !p);
-    };
-
-    // ─── Active EPUB Reader Styles ───
-    const activeReaderStyles = useMemo(() => ({
-        ...customReaderStyles,
-        arrow: {
-            ...customReaderStyles.arrow,
-            opacity: showToolbar ? 0.95 : 0.25,
-        }
-    }), [showToolbar]);
+    }, []);
 
     // ─── Configure EPUB Rendition with Book Styles & Gestures ───
     const handleGetEpubRendition = useCallback((rendition) => {
@@ -901,14 +815,15 @@ export default function Reader() {
         // Register beautiful book stylesheet matching PDF reader aesthetics
         rendition.themes.register('book-theme', {
             'html': {
-                'height': '100% !important',
+                'height': 'auto !important',
+                'overflow': 'visible !important',
             },
             'body': {
                 'padding': '24px 28px 40px 28px !important',
                 'margin': '0 auto !important',
                 'color': '#1E293B !important',
                 'font-family': "'Georgia', 'Cambria', 'Baskerville', 'Times New Roman', serif !important",
-                'font-size': '17px !important',
+                'font-size': '100%',
                 'line-height': '1.8 !important',
                 'letter-spacing': '0.01em !important',
                 'text-rendering': 'optimizeLegibility !important',
@@ -924,6 +839,7 @@ export default function Reader() {
                 '-webkit-hyphens': 'auto !important',
                 'word-break': 'normal !important',
                 'color': '#1E293B !important',
+                'font-size': '1em !important',
             },
             'h1, h2, h3, h4, h5, h6': {
                 'font-family': "'Georgia', 'Cambria', serif !important",
@@ -988,7 +904,8 @@ export default function Reader() {
             }
         });
         rendition.themes.select('book-theme');
-        rendition.themes.fontSize(`${Math.round(zoomRef.current * 100)}%`);
+        const initialFont = `${Math.round(zoomRef.current * 100)}%`;
+        rendition.themes.override('font-size', initialFont, true);
 
         // Generate virtual page locations
         rendition.book.ready.then(async () => {
@@ -1005,99 +922,142 @@ export default function Reader() {
             }
         });
 
-        // Touch & gesture handling inside iframe
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let touchStartTime = 0;
-        let isTwoFingerTouch = false;
+        // Register content hooks for live pinch-to-zoom and clean interaction in each section iframe
+        rendition.hooks.content.register((contents) => {
+            loadedContentsRef.current.add(contents);
 
-        rendition.on('touchstart', (e) => {
-            if (e.touches && e.touches.length === 2) {
-                isTwoFingerTouch = true;
-                return;
+            const activeFont = `${Math.round(zoomRef.current * 100)}%`;
+            contents.css('font-size', activeFont, true);
+            if (contents.document?.documentElement) {
+                contents.document.documentElement.style.setProperty('font-size', activeFont, 'important');
             }
-            if (e.touches && e.touches.length === 1) {
-                isTwoFingerTouch = false;
-                touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;
-                touchStartTime = Date.now();
+            if (contents.document?.body) {
+                contents.document.body.style.setProperty('font-size', activeFont, 'important');
             }
-        });
 
-        rendition.on('touchend', (e) => {
-            if (isTwoFingerTouch) {
-                if (!e.touches || e.touches.length === 0) {
-                    isTwoFingerTouch = false;
+            const doc = contents.document;
+            if (!doc) return;
+
+            let touchStartDist = 0;
+            let startZoom = 1;
+            let currentPinchZoom = 1;
+            let isPinching = false;
+            let touchStartX = 0;
+            let touchStartY = 0;
+            let touchStartTime = 0;
+            let lastTapTime = 0;
+            let singleTouchMoved = false;
+
+            const onTouchStart = (e) => {
+                if (e.touches && e.touches.length === 2) {
+                    e.preventDefault();
+                    isPinching = true;
+                    touchStartDist = Math.hypot(
+                        e.touches[1].clientX - e.touches[0].clientX,
+                        e.touches[1].clientY - e.touches[0].clientY
+                    ) || 1;
+                    startZoom = zoomRef.current;
+                    currentPinchZoom = zoomRef.current;
+                    singleTouchMoved = true;
+                } else if (e.touches && e.touches.length === 1) {
+                    isPinching = false;
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                    touchStartTime = Date.now();
+                    singleTouchMoved = false;
                 }
-                return;
-            }
+            };
 
-            if (e.changedTouches && e.changedTouches.length === 1) {
-                const dx = e.changedTouches[0].clientX - touchStartX;
-                const dy = e.changedTouches[0].clientY - touchStartY;
-                const dt = Date.now() - touchStartTime;
-                const absDx = Math.abs(dx);
-                const absDy = Math.abs(dy);
-
-                // Horizontal swipe (page turn)
-                if (absDx > 40 && absDx > absDy * 1.5 && dt < 600) {
-                    if (dx < 0) {
-                        rendition.next();
-                    } else {
-                        rendition.prev();
+            const onTouchMove = (e) => {
+                if (isPinching && e.touches && e.touches.length === 2) {
+                    e.preventDefault();
+                    const dist = Math.hypot(
+                        e.touches[1].clientX - e.touches[0].clientX,
+                        e.touches[1].clientY - e.touches[0].clientY
+                    );
+                    const ratio = dist / touchStartDist;
+                    const next = Math.min(2.5, Math.max(0.7, startZoom * ratio));
+                    currentPinchZoom = next;
+                    const nextStr = `${Math.round(next * 100)}%`;
+                    contents.css('font-size', nextStr, true);
+                    if (doc.documentElement) {
+                        doc.documentElement.style.setProperty('font-size', nextStr, 'important');
                     }
+                    if (doc.body) {
+                        doc.body.style.setProperty('font-size', nextStr, 'important');
+                    }
+                } else if (e.touches && e.touches.length === 1 && !singleTouchMoved) {
+                    const dx = e.touches[0].clientX - touchStartX;
+                    const dy = e.touches[0].clientY - touchStartY;
+                    if (Math.hypot(dx, dy) > 10) {
+                        singleTouchMoved = true;
+                    }
+                }
+            };
+
+            const onTouchEnd = (e) => {
+                if (isPinching) {
+                    if (e.touches && e.touches.length > 0) return;
+                    isPinching = false;
+                    applyEpubZoom(currentPinchZoom);
                     return;
                 }
 
-                // Tap navigation
-                if (absDx < 12 && absDy < 12 && dt < 350) {
-                    const width = window.innerWidth;
-                    const tapX = e.changedTouches[0].clientX;
-                    if (tapX < width * 0.22) {
-                        rendition.prev();
-                    } else if (tapX > width * 0.78) {
-                        rendition.next();
-                    } else {
-                        toggleToolbar();
-                    }
+                if (singleTouchMoved || Date.now() - touchStartTime > 300) return;
+
+                const now = Date.now();
+                if (now - lastTapTime < 300) {
+                    lastTapTime = 0;
+                    e.preventDefault();
+                    const next = zoomRef.current > 1.15 ? 1 : 1.35;
+                    applyEpubZoom(next);
+                } else {
+                    lastTapTime = now;
+                    setTimeout(() => {
+                        if (lastTapTime === now) {
+                            toggleToolbar();
+                        }
+                    }, 310);
                 }
-            }
+            };
+
+            doc.addEventListener('touchstart', onTouchStart, { passive: false });
+            doc.addEventListener('touchmove', onTouchMove, { passive: false });
+            doc.addEventListener('touchend', onTouchEnd, { passive: false });
+            doc.addEventListener('touchcancel', onTouchEnd, { passive: false });
+
+            doc.addEventListener('click', (e) => {
+                if (!e.target.closest('a')) {
+                    toggleToolbar();
+                }
+            });
+
+            const onWheel = (e) => {
+                if (e.ctrlKey) {
+                    e.preventDefault();
+                    const from = zoomRef.current;
+                    const next = Math.min(2.5, Math.max(0.7, from * (e.deltaY < 0 ? 1.1 : 0.9)));
+                    applyEpubZoom(next);
+                }
+            };
+            doc.addEventListener('wheel', onWheel, { passive: false });
         });
 
-        // Desktop mouse click inside iframe
-        rendition.on('click', (e) => {
-            const width = window.innerWidth;
-            const clientX = e.clientX;
-            if (clientX && clientX < width * 0.15) {
-                rendition.prev();
-            } else if (clientX && clientX > width * 0.85) {
-                rendition.next();
-            } else {
-                toggleToolbar();
-            }
-        });
+        if (rendition.hooks.unloaded) {
+            rendition.hooks.unloaded.register((contents) => {
+                loadedContentsRef.current.delete(contents);
+            });
+        }
 
         // Keyboard arrow navigation
         rendition.on('keyup', (e) => {
-            if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+            if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
                 rendition.next();
-            } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+            } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
                 rendition.prev();
             }
         });
-
-        // Ctrl + wheel font zoom
-        rendition.on('wheel', (e) => {
-            if (e.ctrlKey) {
-                e.preventDefault();
-                const from = zoomRef.current;
-                const to = clamp(from * (e.deltaY < 0 ? 1.1 : 0.9), EPUB_ZOOM_MIN, EPUB_ZOOM_MAX);
-                if (to !== from) setZoomFactor(to);
-            }
-        });
-
-        attachEpubPinch(rendition);
-    }, [epubLocation, showToolbar, toggleToolbar, attachEpubPinch]);
+    }, [epubLocation, applyEpubZoom, toggleToolbar]);
 
     // ─── Notes & bookmarks ────────────────────────
     const isBookmarked = notes.some(n => n.page === pageNumber && n.isBookmark);
@@ -1320,6 +1280,53 @@ export default function Reader() {
                     <ArrowLeft2 size={22} color="currentColor" variant="Linear" />
                 </button>
                 <div className="reader-toolbar-title line-clamp-1">{bookMeta?.title || 'Lecture'}</div>
+
+                {bookMeta?.format === 'epub' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, margin: '0 4px', flexShrink: 0 }}>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); applyEpubZoom(zoomFactor - 0.15); }}
+                            style={{
+                                background: 'rgba(0,0,0,0.06)',
+                                border: 'none',
+                                borderRadius: 6,
+                                padding: '4px 7px',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                color: 'var(--color-text)',
+                            }}
+                            title="Diminuer la taille du texte"
+                            aria-label="Diminuer la taille du texte"
+                        >
+                            A-
+                        </button>
+                        <span style={{ fontSize: 11, fontWeight: 700, minWidth: 32, textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                            {Math.round(zoomFactor * 100)}%
+                        </span>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); applyEpubZoom(zoomFactor + 0.15); }}
+                            style={{
+                                background: 'rgba(0,0,0,0.06)',
+                                border: 'none',
+                                borderRadius: 6,
+                                padding: '4px 7px',
+                                fontSize: 13,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                color: 'var(--color-text)',
+                            }}
+                            title="Agrandir la taille du texte"
+                            aria-label="Agrandir la taille du texte"
+                        >
+                            A+
+                        </button>
+                    </div>
+                )}
+
                 <button onClick={(e) => { e.stopPropagation(); setShowChat(true); }} aria-label="Assistant IA">
                     <MagicStar size={22} color="var(--color-primary)" variant="Bold" />
                 </button>
@@ -1362,18 +1369,20 @@ export default function Reader() {
                         }}
                     >
                         {pdfFile && (
-                            <ReactReader
+                            <EpubView
                                 url={pdfFile}
                                 location={epubLocation}
                                 locationChanged={onLocationChanged}
                                 epubInitOptions={{ openAs: 'binary' }}
                                 epubOptions={{
-                                    flow: 'paginated',
-                                    manager: 'default',
+                                    flow: 'scrolled',
+                                    manager: 'continuous',
+                                    overflow: 'scroll',
+                                    axis: 'vertical',
+                                    spread: 'none',
+                                    minSpreadWidth: 10000,
                                 }}
-                                showToc={false}
-                                swipeable={false}
-                                readerStyles={activeReaderStyles}
+                                epubViewStyles={epubViewStyles}
                                 loadingView={
                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
                                         <div className="spinner" />
@@ -1472,6 +1481,19 @@ export default function Reader() {
                     Page {pageNumber} / {numPages}
                 </div>
             )}
+
+            {/* ── Floating zoom indicator — shown briefly while zooming ── */}
+            <div style={{
+                position: 'absolute', top: showToolbar ? (numPages ? 96 : 56) : 16, left: '50%',
+                transform: `translateX(-50%) scale(${showZoomIndicator ? 1 : 0.88})`,
+                zIndex: 160, background: 'rgba(15, 23, 42, 0.88)', backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)', color: '#fff', padding: '6px 16px',
+                borderRadius: 20, fontSize: 13, fontWeight: 700,
+                boxShadow: '0 4px 14px rgba(0,0,0,0.22)', pointerEvents: 'none',
+                transition: 'all 0.22s ease', opacity: showZoomIndicator ? 1 : 0,
+            }}>
+                Zoom : {Math.round(zoomFactor * 100)}%
+            </div>
 
             {/* ── Annoter Panel ── */}
             {showAnnotatePanel && (
