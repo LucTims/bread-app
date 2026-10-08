@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft2, SearchNormal1, CloseCircle, SearchStatus, Book1, Trash, DocumentDownload, DocumentUpload, Edit2, More, ShoppingBag, ArrowRight, InfoCircle, Teacher } from 'iconsax-react';
+import { ArrowLeft2, SearchNormal1, CloseCircle, SearchStatus, Book1, Trash, DocumentDownload, DocumentUpload, Edit2, More, ShoppingBag, ArrowRight, InfoCircle, Teacher, Share } from 'iconsax-react';
 import { supabase, getFreeBooks } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import {
     isBookOffline, getReadingProgress, getStorageUsage, formatSize,
     saveBookOffline, saveCoverOffline, removeOfflineBook, renameLocalBook,
     getAllOfflineBooks, preloadCoverUrls,
-    getOfflineBooksSync, getProgressMapSync, getStorageUsageSync
+    getOfflineBooksSync, getProgressMapSync, getStorageUsageSync, getOfflineBook
 } from '../lib/offlineStore';
 import useOnlineStatus from '../lib/useOnlineStatus';
 import { importFilesList } from '../lib/deviceFileHandler';
@@ -53,12 +53,35 @@ export default function Library() {
     const menuRef = useRef(null);
 
     useEffect(() => {
-        function handleClickOutside(e) {
-            if (menuRef.current && !menuRef.current.contains(e.target)) setOpenMenuId(null);
-        }
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+        if (!openMenuId) return;
+
+        const handleClose = (e) => {
+            if (menuRef.current && !menuRef.current.contains(e.target)) {
+                setOpenMenuId(null);
+            }
+        };
+
+        const handleScroll = () => {
+            setOpenMenuId(null);
+        };
+
+        // Ferme le menu dès qu'on touche ou clique en dehors
+        document.addEventListener('mousedown', handleClose);
+        document.addEventListener('touchstart', handleClose, { passive: true });
+
+        // Ferme immédiatement le menu dès que l'utilisateur scrolle la page ou la liste
+        window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
+        document.addEventListener('wheel', handleScroll, { passive: true });
+        document.addEventListener('touchmove', handleScroll, { passive: true });
+
+        return () => {
+            document.removeEventListener('mousedown', handleClose);
+            document.removeEventListener('touchstart', handleClose);
+            window.removeEventListener('scroll', handleScroll, { capture: true });
+            document.removeEventListener('wheel', handleScroll);
+            document.removeEventListener('touchmove', handleScroll);
+        };
+    }, [openMenuId]);
 
     // Track online/offline changes
     useEffect(() => {
@@ -264,6 +287,77 @@ export default function Library() {
         alert(lines.join('\n'));
     };
 
+    const handleShareLocalBook = async (book) => {
+        try {
+            const blob = await getOfflineBook(book.id);
+            if (!blob) {
+                alert("Le fichier de ce livre est introuvable sur votre appareil.");
+                return;
+            }
+            const ext = book.format === 'epub' ? 'epub' : 'pdf';
+            const mime = book.format === 'epub' ? 'application/epub+zip' : 'application/pdf';
+            const fileName = `${book.title || 'livre'}.${ext}`;
+            const file = new File([blob], fileName, { type: mime });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: book.title,
+                });
+            } else if (navigator.share) {
+                await navigator.share({
+                    title: book.title,
+                    text: `Document partagé depuis BoomRead : ${book.title}`,
+                });
+            } else {
+                // Téléchargement / export direct si le partage natif n'est pas dispo
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 1500);
+            }
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                console.error('[Library] Erreur partage:', err);
+                alert("Impossible de partager ou d'exporter ce fichier.");
+            }
+        }
+    };
+
+    const handleShareBoomBooksBook = async (book) => {
+        const shareUrl = 'https://boombooks.shop';
+        const shareText = `Je te recommande de lire « ${book.title} » ${book.author ? `de ${book.author}` : ''} sur BoomBooks ! Découvre-le ici : ${shareUrl}`;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: book.title,
+                    text: shareText,
+                    url: shareUrl,
+                });
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    copyShareText(shareText);
+                }
+            }
+        } else {
+            copyShareText(shareText);
+        }
+    };
+
+    const copyShareText = async (text) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            alert("Lien de recommandation copié dans le presse-papier ! Vous pouvez le coller sur WhatsApp ou par message.");
+        } catch {
+            prompt("Copiez ce message pour recommander ce livre :", text);
+        }
+    };
+
     // Resolve cover image
     const getCoverSrc = (book) => {
         if (coverUrls[book.id]) return coverUrls[book.id];
@@ -453,7 +547,7 @@ export default function Library() {
                     </div>
                 ) : (
                     <div>
-                        {filteredBooks.map(b => {
+                        {filteredBooks.map((b, bookIdx) => {
                             const isOffline = offlineStatus[b.id];
                             const progress = progressMap[b.id];
                             const pct = progress ? Math.round((progress.currentPage / progress.totalPages) * 100) : 0;
@@ -522,19 +616,31 @@ export default function Library() {
 
                                             {openMenuId === b.id && (
                                                 <div ref={menuRef} style={{
-                                                    position: 'absolute', top: '110%', right: 0, zIndex: 20, minWidth: 210,
-                                                    background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-                                                    borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)', overflow: 'hidden'
+                                                    position: 'absolute',
+                                                    top: bookIdx >= filteredBooks.length - 2 && filteredBooks.length > 2 ? 'auto' : '110%',
+                                                    bottom: bookIdx >= filteredBooks.length - 2 && filteredBooks.length > 2 ? '110%' : 'auto',
+                                                    right: 0,
+                                                    zIndex: 50,
+                                                    minWidth: 220,
+                                                    background: 'var(--color-surface)',
+                                                    border: '1px solid var(--color-border)',
+                                                    borderRadius: 'var(--radius-lg)',
+                                                    boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                                                    overflow: 'hidden'
                                                 }}>
                                                     {(isLocalBook ? [
                                                         { icon: Edit2, label: 'Renommer', action: () => handleRename(b) },
+                                                        { icon: Share, label: 'Partager le fichier', action: () => handleShareLocalBook(b) },
                                                         { icon: InfoCircle, label: 'Détails', action: () => handleDetails(b, true) },
-                                                        { icon: Trash, label: 'Supprimer', danger: true, action: () => handleRemove(b.id) },
+                                                        { icon: Trash, label: "Supprimer de l'appareil", danger: true, action: () => handleRemove(b.id) },
                                                     ] : isOffline ? [
-                                                        { icon: Trash, label: 'Supprimer le fichier hors-ligne', danger: true, action: () => handleRemove(b.id) },
+                                                        { icon: Share, label: 'Partager le livre', action: () => handleShareBoomBooksBook(b) },
+                                                        { icon: Edit2, label: 'Renommer', action: () => handleRename(b) },
                                                         { icon: InfoCircle, label: 'Détails', action: () => handleDetails(b, false) },
+                                                        { icon: Trash, label: 'Supprimer le fichier hors-ligne', danger: true, action: () => handleRemove(b.id) },
                                                     ] : [
                                                         { icon: DocumentDownload, label: 'Télécharger pour lire hors-ligne', action: () => handleDownload(b) },
+                                                        { icon: Share, label: 'Partager le livre', action: () => handleShareBoomBooksBook(b) },
                                                         { icon: InfoCircle, label: 'Détails', action: () => handleDetails(b, false) },
                                                     ]).map((item, i) => {
                                                         const ItemIcon = item.icon;
