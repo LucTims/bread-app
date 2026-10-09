@@ -654,6 +654,53 @@ export default function Reader() {
         zoomIndicatorTimer.current = setTimeout(() => setShowZoomIndicator(false), 1200);
     }, []);
 
+    // ─── EPUB ZOOM & GESTURES ────────────────────────
+    const applyEpubZoom = useCallback((newZoom) => {
+        const clamped = clamp(Math.round(newZoom * 20) / 20, EPUB_ZOOM_MIN, EPUB_ZOOM_MAX);
+        setZoomFactor(clamped);
+        zoomRef.current = clamped;
+        const fontStr = `${Math.round(clamped * 100)}%`;
+        if (renditionRef.current) {
+            try {
+                renditionRef.current.themes.override('font-size', fontStr, true);
+            } catch (e) {
+                console.warn('[Reader] themes.override failed:', e);
+            }
+        }
+        loadedContentsRef.current.forEach((c) => {
+            try {
+                c.css('font-size', fontStr, true);
+                if (c.document?.documentElement) {
+                    c.document.documentElement.style.setProperty('font-size', fontStr, 'important');
+                }
+                if (c.document?.body) {
+                    c.document.body.style.setProperty('font-size', fontStr, 'important');
+                }
+            } catch { /* noop */ }
+        });
+        setShowZoomIndicator(true);
+        if (zoomIndicatorTimer.current) clearTimeout(zoomIndicatorTimer.current);
+        zoomIndicatorTimer.current = setTimeout(() => setShowZoomIndicator(false), 1200);
+    }, []);
+
+    const handleZoomOut = useCallback((e) => {
+        e?.stopPropagation?.();
+        if (bookMeta?.format === 'epub') {
+            applyEpubZoom(zoomRef.current - 0.15);
+        } else {
+            applyPdfZoom(zoomRef.current - 0.15);
+        }
+    }, [bookMeta?.format, applyEpubZoom, applyPdfZoom]);
+
+    const handleZoomIn = useCallback((e) => {
+        e?.stopPropagation?.();
+        if (bookMeta?.format === 'epub') {
+            applyEpubZoom(zoomRef.current + 0.15);
+        } else {
+            applyPdfZoom(zoomRef.current + 0.15);
+        }
+    }, [bookMeta?.format, applyEpubZoom, applyPdfZoom]);
+
     useEffect(() => {
         const el = canvasRef.current;
         if (!el || bookMeta?.format === 'epub') return;
@@ -780,53 +827,6 @@ export default function Reader() {
         el.addEventListener('wheel', onWheel, { passive: false });
         return () => el.removeEventListener('wheel', onWheel);
     }, [loading, authLoading, error, bookMeta?.format, commitZoom, applyEpubZoom]);
-
-    // ─── EPUB ZOOM & GESTURES ────────────────────────
-    const applyEpubZoom = useCallback((newZoom) => {
-        const clamped = Math.min(2.5, Math.max(0.7, Math.round(newZoom * 20) / 20));
-        setZoomFactor(clamped);
-        zoomRef.current = clamped;
-        const fontStr = `${Math.round(clamped * 100)}%`;
-        if (renditionRef.current) {
-            try {
-                renditionRef.current.themes.override('font-size', fontStr, true);
-            } catch (e) {
-                console.warn('[Reader] themes.override failed:', e);
-            }
-        }
-        loadedContentsRef.current.forEach((c) => {
-            try {
-                c.css('font-size', fontStr, true);
-                if (c.document?.documentElement) {
-                    c.document.documentElement.style.setProperty('font-size', fontStr, 'important');
-                }
-                if (c.document?.body) {
-                    c.document.body.style.setProperty('font-size', fontStr, 'important');
-                }
-            } catch { /* noop */ }
-        });
-        setShowZoomIndicator(true);
-        if (zoomIndicatorTimer.current) clearTimeout(zoomIndicatorTimer.current);
-        zoomIndicatorTimer.current = setTimeout(() => setShowZoomIndicator(false), 1200);
-    }, []);
-
-    const handleZoomOut = (e) => {
-        e.stopPropagation();
-        if (bookMeta?.format === 'epub') {
-            applyEpubZoom(zoomFactor - 0.15);
-        } else {
-            applyPdfZoom(zoomFactor - 0.15);
-        }
-    };
-
-    const handleZoomIn = (e) => {
-        e.stopPropagation();
-        if (bookMeta?.format === 'epub') {
-            applyEpubZoom(zoomFactor + 0.15);
-        } else {
-            applyPdfZoom(zoomFactor + 0.15);
-        }
-    };
 
     // Update EPUB font size dynamically when zoom changes
     useEffect(() => {
