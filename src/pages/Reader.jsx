@@ -533,13 +533,22 @@ export default function Reader() {
             scrollRafRef.current = null;
             const container = canvasRef.current;
             if (!container || !numPages) return;
-            const referenceY = container.scrollTop + container.clientHeight * 0.35;
+            const containerRect = container.getBoundingClientRect();
+            const referenceY = containerRect.top + container.clientHeight * 0.35;
             let best = pageNumberRef.current;
-            let bestTop = -Infinity;
+            let bestDist = Infinity;
             for (const [pg, node] of Object.entries(pageNodeRefs.current)) {
                 if (!node) continue;
-                const top = node.offsetTop;
-                if (top <= referenceY && top > bestTop) { bestTop = top; best = Number(pg); }
+                const rect = node.getBoundingClientRect();
+                if (rect.top <= referenceY && rect.bottom >= referenceY) {
+                    best = Number(pg);
+                    break;
+                }
+                const dist = Math.abs(rect.top - referenceY);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = Number(pg);
+                }
             }
             if (best !== pageNumberRef.current) {
                 localPagesReadRef.current += 1;
@@ -588,15 +597,13 @@ export default function Reader() {
         return () => ro.disconnect();
     }, [loading, authLoading, error]);
 
-    const pageWidth = Math.max(200, containerWidth) * zoomFactor;
+    const basePageWidth = Math.max(200, containerWidth);
 
     // ─── PINCH TO ZOOM ────────────────────────
-    // While the fingers move we only apply a GPU CSS transform (no React re-render),
-    // anchored on the point between the fingers. On release, the real zoom is committed
-    // (pages re-render sharp at the new width) and the scroll is adjusted so the same
-    // spot stays under the fingers. Double-tap resets to 100% (or zooms to 200%).
-    const ZOOM_MIN = 1;
-    const ZOOM_MAX = 4;
+    // Visual zoom is applied via CSS zoom on scaleWrapperRef (zero re-render, zero flash).
+    // The underlying PDF page canvas remains crisp at its high-DPI resolution.
+    const ZOOM_MIN = 0.85;
+    const ZOOM_MAX = 3.0;
     const EPUB_ZOOM_MIN = 0.7;
     const EPUB_ZOOM_MAX = 2.5;
     const zoomRef = useRef(1);
@@ -618,9 +625,30 @@ export default function Reader() {
 
     // Commit a new zoom level, keeping content point (contentX, contentY) under screen point (fx, fy)
     const commitZoom = useCallback((newZoom, fromZoom, contentX, contentY, fx, fy) => {
-        const k = newZoom / fromZoom;
+        const clamped = clamp(Math.round(newZoom * 20) / 20, ZOOM_MIN, ZOOM_MAX);
+        const k = clamped / fromZoom;
         pendingScrollRef.current = { left: contentX * k - fx, top: contentY * k - fy };
-        setZoomFactor(newZoom);
+        setZoomFactor(clamped);
+        setShowZoomIndicator(true);
+        if (zoomIndicatorTimer.current) clearTimeout(zoomIndicatorTimer.current);
+        zoomIndicatorTimer.current = setTimeout(() => setShowZoomIndicator(false), 1200);
+    }, []);
+
+    // Instant smooth zoom button handler for PDFs (centers around viewport center)
+    const applyPdfZoom = useCallback((newZoom) => {
+        const clamped = clamp(Math.round(newZoom * 20) / 20, ZOOM_MIN, ZOOM_MAX);
+        if (clamped === zoomRef.current) return;
+        const el = canvasRef.current;
+        const from = zoomRef.current;
+        if (el) {
+            const fx = el.clientWidth / 2;
+            const fy = el.clientHeight / 2;
+            const k = clamped / from;
+            const cx = el.scrollLeft + fx;
+            const cy = el.scrollTop + fy;
+            pendingScrollRef.current = { left: cx * k - fx, top: cy * k - fy };
+        }
+        setZoomFactor(clamped);
         setShowZoomIndicator(true);
         if (zoomIndicatorTimer.current) clearTimeout(zoomIndicatorTimer.current);
         zoomIndicatorTimer.current = setTimeout(() => setShowZoomIndicator(false), 1200);
@@ -686,6 +714,8 @@ export default function Reader() {
                 pinch.active = false;
                 if (rafId) cancelAnimationFrame(rafId);
                 const newZoom = clamp(pinch.startZoom * pinch.scale, ZOOM_MIN, ZOOM_MAX);
+                const w = scaleWrapperRef.current;
+                if (w) w.style.zoom = newZoom;
                 setTransform(1, 0, 0);
                 if (Math.abs(newZoom - pinch.startZoom) > 0.01) {
                     commitZoom(newZoom, pinch.startZoom, pinch.cx, pinch.cy, pinch.fx, pinch.fy);
@@ -702,7 +732,7 @@ export default function Reader() {
                 const fx = tap.startX - rect.left;
                 const fy = tap.startY - rect.top;
                 const from = zoomRef.current;
-                const to = from > 1.05 ? 1 : 2;
+                const to = from > 1.15 ? 1 : 1.5;
                 commitZoom(to, from, el.scrollLeft + fx, el.scrollTop + fy, fx, fy);
             } else {
                 tap.lastTime = now;
@@ -735,21 +765,21 @@ export default function Reader() {
         const onWheel = (e) => {
             if (!e.ctrlKey) return;
             e.preventDefault();
-            const isEpub = bookMeta?.format === 'epub';
             const from = zoomRef.current;
-            const to = isEpub
-                ? clamp(from * (e.deltaY < 0 ? 1.1 : 0.9), EPUB_ZOOM_MIN, EPUB_ZOOM_MAX)
-                : clamp(from * (e.deltaY < 0 ? 1.1 : 0.9), ZOOM_MIN, ZOOM_MAX);
-            if (to === from) return;
-            if (isEpub) { setZoomFactor(to); return; }
-            const rect = el.getBoundingClientRect();
-            const fx = e.clientX - rect.left;
-            const fy = e.clientY - rect.top;
-            commitZoom(to, from, el.scrollLeft + fx, el.scrollTop + fy, fx, fy);
+            if (bookMeta?.format === 'epub') {
+                const to = clamp(from * (e.deltaY < 0 ? 1.1 : 0.9), EPUB_ZOOM_MIN, EPUB_ZOOM_MAX);
+                applyEpubZoom(to);
+            } else {
+                const to = clamp(from * (e.deltaY < 0 ? 1.1 : 0.9), ZOOM_MIN, ZOOM_MAX);
+                const rect = el.getBoundingClientRect();
+                const fx = e.clientX - rect.left;
+                const fy = e.clientY - rect.top;
+                commitZoom(to, from, el.scrollLeft + fx, el.scrollTop + fy, fx, fy);
+            }
         };
         el.addEventListener('wheel', onWheel, { passive: false });
         return () => el.removeEventListener('wheel', onWheel);
-    }, [loading, authLoading, error, bookMeta?.format, commitZoom]);
+    }, [loading, authLoading, error, bookMeta?.format, commitZoom, applyEpubZoom]);
 
     // ─── EPUB ZOOM & GESTURES ────────────────────────
     const applyEpubZoom = useCallback((newZoom) => {
@@ -779,6 +809,24 @@ export default function Reader() {
         if (zoomIndicatorTimer.current) clearTimeout(zoomIndicatorTimer.current);
         zoomIndicatorTimer.current = setTimeout(() => setShowZoomIndicator(false), 1200);
     }, []);
+
+    const handleZoomOut = (e) => {
+        e.stopPropagation();
+        if (bookMeta?.format === 'epub') {
+            applyEpubZoom(zoomFactor - 0.15);
+        } else {
+            applyPdfZoom(zoomFactor - 0.15);
+        }
+    };
+
+    const handleZoomIn = (e) => {
+        e.stopPropagation();
+        if (bookMeta?.format === 'epub') {
+            applyEpubZoom(zoomFactor + 0.15);
+        } else {
+            applyPdfZoom(zoomFactor + 0.15);
+        }
+    };
 
     // Update EPUB font size dynamically when zoom changes
     useEffect(() => {
@@ -1281,51 +1329,49 @@ export default function Reader() {
                 </button>
                 <div className="reader-toolbar-title line-clamp-1">{bookMeta?.title || 'Lecture'}</div>
 
-                {bookMeta?.format === 'epub' && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, margin: '0 4px', flexShrink: 0 }}>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); applyEpubZoom(zoomFactor - 0.15); }}
-                            style={{
-                                background: 'rgba(0,0,0,0.06)',
-                                border: 'none',
-                                borderRadius: 6,
-                                padding: '4px 7px',
-                                fontSize: 11,
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                color: 'var(--color-text)',
-                            }}
-                            title="Diminuer la taille du texte"
-                            aria-label="Diminuer la taille du texte"
-                        >
-                            A-
-                        </button>
-                        <span style={{ fontSize: 11, fontWeight: 700, minWidth: 32, textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                            {Math.round(zoomFactor * 100)}%
-                        </span>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); applyEpubZoom(zoomFactor + 0.15); }}
-                            style={{
-                                background: 'rgba(0,0,0,0.06)',
-                                border: 'none',
-                                borderRadius: 6,
-                                padding: '4px 7px',
-                                fontSize: 13,
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                color: 'var(--color-text)',
-                            }}
-                            title="Agrandir la taille du texte"
-                            aria-label="Agrandir la taille du texte"
-                        >
-                            A+
-                        </button>
-                    </div>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, margin: '0 4px', flexShrink: 0 }}>
+                    <button
+                        onClick={handleZoomOut}
+                        style={{
+                            background: 'rgba(0,0,0,0.06)',
+                            border: 'none',
+                            borderRadius: 6,
+                            padding: '4px 7px',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            color: 'var(--color-text)',
+                        }}
+                        title="Diminuer la taille du texte / zoom"
+                        aria-label="Diminuer la taille du texte"
+                    >
+                        A-
+                    </button>
+                    <span style={{ fontSize: 11, fontWeight: 700, minWidth: 34, textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                        {Math.round(zoomFactor * 100)}%
+                    </span>
+                    <button
+                        onClick={handleZoomIn}
+                        style={{
+                            background: 'rgba(0,0,0,0.06)',
+                            border: 'none',
+                            borderRadius: 6,
+                            padding: '4px 7px',
+                            fontSize: 13,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            color: 'var(--color-text)',
+                        }}
+                        title="Agrandir la taille du texte / zoom"
+                        aria-label="Agrandir la taille du texte"
+                    >
+                        A+
+                    </button>
+                </div>
 
                 <button onClick={(e) => { e.stopPropagation(); setShowChat(true); }} aria-label="Assistant IA">
                     <MagicStar size={22} color="var(--color-primary)" variant="Bold" />
@@ -1417,14 +1463,17 @@ export default function Reader() {
                     onContextMenu={(e) => e.preventDefault()}
                     onClick={toggleToolbar}
                 >
-                    {/* Visual scale wrapper — transform is driven directly by the pinch handler (no re-render) */}
+                    {/* Visual scale wrapper — zoom is handled directly via CSS zoom (zero canvas re-render / reload) */}
                     <div ref={scaleWrapperRef} style={{
                         willChange: 'transform',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        width: 'max-content',
+                        width: 'fit-content',
                         minWidth: '100%',
+                        margin: '0 auto',
+                        zoom: zoomFactor,
+                        transformOrigin: 'top center',
                     }}>
                         {pdfFile && (
                             <Document
@@ -1436,7 +1485,7 @@ export default function Reader() {
                                 {Array.from(new Array(numPages || 0), (_, index) => {
                                     const pNum = index + 1;
                                     const shouldRender = renderedPages.has(pNum);
-                                    const placeholderHeight = pageWidth * pageAspect;
+                                    const placeholderHeight = basePageWidth * pageAspect;
                                     return (
                                         <div
                                             key={`page_${pNum}`}
@@ -1454,12 +1503,13 @@ export default function Reader() {
                                             {shouldRender ? (
                                                 <Page
                                                     pageNumber={pNum}
-                                                    width={pageWidth}
+                                                    width={basePageWidth}
                                                     renderAnnotationLayer={false}
                                                     renderTextLayer={false}
+                                                    devicePixelRatio={Math.max(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2)}
                                                 />
                                             ) : (
-                                                <div style={{ width: pageWidth, height: placeholderHeight, background: '#FFFFFF' }} />
+                                                <div style={{ width: basePageWidth, height: placeholderHeight, background: '#FFFFFF' }} />
                                             )}
                                         </div>
                                     );
