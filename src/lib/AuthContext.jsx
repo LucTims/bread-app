@@ -111,11 +111,12 @@ export function AuthProvider({ children }) {
                         setUser(null);
                         setProfile(null);
                     }
-                } else if (session?.user) {
+            } else if (session?.user) {
                     if (mounted) setUser(session.user);
                     const prof = await fetchProfile(session.user.id);
                     // Cache the verified session
                     cacheUserSession(session.user, prof);
+                    syncBoomBooksPurchases(session.user);
                 } else {
                     // No session from Supabase — clear cache
                     if (mounted) {
@@ -156,6 +157,7 @@ export function AuthProvider({ children }) {
                 fetchProfile(currentUser.id).then(prof => {
                     cacheUserSession(currentUser, prof);
                 });
+                syncBoomBooksPurchases(currentUser);
             } else {
                 setProfile(null);
             }
@@ -167,11 +169,28 @@ export function AuthProvider({ children }) {
         };
     }, []);
 
+    const syncBoomBooksPurchases = async (u = user) => {
+        const targetUser = u || user;
+        if (!targetUser?.email || !targetUser?.id) return { success: false };
+        try {
+            const { data, error } = await supabase.rpc('sync_boombooks_purchases', {
+                p_email: targetUser.email,
+                p_user_id: targetUser.id
+            });
+            if (error) throw error;
+            return data || { success: true };
+        } catch (e) {
+            console.warn('[Auth] syncBoomBooksPurchases error:', e);
+            return { success: false, error: e };
+        }
+    };
+
     const signIn = async (email, password) => {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (data?.user && !error) {
             const prof = await fetchProfile(data.user.id);
             cacheUserSession(data.user, prof);
+            syncBoomBooksPurchases(data.user);
         }
         return { data, error };
     };
@@ -191,6 +210,7 @@ export function AuthProvider({ children }) {
             user, profile, loading,
             signIn, signOut,
             refreshProfile: () => user ? fetchProfile(user.id) : Promise.resolve(null),
+            syncBoomBooksPurchases: (u) => syncBoomBooksPurchases(u),
         }}>
             {children}
         </AuthContext.Provider>

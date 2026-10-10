@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Camera, Edit2, EyeSlash, Eye, Lock, Export, ArrowRight2, Logout, Setting2, SecurityUser, Shop, Book1, DocumentDownload } from 'iconsax-react';
+import { Camera, Edit2, EyeSlash, Eye, Lock, Export, ArrowRight2, Logout, Setting2, SecurityUser, Shop, Book1, DocumentDownload, Refresh2 } from 'iconsax-react';
 import { useAuth } from '../lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase, getFreeBooks } from '../lib/supabase';
 import { getAllOfflineBooks, getStorageUsage, formatSize } from '../lib/offlineStore';
 
 export default function Profile() {
-    const { user, profile, signOut } = useAuth();
+    const { user, profile, signOut, syncBoomBooksPurchases } = useAuth();
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
     const [stats, setStats] = useState({ booksOwned: 0, booksOffline: 0 });
@@ -19,6 +19,22 @@ export default function Profile() {
     const [editingBio, setEditingBio] = useState(false);
     const [editingName, setEditingName] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [syncing, setSyncing] = useState(false);
+
+    const handleSyncBoomBooks = async () => {
+        if (syncing) return;
+        setSyncing(true);
+        try {
+            const res = await syncBoomBooksPurchases?.(user);
+            const added = res?.books_synced || 0;
+            alert(added > 0 ? `${added} nouveau(x) livre(s) synchronisé(s) depuis BoomBooks !` : "Vos achats BoomBooks sont déjà parfaitement à jour.");
+        } catch (e) {
+            console.error('Sync error:', e);
+            alert("Erreur lors de la synchronisation.");
+        } finally {
+            setSyncing(false);
+        }
+    };
 
     useEffect(() => {
         if (!user) return;
@@ -333,6 +349,12 @@ export default function Profile() {
                         });
                     }
                     profileLinks.push(
+                        { 
+                            icon: Refresh2, 
+                            label: 'Synchroniser avec BoomBooks', 
+                            sub: syncing ? 'Synchronisation en cours...' : 'Rapatrier vos achats et livres récents', 
+                            action: handleSyncBoomBooks 
+                        },
                         { icon: Setting2, label: 'Paramètres du compte', action: () => navigate('/settings') },
                         { icon: Book1, label: 'Ma Bibliothèque', action: () => navigate('/library') },
                         { icon: Shop, label: 'Acheter des livres', sub: 'boombooks.shop', action: () => window.open('https://boombooks.shop', '_blank'), endIcon: Export },

@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { HambergerMenu, SearchNormal1, Notification, SecurityUser, Setting2, Shop } from 'iconsax-react';
+import { HambergerMenu, SearchNormal1, Notification, SecurityUser, Setting2, Shop, Login } from 'iconsax-react';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
 import useOnlineStatus from '../lib/useOnlineStatus';
 
-const MENU_ICONS = { admin_panel_settings: SecurityUser, settings: Setting2, storefront: Shop };
+const MENU_ICONS = { admin_panel_settings: SecurityUser, settings: Setting2, storefront: Shop, login: Login };
 
 export default function TopBar({ minimal = false }) {
     const navigate = useNavigate();
@@ -52,6 +52,9 @@ export default function TopBar({ minimal = false }) {
 
     // Build menu items list
     const menuItems = [];
+    if (!user) {
+        menuItems.push({ icon: 'login', label: 'Se connecter / Synchroniser', action: () => navigate('/login') });
+    }
     if (profile?.role === 'admin') {
         menuItems.push({ icon: 'admin_panel_settings', label: 'Console Admin 🛠️', action: () => navigate('/admin') });
     }

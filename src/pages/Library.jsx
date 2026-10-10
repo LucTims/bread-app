@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft2, SearchNormal1, CloseCircle, SearchStatus, Book1, Trash, DocumentDownload, DocumentUpload, Edit2, More, ShoppingBag, ArrowRight, InfoCircle, Teacher, Share } from 'iconsax-react';
+import { ArrowLeft2, SearchNormal1, CloseCircle, SearchStatus, Book1, Trash, DocumentDownload, DocumentUpload, Edit2, More, ShoppingBag, ArrowRight, InfoCircle, Teacher, Share, Refresh2 } from 'iconsax-react';
 import { supabase, getFreeBooks } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import {
@@ -25,7 +25,7 @@ function getBookGradient(id) {
 }
 
 export default function Library() {
-    const { user, loading: authLoading } = useAuth();
+    const { user, loading: authLoading, syncBoomBooksPurchases } = useAuth();
     const navigate = useNavigate();
     const { isOffline: isOfflineNow } = useOnlineStatus();
     const fileInputRef = useRef(null);
@@ -51,6 +51,8 @@ export default function Library() {
     const isOfflineMode = useRef(isOfflineNow);
     const [openMenuId, setOpenMenuId] = useState(null);
     const menuRef = useRef(null);
+    const [syncingBoomBooks, setSyncingBoomBooks] = useState(false);
+    const [syncFeedback, setSyncFeedback] = useState('');
 
     useEffect(() => {
         if (!openMenuId) return;
@@ -129,6 +131,14 @@ export default function Library() {
             const seen = new Set();
 
             if (user) {
+                // Synchroniser automatiquement les achats BoomBooks
+                if (user.email) {
+                    await supabase.rpc('sync_boombooks_purchases', {
+                        p_email: user.email,
+                        p_user_id: user.id
+                    }).catch(err => console.warn('[Library] sync_boombooks_purchases:', err));
+                }
+
                 const { data: accessRows } = await supabase
                     .from('user_book_access')
                     .select('book_id, granted_at, books:book_id(id, title, author, cover_url, file_url)')
@@ -206,6 +216,25 @@ export default function Library() {
     useEffect(() => {
         loadLibraryData();
     }, [loadLibraryData]);
+
+    const handleSyncBoomBooks = async () => {
+        if (!user || syncingBoomBooks) return;
+        setSyncingBoomBooks(true);
+        setSyncFeedback('');
+        try {
+            const res = await syncBoomBooksPurchases?.(user);
+            await loadLibraryData();
+            const added = res?.books_synced || 0;
+            setSyncFeedback(added > 0 ? `${added} nouveau(x) livre(s) synchronisé(s) !` : 'Achats BoomBooks synchronisés !');
+            setTimeout(() => setSyncFeedback(''), 4000);
+        } catch (e) {
+            console.error('Sync BoomBooks error:', e);
+            setSyncFeedback('Erreur lors de la synchronisation.');
+            setTimeout(() => setSyncFeedback(''), 4000);
+        } finally {
+            setSyncingBoomBooks(false);
+        }
+    };
 
     const handleDownload = async (book) => {
         setDownloading(book.id);
@@ -450,21 +479,61 @@ export default function Library() {
                 paddingLeft: 'var(--space-5)',
                 paddingRight: 'var(--space-5)'
             }}>
-                {/* En-tête compact — flèche retour + titre */}
-                <div className="container" style={{ marginTop: 2, padding: '0 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <button
-                        onClick={() => navigate(-1)}
-                        aria-label="Retour"
-                        style={{
-                            width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            background: 'var(--color-bg-dark)', border: 'none', cursor: 'pointer'
-                        }}
-                    >
-                        <ArrowLeft2 size={16} color="var(--color-text)" variant="Linear" />
-                    </button>
-                    <h1 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'var(--color-text)' }}>Livres</h1>
+                {/* En-tête compact — flèche retour + titre + bouton sync BoomBooks si connecté */}
+                <div className="container" style={{ marginTop: 2, padding: '0 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <button
+                            onClick={() => navigate(-1)}
+                            aria-label="Retour"
+                            style={{
+                                width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                background: 'var(--color-bg-dark)', border: 'none', cursor: 'pointer'
+                            }}
+                        >
+                            <ArrowLeft2 size={16} color="var(--color-text)" variant="Linear" />
+                        </button>
+                        <h1 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'var(--color-text)' }}>Livres</h1>
+                    </div>
+
+                    {user && !isOfflineNow && (
+                        <button
+                            onClick={handleSyncBoomBooks}
+                            disabled={syncingBoomBooks}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                padding: '5px 12px', borderRadius: 8,
+                                background: 'var(--color-primary-light)', border: '1px solid var(--color-primary-light)',
+                                color: 'var(--color-primary-text)', fontSize: 12, fontWeight: 700,
+                                cursor: 'pointer', transition: 'all 0.2s ease'
+                            }}
+                            title="Synchroniser vos livres achetés sur BoomBooks"
+                        >
+                            {syncingBoomBooks ? (
+                                <div className="spinner" style={{ width: 14, height: 14, borderWidth: 2, borderTopColor: 'var(--color-primary-text)', borderColor: 'rgba(0,0,0,0.1)' }} />
+                            ) : (
+                                <Refresh2 size={15} color="currentColor" variant="Linear" />
+                            )}
+                            <span>{syncingBoomBooks ? 'Synchronisation...' : 'Sync BoomBooks'}</span>
+                        </button>
+                    )}
                 </div>
+
+                {/* Feedback message de synchronisation */}
+                {syncFeedback && (
+                    <div className="container" style={{ marginTop: 6, padding: '0 4px' }}>
+                        <div style={{
+                            padding: '6px 12px', borderRadius: 6,
+                            background: 'var(--color-primary-light)',
+                            border: '1px solid var(--color-primary)',
+                            fontSize: 12, fontWeight: 600, color: 'var(--color-primary-text)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                        }}>
+                            <span>{syncFeedback}</span>
+                            <span style={{ cursor: 'pointer', opacity: 0.7 }} onClick={() => setSyncFeedback('')}>✕</span>
+                        </div>
+                    </div>
+                )}
 
                 {/* Barre de recherche — en haut, cohérente avec Home */}
                 <div className="container" style={{ marginTop: 8, padding: '0 4px' }}>
