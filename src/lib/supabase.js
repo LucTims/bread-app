@@ -14,7 +14,9 @@ export async function getFreeBooks() {
         const { data } = await supabase
             .from('books')
             .select('id, title, author, cover_url, file_url, description')
+            .eq('is_free', true)
             .ilike('title', '%devenez riche%')
+            .order('created_at', { ascending: false })
             .limit(1);
         return data || [];
     } catch (e) {

@@ -285,6 +285,12 @@ export default function Reader() {
                     const freeBooks = await getFreeBooks();
                     hasAccess = freeBooks.some(fb => fb.id === bookId);
                 }
+                if (!hasAccess) {
+                    const { data: bCheck } = await supabase.from('books').select('is_free').eq('id', bookId).maybeSingle();
+                    if (bCheck?.is_free) {
+                        hasAccess = true;
+                    }
+                }
 
                 if (!hasAccess && profile?.subscription_plan) {
                     const isSubActive = new Date(profile.subscription_end_date) > new Date();
